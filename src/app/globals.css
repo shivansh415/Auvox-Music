@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+/* AUVOX brand tokens — from "Auvox Branding V1" */
+:root {
+  --auvox-red: #850909;
+  --auvox-tan: #e7b47e;
+  --auvox-pearl: #f1ede9;
+  --auvox-ink: #1e1e1e;
+
+  --background: var(--auvox-ink);
+  --foreground: var(--auvox-pearl);
+}
+
+@theme inline {
+  --color-red: var(--auvox-red);
+  --color-tan: var(--auvox-tan);
+  --color-pearl: var(--auvox-pearl);
+  --color-ink: var(--auvox-ink);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-afacad-flux);
+  /* Tan Pearl is a licensed font — drop the files in public/fonts and wire it in layout.tsx */
+  --font-display: var(--font-tan-pearl, var(--font-afacad-flux));
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis:not(.lenis-autoToggle).lenis-stopped {
+  overflow: clip;
+}
+.lenis [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* Film grain used by the preloader */
+.grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 300px 300px;
+  animation: grain 0.6s steps(5) infinite;
+}
+@keyframes grain {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-4%, 3%); }
+  40% { transform: translate(3%, -5%); }
+  60% { transform: translate(-6%, -2%); }
+  80% { transform: translate(5%, 4%); }
+  100% { transform: translate(0, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .grain { animation: none; }
+}
