@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AUVOX Music
 
-## Getting Started
+Website for AUVOX Music, an online guitar and piano academy.
 
-First, run the development server:
+## Setup
+
+Requires Node 20+.
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000. The preloader plays on every reload during development.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Before opening a Pull Request:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm run lint
+```
 
-## Learn More
+Both must pass with zero errors.
 
-To learn more about Next.js, take a look at the following resources:
+## Stack
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| | |
+|---|---|
+| Framework | Next.js 16 (App Router), React 19, TypeScript |
+| Styling | Tailwind CSS v4. Brand tokens live in `src/app/globals.css` |
+| Animation | GSAP with ScrollTrigger, SplitText, DrawSVG, MorphSVG and CustomEase; Motion |
+| Scroll | Lenis, synced with ScrollTrigger in `SmoothScroll.tsx` |
+| 3D | Three.js, React Three Fiber, Drei |
+| State | Zustand |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Structure
 
-## Deploy on Vercel
+```
+src/
+  app/                    layout, page, global styles
+  components/
+    preloader/            finished, don't rebuild
+    providers/            SmoothScroll (Lenis + GSAP ticker)
+    sections/             one file per page section (Hero.tsx, VerseUniverse.tsx, …)
+    ui/                   shared pieces (buttons, the T/L/S heading, scroll indicator, …)
+  lib/
+    gsap.ts               import gsap and plugins from here, never from "gsap" directly
+    utils.ts              cn() class helper
+  store/
+    preloader.ts          `done` flips to true when the preloader leaves; start the hero intro from it
+  hooks/
+public/
+  svg/                    logo files
+  fonts/                  Tan Pearl goes here when the client sends it
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Brand
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Token | Hex | Tailwind |
+|---|---|---|
+| Red | `#850909` | `bg-red`, `text-red` |
+| Tan | `#E7B47E` | `bg-tan`, `text-tan` |
+| Pearl | `#F1EDE9` | `bg-pearl`, `text-pearl` |
+| Ink | `#1E1E1E` | `bg-ink`, `text-ink` |
+
+- Headings use `font-display`. It is Tan Pearl once the files arrive and falls back to Afacad Flux until then.
+- Body text uses `font-sans` (Afacad Flux).
+- A film-grain overlay is available as `.grain`.
+
+## Conventions
+
+- **GSAP:** animate inside `useGSAP()` and import from `@/lib/gsap`, so animations clean up on unmount.
+- **Performance:**
+  - Animate only `transform` and `opacity`.
+  - Lazy-load 3D models and heavy images, and use `next/image`.
+- **Reduced motion:** respect `prefers-reduced-motion`.
+- **Git:**
+  - Use one branch per section, e.g. `feat/hero`.
+  - Open a PR to `main`; Vercel builds a preview for every PR.
+  - Never push to `main` directly.
+- **Dependencies:** ask before adding a new library.
