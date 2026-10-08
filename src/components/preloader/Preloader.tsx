@@ -80,7 +80,11 @@ export default function Preloader() {
         setMounted(false);
       };
 
-      if (ONCE_PER_SESSION && sessionStorage.getItem(SESSION_KEY)) {
+      // Dev shortcut: /?nopreloader skips straight to the site.
+      const skip =
+        process.env.NODE_ENV === "development" &&
+        new URLSearchParams(window.location.search).has("nopreloader");
+      if (skip || (ONCE_PER_SESSION && sessionStorage.getItem(SESSION_KEY))) {
         done();
         return;
       }
