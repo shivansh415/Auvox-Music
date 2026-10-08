@@ -15,10 +15,19 @@ let muted = false;
 let riffing = false;
 
 const listeners = new Set<PluckListener>();
+const muteListeners = new Set<(muted: boolean) => void>();
 const buffers = new Map<string, AudioBuffer>();
 const freqData = new Uint8Array(128);
 
-/** Browsers only allow sound after a user gesture — call this from a pointerdown. */
+/** True once the browser has let the AudioContext run (i.e. after a click/tap/key). */
+function running() {
+  return ctx?.state === "running";
+}
+
+/**
+ * Browsers only allow sound after a real gesture (click, tap, key) — a hover is not one.
+ * Call this from any such handler; the global listener below also calls it on the first gesture anywhere.
+ */
 export function unlockAudio() {
   if (!ctx) {
     ctx = new AudioContext();
@@ -42,6 +51,29 @@ export function isMuted() {
 export function setMuted(value: boolean) {
   muted = value;
   if (master && ctx) master.gain.setTargetAtTime(value ? 0 : 0.85, ctx.currentTime, 0.05);
+  muteListeners.forEach((fn) => fn(value));
+}
+
+export function onMuteChange(fn: (muted: boolean) => void) {
+  muteListeners.add(fn);
+  return () => {
+    muteListeners.delete(fn);
+  };
+}
+
+// First real gesture anywhere on the page unlocks audio, so hovering the strings works from then on.
+if (typeof window !== "undefined") {
+  const unlockOnce = () => {
+    unlockAudio();
+    if (running()) {
+      window.removeEventListener("pointerdown", unlockOnce, true);
+      window.removeEventListener("keydown", unlockOnce, true);
+      window.removeEventListener("touchend", unlockOnce, true);
+    }
+  };
+  window.addEventListener("pointerdown", unlockOnce, true);
+  window.addEventListener("keydown", unlockOnce, true);
+  window.addEventListener("touchend", unlockOnce, true);
 }
 
 /** Subscribe to plucks (user or riff) so the 3D strings can vibrate in sync. */
@@ -78,7 +110,8 @@ function karplusStrong(freq: number, seconds = 2.4) {
 }
 
 function playNote(freq: number, when: number, velocity: number) {
-  if (!ctx || !master) return;
+  // Before the first gesture the context is suspended: skip, otherwise notes pile up and burst on unlock.
+  if (!ctx || !master || !running()) return;
   const key = freq.toFixed(2);
   let buffer = buffers.get(key);
   if (!buffer) {
@@ -93,10 +126,9 @@ function playNote(freq: number, when: number, velocity: number) {
   src.start(ctx.currentTime + when);
 }
 
-/** Pluck one open string (fret shifts the pitch in semitones). */
+/** Pluck one open string (fret shifts the pitch in semitones). The string still vibrates when silent. */
 export function pluck(string: number, velocity = 1, fret = 0) {
-  unlockAudio();
-  playNote(STRING_FREQS[string] * 2 ** (fret / 12), 0, velocity);
+  if (ctx) playNote(STRING_FREQS[string] * 2 ** (fret / 12), 0, velocity);
   emit(string);
 }
 
@@ -136,8 +168,7 @@ export function playRiff() {
 
 /** Soft "message received" pop for the chat. */
 export function blip(high = false) {
-  unlockAudio();
-  if (!ctx || !master) return;
+  if (!ctx || !master || !running()) return;
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.type = "sine";

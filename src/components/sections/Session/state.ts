@@ -41,6 +41,11 @@ export function dismissPhoneHint() {
   session.phoneHint = 0;
 }
 
+/** A chat message landed: flash the phone's glow. */
+export function pulsePhone() {
+  session.phonePulse = 1;
+}
+
 /** The phone was tapped: hide its hint and open the conversation. */
 export function requestAutoPlay() {
   session.phoneHint = 0;

@@ -26,11 +26,8 @@ const STRINGS = Array.from({ length: 6 }, (_, i) => ({
 const GUITAR_BODY = { x: 560, y: 640, w: 360, h: 250 };
 const HERO_PHONE = [1080, 515] as const;
 const HERO_CHEST = [900, 560] as const;
-/** Scroll progress at which the push-in has settled on the phone */
-const PUSH_END = 0.6;
 
 const uvOf = (px: number, py: number) => new THREE.Vector2(px / IMG.w, 1 - py / IMG.h);
-const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const smooth = (p: number, a: number, b: number) => THREE.MathUtils.clamp((p - a) / (b - a), 0, 1);
 
 // ---------------------------------------------------------------------------
@@ -450,7 +447,6 @@ function Driver() {
   const smoothMouse = useRef(new THREE.Vector2());
   useFrame(({ clock, size }, dt) => {
     sampleAudio(session.audio);
-    const p = session.progress;
     const t = clock.elapsedTime;
     // critically-damped ease towards the pointer, plus a slow idle sway so the room never sits still
     const k = 1 - Math.exp(-dt * 2.2);
@@ -459,10 +455,9 @@ function Driver() {
     smoothMouse.current.x += (targetX - smoothMouse.current.x) * k;
     smoothMouse.current.y += (targetY - smoothMouse.current.y) * k;
 
-    // Scroll pushes the camera towards the phone and stops there; the studio stays in frame.
-    const push = easeInOut(smooth(p, 0, PUSH_END));
-    frame.parallax.copy(smoothMouse.current).multiplyScalar(1 - push * 0.6);
-    frame.heroZoom = 1 + 0.7 * push + 0.12 * session.focus * (1 - push);
+    // No scroll zoom: only the gentle lean towards the phone while the conversation is open.
+    frame.parallax.copy(smoothMouse.current);
+    frame.heroZoom = 1 + 0.12 * session.focus;
     frame.time = clock.elapsedTime;
     session.phonePulse *= Math.exp(-dt * 4);
     // the zoom pivots on the phone, so its screen position only drifts with the parallax

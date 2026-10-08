@@ -5,14 +5,14 @@ import { useEffect, useRef, useState } from "react";
 import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap";
 import { usePreloaderStore } from "@/store/preloader";
 import ChatOverlay from "./ChatOverlay";
-import { isMuted, setMuted, unlockAudio } from "./audio";
+import { isMuted, onMuteChange, setMuted, unlockAudio } from "./audio";
 import { requestAutoPlay, session } from "./state";
 
 const Studio = dynamic(() => import("./PhotoStudio"), { ssr: false });
 
 /**
- * Section 2 — "The Session". One continuous shot: lights come up on the studio,
- * the guitar is playable, scrolling pushes the camera into the phone, the chat plays there.
+ * Section 2 — "The Session". Lights come up on the studio, the guitar is playable,
+ * tapping the phone opens the conversation beside him. Scrolling simply moves on to the next section.
  */
 export default function Session() {
   const root = useRef<HTMLElement>(null);
@@ -21,15 +21,15 @@ export default function Session() {
   const phoneHint = useRef<HTMLButtonElement>(null);
   const done = usePreloaderStore((s) => s.done);
   const [muted, setMutedState] = useState(false);
+  useEffect(() => onMuteChange(setMutedState), []);
 
   useGSAP(
     () => {
+      // No pin: progress only tracks how far the section has scrolled away (used to fade the hints).
       const st = ScrollTrigger.create({
         trigger: root.current,
         start: "top top",
-        end: "+=170%",
-        pin: true,
-        scrub: true,
+        end: "bottom top",
         onUpdate: (self) => {
           session.progress = self.progress;
         },
@@ -96,9 +96,8 @@ export default function Session() {
   };
 
   const toggleSound = () => {
-    const next = !isMuted();
-    setMuted(next);
-    setMutedState(next);
+    unlockAudio();
+    setMuted(!isMuted());
   };
 
   return (

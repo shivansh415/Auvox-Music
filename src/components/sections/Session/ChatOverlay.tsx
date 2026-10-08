@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "@/lib/gsap";
 import { blip, unlockAudio } from "./audio";
-import { dismissPhoneHint, session } from "./state";
+import { dismissPhoneHint, pulsePhone, session } from "./state";
 
 // Client's copy, verbatim.
 const LINES = [
@@ -19,40 +19,28 @@ const LINES = [
   { who: "B", text: "Pretty much. It's like they thought of everything so you can just focus on learning." },
 ];
 
-const smooth = (p: number, a: number, b: number) => gsap.utils.clamp(0, 1, (p - a) / (b - a));
-
 type Stage = "idle" | "playing" | "done";
 
 /**
- * Once the scroll push has settled on the phone, a play button sits on its screen.
- * Tapping it opens the conversation beside the scene (the client's reference layout).
+ * Tapping the phone opens the conversation beside the scene (the client's reference layout).
  */
 export default function ChatOverlay() {
-  const play = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const timers = useRef<number[]>([]);
   const [stage, setStage] = useState<Stage>("idle");
   const [shown, setShown] = useState(0);
   const [typing, setTyping] = useState<string | null>(null);
   const stageRef = useRef<Stage>("idle");
+  const startRef = useRef<() => void>(() => {});
   useEffect(() => {
     stageRef.current = stage;
   }, [stage]);
 
   useEffect(() => {
     const tick = () => {
-      const p = session.progress;
-      const arrived = smooth(p, 0.42, 0.6);
       if (session.autoPlay && stageRef.current === "idle") {
         session.autoPlay = false;
         startRef.current();
-      }
-      if (play.current) {
-        const { x, y } = session.phoneScreen;
-        play.current.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
-        const show = stageRef.current === "idle" ? arrived : 0;
-        play.current.style.opacity = String(show);
-        play.current.style.pointerEvents = show > 0.6 ? "auto" : "none";
       }
     };
     gsap.ticker.add(tick);
@@ -63,12 +51,11 @@ export default function ChatOverlay() {
     };
   }, []);
 
-  const startRef = useRef<() => void>(() => {});
   const start = () => {
     unlockAudio();
     dismissPhoneHint();
     setStage("playing");
-    session.phonePulse = 1;
+    pulsePhone();
     let i = 0;
     const next = () => {
       if (i >= LINES.length) {
@@ -83,7 +70,7 @@ export default function ChatOverlay() {
             setTyping(null);
             setShown(i + 1);
             blip(line.who === "B");
-            session.phonePulse = 1;
+            pulsePhone();
             i++;
             timers.current.push(window.setTimeout(next, 700));
           },
@@ -100,21 +87,6 @@ export default function ChatOverlay() {
 
   return (
     <>
-      {/* play button on the phone */}
-      <button
-        ref={play}
-        onClick={start}
-        aria-label="Play the conversation"
-        className="absolute top-0 left-0 z-20 flex flex-col items-center gap-2 opacity-0"
-        style={{ pointerEvents: "none" }}
-      >
-        <span className="tap-ring relative flex h-14 w-14 items-center justify-center rounded-full bg-red text-pearl shadow-[0_0_40px_rgba(133,9,9,0.6)]">
-          <svg viewBox="0 0 24 24" className="ml-0.5 h-5 w-5 fill-current">
-            <path d="M6 4l14 8-14 8z" />
-          </svg>
-        </span>
-        <span className="text-[0.6rem] font-semibold tracking-[0.35em] text-tan uppercase">Play</span>
-      </button>
 
       {/* conversation beside the scene */}
       {stage !== "idle" && (
@@ -158,7 +130,7 @@ export default function ChatOverlay() {
           )}
           {stage === "done" && (
             <div className="mt-4 self-center text-[0.65rem] tracking-[0.4em] text-tan uppercase opacity-90">
-              Scroll to continue ↓
+              Scroll to explore ↓
             </div>
           )}
         </div>

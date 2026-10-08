@@ -5,6 +5,7 @@ import { useLenis } from "lenis/react";
 import { gsap, useGSAP } from "@/lib/gsap";
 import { usePreloaderStore } from "@/store/preloader";
 import { plateToScreen, SIGN_WORDMARK } from "@/components/sections/Session/state";
+import { setMuted, unlockAudio } from "@/components/sections/Session/audio";
 import { MUSIC, WORDMARK } from "./logo-paths";
 
 /** Flip to true before launch so returning visitors only see the preloader once per tab. */
@@ -66,6 +67,7 @@ export default function Preloader() {
   const [mounted, setMounted] = useState(true);
   const root = useRef<HTMLDivElement>(null);
   const counterRef = useRef<HTMLSpanElement>(null);
+  const enterGo = useRef<(withSound: boolean) => void>(() => {});
   const lenis = useLenis();
   const { setProgress, finish } = usePreloaderStore();
 
@@ -99,6 +101,7 @@ export default function Preloader() {
       const bars = q<HTMLDivElement>(".bar");
       const counter = q<HTMLDivElement>(".counter")[0];
       const grain = q<HTMLDivElement>(".grain")[0];
+      const enter = q<HTMLDivElement>(".enter")[0];
 
       const state = { progress: 0, t: 0, wave: true };
       const setCounter = () => {
@@ -200,8 +203,25 @@ export default function Preloader() {
         .to(counter, { autoAlpha: 0, y: -12, duration: 0.45 }, "flip+=0.3")
         .to(bars, { autoAlpha: 0, duration: 0.6 }, "flip+=0.3")
 
+        // Gate: the visitor's click is the gesture browsers require before any sound can play.
+        .fromTo(enter, { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 0.8, ease: "expo.out" }, "flip+=0.5")
+        .addPause("flip+=0.9", () => {
+          const go = (withSound: boolean) => {
+            window.removeEventListener("keydown", onKey);
+            unlockAudio();
+            setMuted(!withSound);
+            gsap.to(enter, { autoAlpha: 0, y: -8, duration: 0.35, ease: "power2.in" });
+            tl.play();
+          };
+          const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Enter" || e.key === " ") go(true);
+          };
+          window.addEventListener("keydown", onKey);
+          enterGo.current = go;
+        })
+
         // Handoff: the logo flies onto the studio wall and becomes the sign, then the room's lights pick it up.
-        .add("exit", "flip+=0.9")
+        .add("exit", "flip+=0.95")
         .to(presents, { autoAlpha: 0, duration: 0.3 }, "exit")
         .to(grain, { autoAlpha: 0, duration: 0.5 }, "exit")
         .to(overlay, { backgroundColor: "rgba(7,6,6,0)", duration: 1.0, ease: "power2.inOut" }, "exit")
@@ -240,7 +260,6 @@ export default function Preloader() {
   return (
     <div
       ref={root}
-      aria-hidden
       className="fixed inset-0 z-100 overflow-clip bg-black text-tan select-none"
       style={{ backgroundColor: BLACK }}
     >
@@ -254,6 +273,7 @@ export default function Preloader() {
       {/* logo stage */}
       <div className="content absolute inset-0 flex items-center justify-center">
         <svg
+          aria-hidden
           className="stage w-[min(74vw,980px)] overflow-visible"
           viewBox={`0 0 ${W} ${STAGE_H}`}
           fill="currentColor"
@@ -282,6 +302,25 @@ export default function Preloader() {
             PRESENTS
           </text>
         </svg>
+      </div>
+
+      {/* enter gate */}
+      <div className="enter absolute inset-x-0 bottom-[14vh] z-10 flex flex-col items-center gap-4 opacity-0">
+        <button
+          onClick={() => enterGo.current(true)}
+          className="group relative flex h-16 w-16 items-center justify-center rounded-full border border-pearl/60 text-pearl transition-colors hover:border-tan hover:text-tan"
+          aria-label="Enter with sound"
+        >
+          <span className="tap-ring absolute inset-0 rounded-full" />
+          <span className="text-[0.62rem] font-semibold tracking-[0.3em] uppercase">Enter</span>
+        </button>
+        <div className="flex items-center gap-3 text-[0.6rem] tracking-[0.35em] text-pearl/50 uppercase">
+          <span>Sound on · headphones recommended</span>
+          <span className="opacity-40">/</span>
+          <button onClick={() => enterGo.current(false)} className="underline-offset-4 transition-colors hover:text-pearl hover:underline">
+            Enter muted
+          </button>
+        </div>
       </div>
 
       {/* counter */}
