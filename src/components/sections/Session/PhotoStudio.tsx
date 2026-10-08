@@ -55,11 +55,18 @@ const frame = {
   time: 0,
 };
 
-function useCover() {
+/** Cover-fit plane size, plus a horizontal shift that keeps `centerX` (image uv) in view on narrow screens. */
+function useCover(centerX = 0.5) {
   const { size } = useThree();
   const s = Math.max(size.width / IMG.w, size.height / IMG.h);
-  return { w: IMG.w * s, h: IMG.h * s, s };
+  const w = IMG.w * s;
+  const h = IMG.h * s;
+  const maxShift = Math.max(0, (w - size.width) / 2);
+  const shift = THREE.MathUtils.clamp((0.5 - centerX) * w, -maxShift, maxShift);
+  return { w, h, s, shift };
 }
+const HERO_CENTER_X = 0.6;
+const CLOSEUP_CENTER_X = 0.36;
 
 // ---------------------------------------------------------------------------
 // Plate shader
@@ -160,6 +167,7 @@ function configure(loaded: unknown) {
 type PlateProps = {
   textures: PlateTextures;
   focus: THREE.Vector2;
+  centerX?: number;
   hasAlpha?: boolean;
   parallaxScale: number;
   depthZoom?: number;
@@ -168,8 +176,8 @@ type PlateProps = {
   update: (u: ReturnType<typeof makeUniforms>) => void;
 };
 
-function Plate({ textures, focus, hasAlpha = false, parallaxScale, depthZoom = 0.2, z, update }: PlateProps) {
-  const { w, h } = useCover();
+function Plate({ textures, focus, centerX = 0.5, hasAlpha = false, parallaxScale, depthZoom = 0.2, z, update }: PlateProps) {
+  const { w, h, shift } = useCover(centerX);
   const material = useRef<THREE.ShaderMaterial>(null);
   const uniforms = useMemo(() => makeUniforms(textures, focus, hasAlpha), [textures, focus, hasAlpha]);
 
@@ -188,7 +196,7 @@ function Plate({ textures, focus, hasAlpha = false, parallaxScale, depthZoom = 0
   });
 
   return (
-    <mesh position={[0, 0, z]} renderOrder={z}>
+    <mesh position={[shift, 0, z]} renderOrder={z}>
       <planeGeometry args={[w, h]} />
       <shaderMaterial
         ref={material}
@@ -224,6 +232,7 @@ function Studio() {
       <Plate
         textures={bg}
         focus={heroFocus}
+        centerX={HERO_CENTER_X}
         parallaxScale={0.008}
         depthZoom={0.18}
         z={0}
@@ -237,6 +246,7 @@ function Studio() {
       <Plate
         textures={fgTextures}
         focus={heroFocus}
+        centerX={HERO_CENTER_X}
         hasAlpha
         parallaxScale={0.014}
         depthZoom={0.28}
@@ -253,6 +263,7 @@ function Studio() {
       <Plate
         textures={closeup}
         focus={closeupFocus}
+        centerX={CLOSEUP_CENTER_X}
         parallaxScale={0.004}
         depthZoom={0.1}
         z={3}
@@ -277,7 +288,7 @@ const STRING_DEPTH = 0.72;
 const STRING_PARALLAX = 0.014;
 
 function Strings() {
-  const { w, h } = useCover();
+  const { w, h, shift } = useCover(HERO_CENTER_X);
   const group = useRef<THREE.Group>(null);
   const lines = useRef<(Line2 | LineSegments2 | null)[]>([]);
   const energy = useRef(new Float32Array(6));
@@ -321,9 +332,9 @@ function Strings() {
     if (!g) return;
     // follow the hero layer: push-in scale around the phone + depth parallax
     const z = frame.heroZoom;
-    const shift = frame.parallax.clone().multiplyScalar(STRING_PARALLAX * (STRING_DEPTH - 0.5));
+    const par = frame.parallax.clone().multiplyScalar(STRING_PARALLAX * (STRING_DEPTH - 0.5));
     g.scale.set(z, z, 1);
-    g.position.set(focusWorld[0] * (1 - z) - shift.x * w, focusWorld[1] * (1 - z) - shift.y * h, 0);
+    g.position.set(shift + focusWorld[0] * (1 - z) - par.x * w, focusWorld[1] * (1 - z) - par.y * h, 0);
     const visible = frame.heroFade * (1 - smooth(z, 1.05, 1.4));
 
     for (let i = 0; i < 6; i++) {
@@ -459,7 +470,7 @@ function useLockScreenTexture() {
 }
 
 function LockScreen() {
-  const { w, h } = useCover();
+  const { w, h, shift } = useCover(CLOSEUP_CENTER_X);
   const tex = useLockScreenTexture();
   const group = useRef<THREE.Group>(null);
   const material = useRef<THREE.MeshBasicMaterial>(null);
@@ -480,7 +491,7 @@ function LockScreen() {
     if (!g) return;
     const z = frame.closeupZoom;
     g.scale.set(z, z, 1);
-    g.position.set(focusWorld[0] * (1 - z), focusWorld[1] * (1 - z), 0);
+    g.position.set(shift + focusWorld[0] * (1 - z), focusWorld[1] * (1 - z), 0);
     if (material.current) material.current.opacity = frame.closeupFade;
   });
 
