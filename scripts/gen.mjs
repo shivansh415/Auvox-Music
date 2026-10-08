@@ -75,6 +75,18 @@ const STEPS = {
     refs: [fin("03-A-hero.png")],
     prompt: `Edit this photo. Same scene, same camera position and lens: a tight macro crop of the guitar body and strings under his right hand, all six strings sharp, straight and clearly visible from bridge to neck, his fingers resting lightly on them. Keep the lighting identical. ${STYLE}`,
   },
+  avatarA: {
+    final: "09-avatar-a.png",
+    size: "1024x1024",
+    refs: [],
+    prompt: `Close-up portrait for a chat profile picture: a friendly young Canadian man around twenty, warm smile, short dark curly hair, light stubble, wearing a dark hoodie, soft warm tungsten light from the side, blurred deep-red music studio background, centred head and shoulders, looking at the camera. Photorealistic, natural skin texture, shallow depth of field. No text, no logos, no watermark.`,
+  },
+  avatarB: {
+    final: "10-avatar-b.png",
+    size: "1024x1024",
+    refs: [],
+    prompt: `Close-up portrait for a chat profile picture: a cheerful young Canadian man around twenty, big grin, short light-blond hair, clean-shaven, wearing a cream crew-neck t-shirt, soft warm tungsten light from the side, blurred deep-red music studio background, centred head and shoulders, looking at the camera. Photorealistic, natural skin texture, shallow depth of field. No text, no logos, no watermark.`,
+  },
   mobile: {
     final: "08-A-hero-mobile.png",
     size: "1024x1536",

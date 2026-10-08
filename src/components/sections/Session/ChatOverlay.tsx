@@ -21,6 +21,29 @@ const LINES = [
 
 type Stage = "idle" | "playing" | "done";
 
+const AVATAR: Record<string, string> = { A: "/chat/avatar-a.webp", B: "/chat/avatar-b.webp" };
+
+/** One message line: avatar on the outside edge (A left, B right), bubble beside it. */
+function Row({ who, children }: { who: string; children: React.ReactNode }) {
+  const left = who === "A";
+  return (
+    <div
+      className={`flex max-w-[92%] items-end gap-2.5 ${left ? "self-start" : "flex-row-reverse self-end"}`}
+      style={{ animation: "bubble-in 0.35s cubic-bezier(0.2,0.9,0.3,1.2)" }}
+    >
+      <Image
+        src={AVATAR[who]}
+        alt=""
+        width={36}
+        height={36}
+        unoptimized
+        className="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-black/40"
+      />
+      {children}
+    </div>
+  );
+}
+
 /**
  * Tapping the phone opens the conversation beside the scene (the client's reference layout).
  */
@@ -95,38 +118,29 @@ export default function ChatOverlay() {
           className="absolute z-20 flex flex-col gap-3 text-pearl max-md:inset-x-4 max-md:bottom-24 md:top-1/2 md:left-[6vw] md:w-[min(440px,42vw)] md:-translate-y-1/2"
           style={{ animation: "bubble-in 0.6s cubic-bezier(0.2,0.9,0.3,1.1)" }}
         >
-          <div className="flex items-center gap-3 px-1 pb-1">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-tan">
-              <Image src="/svg/auvox-logomark.svg" alt="" width={18} height={16} unoptimized />
-            </span>
-            <div>
-              <div className="text-sm font-semibold">AUVOX Music</div>
-              <div className="text-xs text-tan">online</div>
-            </div>
-          </div>
           {LINES.slice(0, shown).map((line, i) => (
-            <div
-              key={i}
-              className={`max-w-[88%] rounded-2xl px-4 py-2.5 text-[15px] leading-snug shadow-[0_8px_30px_rgba(0,0,0,0.35)] ${
-                line.who === "A"
-                  ? "self-start rounded-bl-md bg-pearl text-ink"
-                  : "self-end rounded-br-md bg-red text-pearl"
-              }`}
-              style={{ animation: "bubble-in 0.35s cubic-bezier(0.2,0.9,0.3,1.2)" }}
-            >
-              {line.text}
-            </div>
+            <Row key={i} who={line.who}>
+              <div
+                className={`rounded-2xl px-4 py-2.5 text-[15px] leading-snug shadow-[0_8px_30px_rgba(0,0,0,0.35)] ${
+                  line.who === "A" ? "rounded-bl-md bg-pearl text-ink" : "rounded-br-md bg-red text-pearl"
+                }`}
+              >
+                {line.text}
+              </div>
+            </Row>
           ))}
           {typing && (
-            <div
-              className={`flex items-center gap-1 rounded-2xl px-4 py-3 ${
-                typing === "A" ? "self-start bg-pearl" : "self-end bg-red"
-              }`}
-            >
-              {[0, 1, 2].map((d) => (
-                <span key={d} className={`typing-dot block h-1.5 w-1.5 rounded-full ${typing === "A" ? "bg-ink" : "bg-pearl"}`} />
-              ))}
-            </div>
+            <Row who={typing}>
+              <div
+                className={`flex items-center gap-1 rounded-2xl px-4 py-3 ${
+                  typing === "A" ? "rounded-bl-md bg-pearl" : "rounded-br-md bg-red"
+                }`}
+              >
+                {[0, 1, 2].map((d) => (
+                  <span key={d} className={`typing-dot block h-1.5 w-1.5 rounded-full ${typing === "A" ? "bg-ink" : "bg-pearl"}`} />
+                ))}
+              </div>
+            </Row>
           )}
           {stage === "done" && (
             <div className="mt-4 self-center text-[0.65rem] tracking-[0.4em] text-tan uppercase opacity-90">

@@ -27,6 +27,12 @@ const GUITAR_BODY = { x: 560, y: 640, w: 360, h: 250 };
 const HERO_PHONE = [1080, 515] as const;
 const HERO_CHEST = [900, 560] as const;
 
+/** Pointer pan, as a whole-frame camera drift (uv units at full deflection = PAN * (PAN_DEPTH - 0.5)) */
+const PAN = 0.05;
+const PAN_DEPTH = 0.75;
+/** Slight overscan so the pan never reveals the plate's edge */
+const OVERSCAN = 1.035;
+
 const uvOf = (px: number, py: number) => new THREE.Vector2(px / IMG.w, 1 - py / IMG.h);
 const smooth = (p: number, a: number, b: number) => THREE.MathUtils.clamp((p - a) / (b - a), 0, 1);
 
@@ -208,10 +214,8 @@ function Studio() {
     { map: "/scene/hero.jpg", depth: "/scene/hero-depth.jpg", red: "/scene/mask-red.jpg", lamp: "/scene/mask-lamp.jpg" },
     configure,
   ) as unknown as PlateTextures;
-  const fg = useTexture({ map: "/scene/hero-cutout.webp", depth: "/scene/hero-depth.jpg" }, configure) as unknown as PlateTextures;
 
   const heroFocus = useMemo(() => uvOf(...HERO_PHONE), []);
-  const fgTextures = useMemo(() => ({ ...fg, red: bg.red, lamp: bg.lamp }), [fg, bg]);
 
   return (
     <>
@@ -220,30 +224,15 @@ function Studio() {
         textures={bg}
         focus={heroFocus}
         centerX={HERO_CENTER_X}
-        parallaxScale={0.03}
-        depthZoom={0.2}
+        parallaxScale={PAN}
+        depthZoom={0}
         z={0}
         update={(u) => {
           u.uZoom.value = frame.heroZoom;
-          u.uPhoneGlow.value = 0.35;
-        }}
-      />
-      {/* the man, cut out, in front */}
-      <Plate
-        textures={fgTextures}
-        focus={heroFocus}
-        centerX={HERO_CENTER_X}
-        hasAlpha
-        parallaxScale={0.06}
-        depthZoom={0.3}
-        z={1}
-        update={(u) => {
-          u.uZoom.value = frame.heroZoom;
-          u.uBreath.value = frame.breath;
           u.uPhoneGlow.value = 1 + session.phonePulse * 2.5;
-          // the man shifts as one body (his depth ≈ 0.78), with only a touch of internal relief
-          u.uDepthFlat.value = 0.78;
-          u.uDepthMix.value = 0.2;
+          // one photo, moved as a whole: no depth warping, so nothing can double up
+          u.uDepthFlat.value = PAN_DEPTH;
+          u.uDepthMix.value = 0;
         }}
       />
       <Strings />
@@ -255,9 +244,9 @@ function Studio() {
 // Playable strings drawn over the photo's strings (invisible at rest)
 // ---------------------------------------------------------------------------
 const SEGMENTS = 40;
-/** Depth-map value of the guitar, so the strings slide with the layer they sit on */
-const STRING_DEPTH = 0.72;
-const STRING_PARALLAX = 0.06;
+/** The whole plate pans as one: strings use the same flat depth so they stay glued to the photo */
+const STRING_DEPTH = PAN_DEPTH;
+const STRING_PARALLAX = PAN;
 
 function Strings() {
   const { w, h, shift } = useCover(HERO_CENTER_X);
@@ -457,13 +446,13 @@ function Driver() {
 
     // No scroll zoom: only the gentle lean towards the phone while the conversation is open.
     frame.parallax.copy(smoothMouse.current);
-    frame.heroZoom = 1 + 0.12 * session.focus;
+    frame.heroZoom = OVERSCAN + 0.12 * session.focus;
     frame.time = clock.elapsedTime;
     session.phonePulse *= Math.exp(-dt * 4);
     // the zoom pivots on the phone, so its screen position only drifts with the parallax
     const { w, h, shift } = coverFit(size.width, size.height);
-    session.phoneScreen.x = size.width / 2 + shift + (HERO_PHONE[0] / IMG.w - 0.5) * w - frame.parallax.x * 0.06 * (0.78 - 0.5) * w;
-    session.phoneScreen.y = size.height / 2 + (HERO_PHONE[1] / IMG.h - 0.5) * h + frame.parallax.y * 0.06 * (0.78 - 0.5) * h;
+    session.phoneScreen.x = size.width / 2 + shift + (HERO_PHONE[0] / IMG.w - 0.5) * w - frame.parallax.x * PAN * (PAN_DEPTH - 0.5) * w;
+    session.phoneScreen.y = size.height / 2 + (HERO_PHONE[1] / IMG.h - 0.5) * h + frame.parallax.y * PAN * (PAN_DEPTH - 0.5) * h;
     frame.breath = Math.sin(clock.elapsedTime * 1.1) * 0.004;
     const a = session.audio.level;
     frame.flicker = session.lights.lamp > 0.9 ? 1 + Math.sin(t * 37) * Math.sin(t * 11) * (0.015 + a * 0.25) : 1;
