@@ -71,7 +71,7 @@ const FRAG = /* glsl */ `
   uniform sampler2D uMap, uDepth, uMaskRed, uMaskLamp;
   uniform float uHasAlpha, uHasMasks;
   uniform vec2 uParallax, uFocus, uChest, uPhone;
-  uniform float uZoom, uParallaxScale, uDepthZoom, uBreath;
+  uniform float uZoom, uParallaxScale, uDepthZoom, uBreath, uDepthFlat, uDepthMix;
   uniform vec3 uLights;      // red, lamp, ambient
   uniform float uAudio, uFlicker, uTime, uGrain, uVignette, uFade, uPhoneGlow;
   varying vec2 vUv;
@@ -81,7 +81,7 @@ const FRAG = /* glsl */ `
     vec2 uv = uFocus + (vUv - uFocus) / uZoom;
     // breathing: a tiny scale around the chest
     uv = uChest + (uv - uChest) / (1.0 + uBreath);
-    float d = texture2D(uDepth, uv).r;                     // 1 = near
+    float d = mix(uDepthFlat, texture2D(uDepth, uv).r, uDepthMix); // 1 = near
     // nearer pixels slide more with the pointer, and spread more as the camera pushes in
     vec2 off = uParallax * uParallaxScale * (d - 0.5)
              + (uv - uFocus) * (uZoom - 1.0) * uDepthZoom * (d - 0.5);
@@ -131,6 +131,8 @@ function makeUniforms(t: PlateTextures, focus: THREE.Vector2, hasAlpha: boolean)
     uZoom: { value: 1 },
     uParallaxScale: { value: 0.01 },
     uDepthZoom: { value: 0.2 },
+    uDepthFlat: { value: 0.5 },
+    uDepthMix: { value: 1 },
     uBreath: { value: 0 },
     uLights: { value: new THREE.Vector3() },
     uAudio: { value: 0 },
@@ -206,7 +208,7 @@ function Plate({ textures, focus, centerX = 0.5, hasAlpha = false, parallaxScale
 // ---------------------------------------------------------------------------
 function Studio() {
   const bg = useTexture(
-    { map: "/scene/clean.jpg", depth: "/scene/clean-depth.jpg", red: "/scene/mask-red.jpg", lamp: "/scene/mask-lamp.jpg" },
+    { map: "/scene/hero.jpg", depth: "/scene/hero-depth.jpg", red: "/scene/mask-red.jpg", lamp: "/scene/mask-lamp.jpg" },
     configure,
   ) as unknown as PlateTextures;
   const fg = useTexture({ map: "/scene/hero-cutout.webp", depth: "/scene/hero-depth.jpg" }, configure) as unknown as PlateTextures;
@@ -235,13 +237,16 @@ function Studio() {
         focus={heroFocus}
         centerX={HERO_CENTER_X}
         hasAlpha
-        parallaxScale={0.05}
+        parallaxScale={0.06}
         depthZoom={0.3}
         z={1}
         update={(u) => {
           u.uZoom.value = frame.heroZoom;
           u.uBreath.value = frame.breath;
           u.uPhoneGlow.value = 1 + session.phonePulse * 2.5;
+          // the man shifts as one body (his depth ≈ 0.78), with only a touch of internal relief
+          u.uDepthFlat.value = 0.78;
+          u.uDepthMix.value = 0.2;
         }}
       />
       <Strings />
@@ -255,7 +260,7 @@ function Studio() {
 const SEGMENTS = 40;
 /** Depth-map value of the guitar, so the strings slide with the layer they sit on */
 const STRING_DEPTH = 0.72;
-const STRING_PARALLAX = 0.05;
+const STRING_PARALLAX = 0.06;
 
 function Strings() {
   const { w, h, shift } = useCover(HERO_CENTER_X);
@@ -457,14 +462,13 @@ function Driver() {
     // Scroll pushes the camera towards the phone and stops there; the studio stays in frame.
     const push = easeInOut(smooth(p, 0, PUSH_END));
     frame.parallax.copy(smoothMouse.current).multiplyScalar(1 - push * 0.6);
-    frame.heroZoom = 1 + 0.7 * push;
+    frame.heroZoom = 1 + 0.7 * push + 0.12 * session.focus * (1 - push);
     frame.time = clock.elapsedTime;
     session.phonePulse *= Math.exp(-dt * 4);
     // the zoom pivots on the phone, so its screen position only drifts with the parallax
     const { w, h, shift } = coverFit(size.width, size.height);
-    const d = 0.75 - 0.5;
-    session.phoneScreen.x = size.width / 2 + shift + (HERO_PHONE[0] / IMG.w - 0.5) * w - frame.parallax.x * 0.05 * d * w;
-    session.phoneScreen.y = size.height / 2 + (HERO_PHONE[1] / IMG.h - 0.5) * h + frame.parallax.y * 0.05 * d * h;
+    session.phoneScreen.x = size.width / 2 + shift + (HERO_PHONE[0] / IMG.w - 0.5) * w - frame.parallax.x * 0.06 * (0.78 - 0.5) * w;
+    session.phoneScreen.y = size.height / 2 + (HERO_PHONE[1] / IMG.h - 0.5) * h + frame.parallax.y * 0.06 * (0.78 - 0.5) * h;
     frame.breath = Math.sin(clock.elapsedTime * 1.1) * 0.004;
     const a = session.audio.level;
     frame.flicker = session.lights.lamp > 0.9 ? 1 + Math.sin(t * 37) * Math.sin(t * 11) * (0.015 + a * 0.25) : 1;

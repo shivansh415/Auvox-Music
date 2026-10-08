@@ -43,7 +43,7 @@ export default function ChatOverlay() {
     const tick = () => {
       const p = session.progress;
       const arrived = smooth(p, 0.42, 0.6);
-      if (session.autoPlay && arrived >= 1 && stageRef.current === "idle") {
+      if (session.autoPlay && stageRef.current === "idle") {
         session.autoPlay = false;
         startRef.current();
       }

@@ -2,7 +2,6 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
-import { useLenis } from "lenis/react";
 import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap";
 import { usePreloaderStore } from "@/store/preloader";
 import ChatOverlay from "./ChatOverlay";
@@ -20,7 +19,6 @@ export default function Session() {
   const scrollHint = useRef<HTMLDivElement>(null);
   const tapHint = useRef<HTMLDivElement>(null);
   const phoneHint = useRef<HTMLButtonElement>(null);
-  const lenis = useLenis();
   const done = usePreloaderStore((s) => s.done);
   const [muted, setMutedState] = useState(false);
 
@@ -90,15 +88,11 @@ export default function Session() {
     };
   }, [done]);
 
-  // Tapping the phone pushes the camera in and starts the conversation on arrival.
+  // Tapping the phone opens the conversation right here, with a gentle lean towards the phone.
   const tapPhone = () => {
     unlockAudio();
     requestAutoPlay();
-    const st = ScrollTrigger.getAll().find((t) => t.trigger === root.current);
-    if (!st) return;
-    const target = st.start + (st.end - st.start) * 0.62;
-    if (lenis) lenis.scrollTo(target, { duration: 1.6, easing: (t: number) => 1 - Math.pow(1 - t, 3) });
-    else window.scrollTo({ top: target, behavior: "smooth" });
+    gsap.to(session, { focus: 1, duration: 1.4, ease: "power3.out" });
   };
 
   const toggleSound = () => {

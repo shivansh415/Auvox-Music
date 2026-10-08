@@ -28,7 +28,7 @@ FINAL = ROOT.parent / "AUVOX Generation Pack" / "output" / "final"
 SVG = ROOT / "public" / "svg" / "auvox-primary-logo.svg"
 
 # Where the generated sign sits on the plate (its "auvox" box), and where ours goes.
-OLD_REGION = (470, 95, 990, 275)  # x0, y0, x1, y1 — search area for the old cream letters
+OLD_REGION = (440, 50, 1010, 285)  # x0, y0, x1, y1 — search area for the old cream letters
 TARGET_X, TARGET_W = 505, 448     # keep the old wordmark's left edge and width
 TARGET_CY = 165                   # vertical centre of the old wordmark
 CREAM = np.array([241, 237, 233], dtype=np.float32)
@@ -96,15 +96,25 @@ def render_logo(width_px: int) -> Image.Image:
     return Image.fromarray(rgba[..., 3], "L")  # alpha = logo coverage
 
 
-def main() -> None:
-    src = FINAL / "02-B-clean-plate.png"
-    backup = FINAL / "02-B-clean-plate-original.png"
+def shift(img: np.ndarray, dy: int, dx: int) -> np.ndarray:
+    """Shift without wrap-around (np.roll would drag the bottom shadow onto the top)."""
+    out = np.zeros_like(img)
+    h, w = img.shape[:2]
+    out[max(dy, 0) : h + min(dy, 0), max(dx, 0) : w + min(dx, 0)] = img[max(-dy, 0) : h - max(dy, 0), max(-dx, 0) : w - max(dx, 0)]
+    return out
+
+
+def resign(src: Path, protect: np.ndarray | None = None) -> tuple[int, int, int, int]:
+    """Replace the generated sign on `src` in place. `protect` (H×W, 0–1) keeps foreground pixels untouched."""
+    backup = src.with_name(src.stem + "-original.png")
     if not backup.exists():
         backup.write_bytes(src.read_bytes())
     plate = np.asarray(Image.open(backup).convert("RGB")).astype(np.float32)
     H, W, _ = plate.shape
+    keep = np.zeros((H, W), np.float32) if protect is None else np.clip(protect, 0, 1)
+    keep = cv2.dilate(keep, np.ones((5, 5), np.uint8))
 
-    # 1. old sign mask → inpaint
+    # 1. old sign mask (cream letters, not on the foreground) → inpaint
     lum = plate.mean(axis=2)
     sat = plate.max(axis=2) - plate.min(axis=2)
     old = np.zeros((H, W), np.uint8)
@@ -113,36 +123,42 @@ def main() -> None:
     old[y0:y1, x0:x1] = region.astype(np.uint8) * 255
     old = cv2.dilate(old, np.ones((9, 9), np.uint8), iterations=2)
     old = cv2.GaussianBlur(old, (0, 0), 1.5)
-    old = (old > 60).astype(np.uint8) * 255
+    old = ((old > 60) & (keep < 0.5)).astype(np.uint8) * 255
     wall = cv2.inpaint(plate.astype(np.uint8), old, 9, cv2.INPAINT_TELEA).astype(np.float32)
 
     # 2. our logo
     alpha_img = render_logo(TARGET_W)
     lw, lh = alpha_img.size
-    # the wordmark is the top 303/470 of the lockup → centre that part on the old wordmark centre
     wordmark_h = lh * 303 / 446  # the lockup SVG is 1309×446: wordmark 303 tall, MUSIC below
     ty = int(round(TARGET_CY - wordmark_h / 2))
     tx = TARGET_X
 
-    # 3. shade by the wall's own light (brighter where the wall is brighter) + soft shadow
+    # 3. shade by the wall's own light + soft shadow, only where the foreground doesn't cover
     alpha = np.asarray(alpha_img).astype(np.float32) / 255.0
+    alpha *= 1 - keep[ty : ty + lh, tx : tx + lw]
     patch = wall[ty : ty + lh, tx : tx + lw]
     local = cv2.GaussianBlur(patch.mean(axis=2), (0, 0), 25)
     shade = np.clip(0.55 + 0.9 * (local / max(local.mean(), 1)), 0.6, 1.25)[..., None]
     colour = CREAM[None, None, :] * shade * 0.96
-    shadow = cv2.GaussianBlur(alpha, (0, 0), 4)
-    shadow = np.roll(np.roll(shadow, 4, axis=0), 2, axis=1) * 0.55
+    shadow = shift(cv2.GaussianBlur(alpha, (0, 0), 4), 4, 2) * 0.55
     out = wall.copy()
     sub = out[ty : ty + lh, tx : tx + lw]
-    sub = sub * (1 - shadow[..., None]) + np.zeros_like(sub) * shadow[..., None]
+    sub = sub * (1 - shadow[..., None])
     sub = sub * (1 - alpha[..., None]) + colour * alpha[..., None]
     out[ty : ty + lh, tx : tx + lw] = sub
 
     Image.fromarray(np.clip(out, 0, 255).astype(np.uint8)).save(src)
-    print("✓ 02-B-clean-plate.png (sign replaced)")
-    print(f"SIGN_WORDMARK = {{ x: {tx}, y: {ty}, w: {lw}, h: {int(round(wordmark_h))} }}  lockup {lw}x{lh}")
-    # preview crop
-    Image.fromarray(np.clip(out, 0, 255).astype(np.uint8)).crop((380, 60, 1080, 320)).save(FINAL / "layers" / "sign-preview.png")
+    print("✓", src.name, "(sign replaced)")
+    return tx, ty, lw, int(round(wordmark_h))
+
+
+def main() -> None:
+    tx, ty, lw, wh = resign(FINAL / "02-B-clean-plate.png")
+    mask_path = FINAL / "layers" / "hero-cutout-mask.png"
+    protect = np.asarray(Image.open(mask_path).convert("L")).astype(np.float32) / 255.0 if mask_path.exists() else None
+    resign(FINAL / "03-A-hero.png", protect)
+    print(f"SIGN_WORDMARK = {{ x: {tx}, y: {ty}, w: {lw}, h: {wh} }}")
+    Image.open(FINAL / "03-A-hero.png").crop((380, 60, 1080, 320)).save(FINAL / "layers" / "sign-preview.png")
 
 
 if __name__ == "__main__":

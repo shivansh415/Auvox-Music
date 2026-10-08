@@ -39,10 +39,17 @@ def cutout(image: Image.Image) -> None:
     from rembg import new_session, remove
 
     session = new_session("isnet-general-use")
-    rgba = remove(image, session=session, alpha_matting=True, alpha_matting_foreground_threshold=240,
-                  alpha_matting_background_threshold=10, alpha_matting_erode_size=8)
+    rgba = remove(image, session=session, alpha_matting=False)
+    # tighten the edge: a 1px erode kills the background fringe, a soft feather hides the stair-steps
+    a = np.asarray(rgba.getchannel("A")).astype(np.float32) / 255.0
+    import cv2
+
+    a = cv2.erode(a, np.ones((3, 3), np.uint8))
+    a = cv2.GaussianBlur(a, (0, 0), 0.7)
+    alpha = Image.fromarray((np.clip(a, 0, 1) * 255).astype(np.uint8))
+    rgba.putalpha(alpha)
     rgba.save(OUT / "hero-cutout.png")
-    rgba.getchannel("A").save(OUT / "hero-cutout-mask.png")
+    alpha.save(OUT / "hero-cutout-mask.png")
     print("✓ hero-cutout.png")
 
 

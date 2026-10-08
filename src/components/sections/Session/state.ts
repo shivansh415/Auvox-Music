@@ -19,8 +19,10 @@ export const session = {
   phonePulse: 0,
   /** 1 = show the TAP hint on the phone (at rest, before the push) */
   phoneHint: 1,
-  /** Set when the phone itself was tapped: scroll to the push and start the chat on arrival */
+  /** Set when the phone itself was tapped: open the conversation right away */
   autoPlay: false,
+  /** 0–1, a gentle zoom towards the phone while the conversation is open (tweened by GSAP) */
+  focus: 0,
   /** Render-loop counter (debug: confirms the canvas is actually drawing) */
   frames: 0,
 };
@@ -39,7 +41,7 @@ export function dismissPhoneHint() {
   session.phoneHint = 0;
 }
 
-/** The phone was tapped at rest: push in, then start the conversation on arrival. */
+/** The phone was tapped: hide its hint and open the conversation. */
 export function requestAutoPlay() {
   session.phoneHint = 0;
   session.autoPlay = true;
@@ -52,7 +54,7 @@ export const PLATE = { w: 1536, h: 1024 };
 /** Image x (0–1) kept in view when a narrow screen crops the plate */
 export const HERO_CENTER_X = 0.6;
 /** Wall sign on the hero/clean plate, in plate pixels: the "auvox" wordmark box */
-export const SIGN_WORDMARK = { x: 505, y: 115, w: 448, h: 104 };
+export const SIGN_WORDMARK = { x: 505, y: 113, w: 448, h: 105 };
 /** Phone screen centre on the hero plate, in plate pixels */
 export const HERO_PHONE = { x: 1080, y: 515 };
 
