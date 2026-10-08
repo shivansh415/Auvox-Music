@@ -136,8 +136,8 @@ function makeUniforms(t: PlateTextures, focus: THREE.Vector2, hasAlpha: boolean)
     uAudio: { value: 0 },
     uFlicker: { value: 1 },
     uTime: { value: 0 },
-    uGrain: { value: 0.022 },
-    uVignette: { value: 0.45 },
+    uGrain: { value: 0.018 },
+    uVignette: { value: 0.0 },
     uFade: { value: 1 },
     uPhoneGlow: { value: 1 },
   };
@@ -221,8 +221,8 @@ function Studio() {
         textures={bg}
         focus={heroFocus}
         centerX={HERO_CENTER_X}
-        parallaxScale={0.008}
-        depthZoom={0.18}
+        parallaxScale={0.03}
+        depthZoom={0.2}
         z={0}
         update={(u) => {
           u.uZoom.value = frame.heroZoom;
@@ -235,8 +235,8 @@ function Studio() {
         focus={heroFocus}
         centerX={HERO_CENTER_X}
         hasAlpha
-        parallaxScale={0.014}
-        depthZoom={0.28}
+        parallaxScale={0.05}
+        depthZoom={0.3}
         z={1}
         update={(u) => {
           u.uZoom.value = frame.heroZoom;
@@ -255,7 +255,7 @@ function Studio() {
 const SEGMENTS = 40;
 /** Depth-map value of the guitar, so the strings slide with the layer they sit on */
 const STRING_DEPTH = 0.72;
-const STRING_PARALLAX = 0.014;
+const STRING_PARALLAX = 0.05;
 
 function Strings() {
   const { w, h, shift } = useCover(HERO_CENTER_X);
@@ -266,6 +266,7 @@ function Strings() {
   const phase = useRef(new Float32Array(6));
   const scratch = useRef(new Float32Array((SEGMENTS + 1) * 3));
   const hintPoint = useRef(new THREE.Vector3());
+  const par = useRef(new THREE.Vector2());
 
   const toWorld = (px: number, py: number): [number, number] => [(px / IMG.w - 0.5) * w, (0.5 - py / IMG.h) * h];
   const geometry = useMemo(
@@ -302,9 +303,9 @@ function Strings() {
     if (!g) return;
     // follow the hero layer: push-in scale around the phone + depth parallax
     const z = frame.heroZoom;
-    const par = frame.parallax.clone().multiplyScalar(STRING_PARALLAX * (STRING_DEPTH - 0.5));
+    const pv = par.current.copy(frame.parallax).multiplyScalar(STRING_PARALLAX * (STRING_DEPTH - 0.5));
     g.scale.set(z, z, 1);
-    g.position.set(shift + focusWorld[0] * (1 - z) - par.x * w, focusWorld[1] * (1 - z) - par.y * h, 0);
+    g.position.set(shift + focusWorld[0] * (1 - z) - pv.x * w, focusWorld[1] * (1 - z) - pv.y * h, 0);
     const visible = 1;
 
     for (let i = 0; i < 6; i++) {
@@ -394,7 +395,7 @@ function Strings() {
 // ---------------------------------------------------------------------------
 // Dust in the lamp light
 // ---------------------------------------------------------------------------
-const DUST_COUNT = 160;
+const DUST_COUNT = 110;
 const hash = (n: number) => {
   const x = Math.sin(n * 12.9898 + 78.233) * 43758.5453;
   return x - Math.floor(x);
@@ -445,9 +446,13 @@ function Driver() {
   useFrame(({ clock, size }, dt) => {
     sampleAudio(session.audio);
     const p = session.progress;
-    const k = Math.min(1, dt * 3);
-    smoothMouse.current.x += (session.mouse.x - smoothMouse.current.x) * k;
-    smoothMouse.current.y += (session.mouse.y - smoothMouse.current.y) * k;
+    const t = clock.elapsedTime;
+    // critically-damped ease towards the pointer, plus a slow idle sway so the room never sits still
+    const k = 1 - Math.exp(-dt * 2.2);
+    const targetX = session.mouse.x + Math.sin(t * 0.23) * 0.12;
+    const targetY = session.mouse.y + Math.cos(t * 0.19) * 0.08;
+    smoothMouse.current.x += (targetX - smoothMouse.current.x) * k;
+    smoothMouse.current.y += (targetY - smoothMouse.current.y) * k;
 
     // Scroll pushes the camera towards the phone and stops there; the studio stays in frame.
     const push = easeInOut(smooth(p, 0, PUSH_END));
@@ -458,11 +463,11 @@ function Driver() {
     // the zoom pivots on the phone, so its screen position only drifts with the parallax
     const { w, h, shift } = coverFit(size.width, size.height);
     const d = 0.75 - 0.5;
-    session.phoneScreen.x = size.width / 2 + shift + (HERO_PHONE[0] / IMG.w - 0.5) * w - frame.parallax.x * 0.014 * d * w;
-    session.phoneScreen.y = size.height / 2 + (HERO_PHONE[1] / IMG.h - 0.5) * h + frame.parallax.y * 0.014 * d * h;
+    session.phoneScreen.x = size.width / 2 + shift + (HERO_PHONE[0] / IMG.w - 0.5) * w - frame.parallax.x * 0.05 * d * w;
+    session.phoneScreen.y = size.height / 2 + (HERO_PHONE[1] / IMG.h - 0.5) * h + frame.parallax.y * 0.05 * d * h;
     frame.breath = Math.sin(clock.elapsedTime * 1.1) * 0.004;
     const a = session.audio.level;
-    frame.flicker = session.lights.lamp > 0.9 ? 1 + (Math.random() - 0.5) * (0.05 + a * 0.5) : 1;
+    frame.flicker = session.lights.lamp > 0.9 ? 1 + Math.sin(t * 37) * Math.sin(t * 11) * (0.015 + a * 0.25) : 1;
     session.frames += 1;
   });
   return null;
@@ -473,10 +478,10 @@ export default function PhotoStudio() {
     <Canvas
       className="absolute inset-0"
       style={{ touchAction: "pan-y" }}
-      dpr={[1, 2]}
+      dpr={[1, 1.25]}
       orthographic
       camera={{ position: [0, 0, 100], zoom: 1, near: 0.1, far: 1000 }}
-      gl={{ antialias: false, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.0 }}
+      gl={{ antialias: false, powerPreference: "high-performance", toneMapping: THREE.NoToneMapping }}
       onPointerDown={unlockAudio}
     >
       <color attach="background" args={["#070606"]} />

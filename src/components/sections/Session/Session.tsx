@@ -2,11 +2,12 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
+import { useLenis } from "lenis/react";
 import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap";
 import { usePreloaderStore } from "@/store/preloader";
 import ChatOverlay from "./ChatOverlay";
-import { isMuted, setMuted } from "./audio";
-import { session } from "./state";
+import { isMuted, setMuted, unlockAudio } from "./audio";
+import { requestAutoPlay, session } from "./state";
 
 const Studio = dynamic(() => import("./PhotoStudio"), { ssr: false });
 
@@ -18,6 +19,8 @@ export default function Session() {
   const root = useRef<HTMLElement>(null);
   const scrollHint = useRef<HTMLDivElement>(null);
   const tapHint = useRef<HTMLDivElement>(null);
+  const phoneHint = useRef<HTMLButtonElement>(null);
+  const lenis = useLenis();
   const done = usePreloaderStore((s) => s.done);
   const [muted, setMutedState] = useState(false);
 
@@ -38,7 +41,21 @@ export default function Session() {
         session.mouse.y = -((e.clientY / window.innerHeight) * 2 - 1);
       };
       window.addEventListener("pointermove", onMove);
+      // pin geometry goes stale when the window changes shape — refresh once the resize settles
+      let resizeTimer = 0;
+      const onResize = () => {
+        window.clearTimeout(resizeTimer);
+        resizeTimer = window.setTimeout(() => ScrollTrigger.refresh(), 150);
+      };
+      window.addEventListener("resize", onResize);
       const tick = () => {
+        if (phoneHint.current) {
+          const { x, y } = session.phoneScreen;
+          phoneHint.current.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
+          const show = session.phoneHint * session.lights.lamp * (1 - gsap.utils.clamp(0, 1, session.progress / 0.12));
+          phoneHint.current.style.opacity = String(show);
+          phoneHint.current.style.pointerEvents = show > 0.5 ? "auto" : "none";
+        }
         if (tapHint.current) {
           const h = session.hintScreen;
           tapHint.current.style.transform = `translate(${h.x}px, ${h.y}px) translate(-50%, -50%)`;
@@ -52,6 +69,8 @@ export default function Session() {
       gsap.ticker.add(tick);
       return () => {
         window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("resize", onResize);
+        window.clearTimeout(resizeTimer);
         gsap.ticker.remove(tick);
         st.kill();
       };
@@ -71,6 +90,17 @@ export default function Session() {
     };
   }, [done]);
 
+  // Tapping the phone pushes the camera in and starts the conversation on arrival.
+  const tapPhone = () => {
+    unlockAudio();
+    requestAutoPlay();
+    const st = ScrollTrigger.getAll().find((t) => t.trigger === root.current);
+    if (!st) return;
+    const target = st.start + (st.end - st.start) * 0.62;
+    if (lenis) lenis.scrollTo(target, { duration: 1.6, easing: (t: number) => 1 - Math.pow(1 - t, 3) });
+    else window.scrollTo({ top: target, behavior: "smooth" });
+  };
+
   const toggleSound = () => {
     const next = !isMuted();
     setMuted(next);
@@ -80,7 +110,6 @@ export default function Session() {
   return (
     <section ref={root} className="relative h-screen w-full overflow-clip bg-black text-pearl">
       <Studio />
-      <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.06] mix-blend-overlay" />
 
       <div
         ref={tapHint}
@@ -89,6 +118,16 @@ export default function Session() {
       >
         <span className="text-[9px] font-semibold tracking-[0.3em]">TAP</span>
       </div>
+
+      <button
+        ref={phoneHint}
+        onClick={tapPhone}
+        aria-label="Open the conversation on the phone"
+        className="tap-ring absolute top-0 left-0 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-tan bg-black/40 text-tan backdrop-blur-sm"
+        style={{ opacity: 0, pointerEvents: "none" }}
+      >
+        <span className="text-[9px] font-semibold tracking-[0.3em]">TAP</span>
+      </button>
 
       <div
         ref={scrollHint}

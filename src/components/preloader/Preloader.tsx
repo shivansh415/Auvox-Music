@@ -223,8 +223,8 @@ export default function Preloader() {
         .add(() => {
           finish();
           lenis?.start();
-        }, "exit+=1.15")
-        .to(stage, { autoAlpha: 0, duration: 0.7, ease: "power2.in" }, "exit+=1.3");
+        }, "exit+=1.25")
+        .to(stage, { autoAlpha: 0, duration: 0.7, ease: "power2.in" }, "exit+=1.4");
 
       // React StrictMode mounts twice — without this the first ticker keeps overwriting `d` and blocks the morph.
       return () => {

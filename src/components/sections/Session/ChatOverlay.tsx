@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "@/lib/gsap";
 import { blip, unlockAudio } from "./audio";
-import { session } from "./state";
+import { dismissPhoneHint, session } from "./state";
 
 // Client's copy, verbatim.
 const LINES = [
@@ -43,6 +43,10 @@ export default function ChatOverlay() {
     const tick = () => {
       const p = session.progress;
       const arrived = smooth(p, 0.42, 0.6);
+      if (session.autoPlay && arrived >= 1 && stageRef.current === "idle") {
+        session.autoPlay = false;
+        startRef.current();
+      }
       if (play.current) {
         const { x, y } = session.phoneScreen;
         play.current.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
@@ -59,8 +63,10 @@ export default function ChatOverlay() {
     };
   }, []);
 
+  const startRef = useRef<() => void>(() => {});
   const start = () => {
     unlockAudio();
+    dismissPhoneHint();
     setStage("playing");
     session.phonePulse = 1;
     let i = 0;
@@ -87,6 +93,10 @@ export default function ChatOverlay() {
     };
     timers.current.push(window.setTimeout(next, 400));
   };
+
+  useEffect(() => {
+    startRef.current = start;
+  });
 
   return (
     <>
@@ -125,9 +135,9 @@ export default function ChatOverlay() {
           {LINES.slice(0, shown).map((line, i) => (
             <div
               key={i}
-              className={`max-w-[88%] rounded-2xl px-4 py-2.5 text-[15px] leading-snug shadow-[0_8px_30px_rgba(0,0,0,0.35)] backdrop-blur-md ${
+              className={`max-w-[88%] rounded-2xl px-4 py-2.5 text-[15px] leading-snug shadow-[0_8px_30px_rgba(0,0,0,0.35)] ${
                 line.who === "A"
-                  ? "self-start rounded-bl-md bg-pearl/90 text-ink"
+                  ? "self-start rounded-bl-md bg-pearl text-ink"
                   : "self-end rounded-br-md bg-red text-pearl"
               }`}
               style={{ animation: "bubble-in 0.35s cubic-bezier(0.2,0.9,0.3,1.2)" }}
@@ -137,8 +147,8 @@ export default function ChatOverlay() {
           ))}
           {typing && (
             <div
-              className={`flex items-center gap-1 rounded-2xl px-4 py-3 backdrop-blur-md ${
-                typing === "A" ? "self-start bg-pearl/90" : "self-end bg-red"
+              className={`flex items-center gap-1 rounded-2xl px-4 py-3 ${
+                typing === "A" ? "self-start bg-pearl" : "self-end bg-red"
               }`}
             >
               {[0, 1, 2].map((d) => (
