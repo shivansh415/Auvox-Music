@@ -4,13 +4,13 @@ import { useRef, useState } from "react";
 import { useLenis } from "lenis/react";
 import { gsap, useGSAP } from "@/lib/gsap";
 import { usePreloaderStore } from "@/store/preloader";
+import { plateToScreen, SIGN_WORDMARK } from "@/components/sections/Session/state";
 import { MUSIC, WORDMARK } from "./logo-paths";
 
 /** Flip to true before launch so returning visitors only see the preloader once per tab. */
 const ONCE_PER_SESSION = false;
 const SESSION_KEY = "auvox:preloader-seen";
 
-const RED = "#850909";
 const TAN = "#e7b47e";
 const PEARL = "#f1ede9";
 const BLACK = "#000000";
@@ -98,7 +98,7 @@ export default function Preloader() {
       const presents = q<SVGTextElement>(".presents")[0];
       const bars = q<HTMLDivElement>(".bar");
       const counter = q<HTMLDivElement>(".counter")[0];
-      const content = q<HTMLDivElement>(".content")[0];
+      const grain = q<HTMLDivElement>(".grain")[0];
 
       const state = { progress: 0, t: 0, wave: true };
       const setCounter = () => {
@@ -141,7 +141,7 @@ export default function Preloader() {
         defaults: { ease: "power3.out" },
         onComplete: () => {
           gsap.ticker.remove(tick);
-          done();
+          setMounted(false);
         },
       });
 
@@ -194,16 +194,37 @@ export default function Preloader() {
           "morph+=1.8",
         )
 
-        // The brand lockup lands in its true colours: red on pearl.
+        // The lockup settles into the sign's colour (cream on the dark wall); the counter and bars leave.
         .add("flip", "morph+=2.35")
-        .to(overlay, { backgroundColor: PEARL, duration: 0.75, ease: "power2.inOut" }, "flip")
-        .to([stage, counter], { color: RED, duration: 0.75, ease: "power2.inOut" }, "flip")
+        .to(stage, { color: PEARL, duration: 0.6, ease: "power2.inOut" }, "flip")
+        .to(counter, { autoAlpha: 0, y: -12, duration: 0.45 }, "flip+=0.3")
+        .to(bars, { autoAlpha: 0, duration: 0.6 }, "flip+=0.3")
 
-        // Exit: curtain lifts, the lockup lags behind for parallax.
-        .add("exit", "flip+=1.05")
-        .to(counter, { autoAlpha: 0, y: -12, duration: 0.45 }, "exit")
-        .to(content, { y: 160, duration: 1.15, ease: "expo.inOut" }, "exit")
-        .to(overlay, { yPercent: -100, duration: 1.15, ease: "expo.inOut" }, "exit");
+        // Handoff: the logo flies onto the studio wall and becomes the sign, then the room's lights pick it up.
+        .add("exit", "flip+=0.9")
+        .to(presents, { autoAlpha: 0, duration: 0.3 }, "exit")
+        .to(grain, { autoAlpha: 0, duration: 0.5 }, "exit")
+        .to(overlay, { backgroundColor: "rgba(7,6,6,0)", duration: 1.0, ease: "power2.inOut" }, "exit")
+        .add(() => {
+          const r = stage.getBoundingClientRect();
+          const unit = r.width / W;
+          const sign = plateToScreen(SIGN_WORDMARK.x, SIGN_WORDMARK.y, window.innerWidth, window.innerHeight);
+          const ours = { cx: r.left + (W * unit) / 2, cy: r.top + (WORDMARK.height * unit) / 2 };
+          const target = { cx: sign.x + (SIGN_WORDMARK.w * sign.s) / 2, cy: sign.y + (SIGN_WORDMARK.h * sign.s) / 2 };
+          gsap.to(stage, {
+            x: target.cx - ours.cx,
+            y: target.cy - ours.cy,
+            scale: (SIGN_WORDMARK.w * sign.s) / (W * unit),
+            transformOrigin: `${(W * unit) / 2}px ${(WORDMARK.height * unit) / 2}px`,
+            duration: 1.25,
+            ease: "expo.inOut",
+          });
+        }, "exit")
+        .add(() => {
+          finish();
+          lenis?.start();
+        }, "exit+=1.15")
+        .to(stage, { autoAlpha: 0, duration: 0.7, ease: "power2.in" }, "exit+=1.3");
 
       // React StrictMode mounts twice — without this the first ticker keeps overwriting `d` and blocks the morph.
       return () => {
@@ -220,7 +241,7 @@ export default function Preloader() {
     <div
       ref={root}
       aria-hidden
-      className="fixed inset-0 z-100 overflow-hidden bg-black text-tan select-none"
+      className="fixed inset-0 z-100 overflow-clip bg-black text-tan select-none"
       style={{ backgroundColor: BLACK }}
     >
       {/* film grain */}

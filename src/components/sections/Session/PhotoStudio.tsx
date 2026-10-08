@@ -10,7 +10,7 @@ import { Line, useTexture } from "@react-three/drei";
 import * as THREE from "three";
 import type { Line2, LineSegments2 } from "three-stdlib";
 import { onPluck, playRiff, pluck, sampleAudio, unlockAudio } from "./audio";
-import { dismissGuitarHint, session } from "./state";
+import { coverFit, dismissGuitarHint, session } from "./state";
 
 const TAN = "#e7b47e";
 const IMG = { w: 1536, h: 1024 };
@@ -26,16 +26,8 @@ const STRINGS = Array.from({ length: 6 }, (_, i) => ({
 const GUITAR_BODY = { x: 560, y: 640, w: 360, h: 250 };
 const HERO_PHONE = [1080, 515] as const;
 const HERO_CHEST = [900, 560] as const;
-/** Screen corners on 04-D-phone-closeup.png: TL, TR, BR, BL */
-const SCREEN_QUAD: [number, number][] = [
-  [478, 250],
-  [716, 268],
-  [622, 778],
-  [380, 738],
-];
-const CLOSEUP_FOCUS = [560, 500] as const;
-/** Scroll progress at which the push-in has fully arrived on the close-up */
-const PUSH_END = 0.76;
+/** Scroll progress at which the push-in has settled on the phone */
+const PUSH_END = 0.6;
 
 const uvOf = (px: number, py: number) => new THREE.Vector2(px / IMG.w, 1 - py / IMG.h);
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
@@ -47,9 +39,6 @@ const smooth = (p: number, a: number, b: number) => THREE.MathUtils.clamp((p - a
 const frame = {
   parallax: new THREE.Vector2(),
   heroZoom: 1,
-  heroFade: 1,
-  closeupFade: 0,
-  closeupZoom: 1,
   flicker: 1,
   breath: 0,
   time: 0,
@@ -66,7 +55,6 @@ function useCover(centerX = 0.5) {
   return { w, h, s, shift };
 }
 const HERO_CENTER_X = 0.6;
-const CLOSEUP_CENTER_X = 0.36;
 
 // ---------------------------------------------------------------------------
 // Plate shader
@@ -105,13 +93,15 @@ const FRAG = /* glsl */ `
     float red = uHasMasks > 0.5 ? texture2D(uMaskRed, uv).r : 0.0;
     float lamp = uHasMasks > 0.5 ? texture2D(uMaskLamp, uv).r : 0.0;
 
-    float amb = uLights.z;
-    vec3 col = base * (0.035 + 0.80 * amb);
-    col += base * red * uLights.x * (0.9 + uAudio * 0.9);
-    col += base * lamp * uLights.y * uFlicker * 0.9;
-    // the phone lights his face while the room is still dark
+    // Dark room: almost nothing, except the phone lighting his face.
     float glow = exp(-distance(uv, uPhone) * 9.0) * uPhoneGlow;
-    col += base * glow * vec3(0.9, 0.95, 1.15) * 2.4 * (1.0 - amb * 0.75);
+    vec3 dark = base * 0.04 + base * glow * vec3(0.9, 0.95, 1.15) * 2.4;
+    // The beats: red wall light flickers on, then the lamp. Once the ambient is up, the photo is itself.
+    dark += base * red * uLights.x * 1.3;
+    dark += base * lamp * uLights.y * uFlicker * 0.9;
+    vec3 col = mix(dark, base, uLights.z);
+    // the guitar makes the red light pulse
+    col += base * red * uAudio * 0.5;
 
     float n = fract(sin(dot(vUv * 913.0 + uTime, vec2(12.9898, 78.233))) * 43758.5453);
     col += (n - 0.5) * uGrain;
@@ -146,8 +136,8 @@ function makeUniforms(t: PlateTextures, focus: THREE.Vector2, hasAlpha: boolean)
     uAudio: { value: 0 },
     uFlicker: { value: 1 },
     uTime: { value: 0 },
-    uGrain: { value: 0.035 },
-    uVignette: { value: 0.85 },
+    uGrain: { value: 0.022 },
+    uVignette: { value: 0.45 },
     uFade: { value: 1 },
     uPhoneGlow: { value: 1 },
   };
@@ -220,10 +210,8 @@ function Studio() {
     configure,
   ) as unknown as PlateTextures;
   const fg = useTexture({ map: "/scene/hero-cutout.webp", depth: "/scene/hero-depth.jpg" }, configure) as unknown as PlateTextures;
-  const closeup = useTexture({ map: "/scene/closeup.jpg", depth: "/scene/closeup-depth.jpg" }, configure) as unknown as PlateTextures;
 
   const heroFocus = useMemo(() => uvOf(...HERO_PHONE), []);
-  const closeupFocus = useMemo(() => uvOf(...CLOSEUP_FOCUS), []);
   const fgTextures = useMemo(() => ({ ...fg, red: bg.red, lamp: bg.lamp }), [fg, bg]);
 
   return (
@@ -238,7 +226,6 @@ function Studio() {
         z={0}
         update={(u) => {
           u.uZoom.value = frame.heroZoom;
-          u.uFade.value = frame.heroFade;
           u.uPhoneGlow.value = 0.35;
         }}
       />
@@ -253,28 +240,11 @@ function Studio() {
         z={1}
         update={(u) => {
           u.uZoom.value = frame.heroZoom;
-          u.uFade.value = frame.heroFade;
           u.uBreath.value = frame.breath;
-          u.uPhoneGlow.value = 1;
+          u.uPhoneGlow.value = 1 + session.phonePulse * 2.5;
         }}
       />
       <Strings />
-      {/* close-up plate for the end of the push */}
-      <Plate
-        textures={closeup}
-        focus={closeupFocus}
-        centerX={CLOSEUP_CENTER_X}
-        parallaxScale={0.004}
-        depthZoom={0.1}
-        z={3}
-        update={(u) => {
-          u.uZoom.value = frame.closeupZoom;
-          u.uFade.value = frame.closeupFade;
-          u.uPhoneGlow.value = 0;
-          u.uVignette.value = 0.6;
-        }}
-      />
-      <LockScreen />
     </>
   );
 }
@@ -335,7 +305,7 @@ function Strings() {
     const par = frame.parallax.clone().multiplyScalar(STRING_PARALLAX * (STRING_DEPTH - 0.5));
     g.scale.set(z, z, 1);
     g.position.set(shift + focusWorld[0] * (1 - z) - par.x * w, focusWorld[1] * (1 - z) - par.y * h, 0);
-    const visible = frame.heroFade * (1 - smooth(z, 1.05, 1.4));
+    const visible = 1;
 
     for (let i = 0; i < 6; i++) {
       const line = lines.current[i];
@@ -422,97 +392,6 @@ function Strings() {
 }
 
 // ---------------------------------------------------------------------------
-// Lock screen mapped onto the close-up's phone
-// ---------------------------------------------------------------------------
-function useLockScreenTexture() {
-  return useMemo(() => {
-    const c = document.createElement("canvas");
-    c.width = 544;
-    c.height = 1160;
-    const g = c.getContext("2d")!;
-    g.scale(2, 2);
-    const grad = g.createLinearGradient(0, 0, 0, 580);
-    grad.addColorStop(0, "#3a0a0a");
-    grad.addColorStop(1, "#120808");
-    g.fillStyle = grad;
-    g.fillRect(0, 0, 272, 580);
-    g.fillStyle = "#f1ede9";
-    g.textAlign = "center";
-    g.font = "600 76px Afacad Flux, system-ui, sans-serif";
-    g.fillText("11:50", 136, 190);
-    g.font = "500 18px Afacad Flux, system-ui, sans-serif";
-    g.globalAlpha = 0.7;
-    g.fillText("Tuesday, 7 October", 136, 220);
-    g.globalAlpha = 1;
-    g.fillStyle = "rgba(241,237,233,0.12)";
-    g.beginPath();
-    g.roundRect(18, 290, 236, 92, 18);
-    g.fill();
-    g.fillStyle = TAN;
-    g.beginPath();
-    g.arc(48, 336, 18, 0, Math.PI * 2);
-    g.fill();
-    g.fillStyle = "#850909";
-    g.font = "700 20px Afacad Flux, system-ui, sans-serif";
-    g.fillText("α", 48, 343);
-    g.fillStyle = "#f1ede9";
-    g.textAlign = "left";
-    g.font = "600 17px Afacad Flux, system-ui, sans-serif";
-    g.fillText("AUVOX Music", 78, 328);
-    g.font = "400 15px Afacad Flux, system-ui, sans-serif";
-    g.globalAlpha = 0.8;
-    g.fillText("Hey… have you heard about", 78, 350);
-    g.fillText("AUVOX Music?", 78, 368);
-    const tex = new THREE.CanvasTexture(c);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    return tex;
-  }, []);
-}
-
-function LockScreen() {
-  const { w, h, shift } = useCover(CLOSEUP_CENTER_X);
-  const tex = useLockScreenTexture();
-  const group = useRef<THREE.Group>(null);
-  const material = useRef<THREE.MeshBasicMaterial>(null);
-  const geometry = useMemo(() => {
-    const pts = SCREEN_QUAD.map(([px, py]) => [(px / IMG.w - 0.5) * w, (0.5 - py / IMG.h) * h]);
-    const g = new THREE.BufferGeometry();
-    const pos = new Float32Array([...pts[0], 0, ...pts[1], 0, ...pts[2], 0, ...pts[3], 0]);
-    const uv = new Float32Array([0, 1, 1, 1, 1, 0, 0, 0]);
-    g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-    g.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
-    g.setIndex([0, 1, 2, 0, 2, 3]);
-    return g;
-  }, [w, h]);
-  const focusWorld = useMemo(() => [(CLOSEUP_FOCUS[0] / IMG.w - 0.5) * w, (0.5 - CLOSEUP_FOCUS[1] / IMG.h) * h], [w, h]);
-
-  useFrame(() => {
-    const g = group.current;
-    if (!g) return;
-    const z = frame.closeupZoom;
-    g.scale.set(z, z, 1);
-    g.position.set(shift + focusWorld[0] * (1 - z), focusWorld[1] * (1 - z), 0);
-    if (material.current) material.current.opacity = frame.closeupFade;
-  });
-
-  return (
-    <group ref={group} position={[0, 0, 4]}>
-      <mesh geometry={geometry} renderOrder={4}>
-        <meshBasicMaterial
-          ref={material}
-          map={tex}
-          transparent
-          opacity={0}
-          depthTest={false}
-          toneMapped={false}
-          side={THREE.DoubleSide}
-        />
-      </mesh>
-    </group>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Dust in the lamp light
 // ---------------------------------------------------------------------------
 const DUST_COUNT = 160;
@@ -546,7 +425,7 @@ function Dust() {
       if (arr[i * 3 + 1] > h / 2) arr[i * 3 + 1] = -h / 2;
     }
     attr.needsUpdate = true;
-    (mesh.material as THREE.PointsMaterial).opacity = 0.35 * session.lights.lamp * frame.heroFade;
+    (mesh.material as THREE.PointsMaterial).opacity = 0.35 * session.lights.lamp;
   });
   return (
     <points ref={points} renderOrder={2}>
@@ -563,20 +442,24 @@ function Dust() {
 // ---------------------------------------------------------------------------
 function Driver() {
   const smoothMouse = useRef(new THREE.Vector2());
-  useFrame(({ clock }, dt) => {
+  useFrame(({ clock, size }, dt) => {
     sampleAudio(session.audio);
     const p = session.progress;
     const k = Math.min(1, dt * 3);
     smoothMouse.current.x += (session.mouse.x - smoothMouse.current.x) * k;
     smoothMouse.current.y += (session.mouse.y - smoothMouse.current.y) * k;
 
+    // Scroll pushes the camera towards the phone and stops there; the studio stays in frame.
     const push = easeInOut(smooth(p, 0, PUSH_END));
-    frame.parallax.copy(smoothMouse.current).multiplyScalar(1 - push);
-    frame.heroZoom = 1 + 1.6 * push;
-    frame.closeupFade = smooth(p, 0.5, 0.58);
-    frame.closeupZoom = 1 + 0.45 * smooth(p, 0.5, PUSH_END);
-    frame.heroFade = 1 - smooth(p, 0.52, 0.6);
+    frame.parallax.copy(smoothMouse.current).multiplyScalar(1 - push * 0.6);
+    frame.heroZoom = 1 + 0.7 * push;
     frame.time = clock.elapsedTime;
+    session.phonePulse *= Math.exp(-dt * 4);
+    // the zoom pivots on the phone, so its screen position only drifts with the parallax
+    const { w, h, shift } = coverFit(size.width, size.height);
+    const d = 0.75 - 0.5;
+    session.phoneScreen.x = size.width / 2 + shift + (HERO_PHONE[0] / IMG.w - 0.5) * w - frame.parallax.x * 0.014 * d * w;
+    session.phoneScreen.y = size.height / 2 + (HERO_PHONE[1] / IMG.h - 0.5) * h + frame.parallax.y * 0.014 * d * h;
     frame.breath = Math.sin(clock.elapsedTime * 1.1) * 0.004;
     const a = session.audio.level;
     frame.flicker = session.lights.lamp > 0.9 ? 1 + (Math.random() - 0.5) * (0.05 + a * 0.5) : 1;
