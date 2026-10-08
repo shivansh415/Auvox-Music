@@ -8,7 +8,7 @@ import PhoneUI from "./PhoneUI";
 import { isMuted, setMuted } from "./audio";
 import { session } from "./state";
 
-const Studio = dynamic(() => import("./Studio"), { ssr: false });
+const Studio = dynamic(() => import("./PhotoStudio"), { ssr: false });
 
 /**
  * Section 2 — "The Session". One continuous shot: lights come up on the studio,
