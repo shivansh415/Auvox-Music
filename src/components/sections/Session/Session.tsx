@@ -57,7 +57,8 @@ export default function Session() {
         if (tapHint.current) {
           const h = session.hintScreen;
           tapHint.current.style.transform = `translate(${h.x}px, ${h.y}px) translate(-50%, -50%)`;
-          tapHint.current.style.opacity = String(h.opacity);
+          // step aside while the conversation is open — it sits behind the bubbles
+          tapHint.current.style.opacity = String(h.opacity * (1 - session.focus));
         }
         if (scrollHint.current) {
           const gone = gsap.utils.clamp(0, 1, session.progress / 0.06);
