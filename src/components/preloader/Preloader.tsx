@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useLenis } from "lenis/react";
 import { gsap, useGSAP } from "@/lib/gsap";
 import { usePreloaderStore } from "@/store/preloader";
-import { plateToScreen, SIGN_WORDMARK } from "@/components/sections/Session/state";
+import { plateToScreen, session, SIGN_WORDMARK } from "@/components/sections/Session/state";
 import { setMuted, unlockAudio } from "@/components/sections/Session/audio";
 import { MUSIC, WORDMARK } from "./logo-paths";
 
@@ -226,25 +226,44 @@ export default function Preloader() {
         .to(grain, { autoAlpha: 0, duration: 0.5 }, "exit")
         .to(overlay, { backgroundColor: "rgba(7,6,6,0)", duration: 1.0, ease: "power2.inOut" }, "exit")
         .add(() => {
+          // Fly the lockup onto the wall sign. The target is read live from the scene every frame,
+          // so the pointer's pan during the flight can't knock it off its mark.
           const r = stage.getBoundingClientRect();
           const unit = r.width / W;
-          const sign = plateToScreen(SIGN_WORDMARK.x, SIGN_WORDMARK.y, window.innerWidth, window.innerHeight);
-          const ours = { cx: r.left + (W * unit) / 2, cy: r.top + (WORDMARK.height * unit) / 2 };
-          const target = { cx: sign.x + (SIGN_WORDMARK.w * sign.s) / 2, cy: sign.y + (SIGN_WORDMARK.h * sign.s) / 2 };
-          gsap.to(stage, {
-            x: target.cx - ours.cx,
-            y: target.cy - ours.cy,
-            scale: (SIGN_WORDMARK.w * sign.s) / (W * unit),
-            transformOrigin: `${(W * unit) / 2}px ${(WORDMARK.height * unit) / 2}px`,
+          const ox = r.left + (W * unit) / 2;
+          const oy = r.top + (WORDMARK.height * unit) / 2;
+          const fallback = plateToScreen(SIGN_WORDMARK.x, SIGN_WORDMARK.y, window.innerWidth, window.innerHeight);
+          const target = () => {
+            const box = session.signScreen;
+            if (box.w > 0) return { cx: box.x + box.w / 2, cy: box.y + box.h / 2, scale: box.w / (W * unit) };
+            return {
+              cx: fallback.x + (SIGN_WORDMARK.w * fallback.s) / 2,
+              cy: fallback.y + (SIGN_WORDMARK.h * fallback.s) / 2,
+              scale: (SIGN_WORDMARK.w * fallback.s) / (W * unit),
+            };
+          };
+          gsap.set(stage, { transformOrigin: `${(W * unit) / 2}px ${(WORDMARK.height * unit) / 2}px` });
+          const flight = { t: 0 };
+          gsap.to(flight, {
+            t: 1,
             duration: 1.25,
             ease: "expo.inOut",
+            onUpdate: () => {
+              const tgt = target();
+              gsap.set(stage, {
+                x: (tgt.cx - ox) * flight.t,
+                y: (tgt.cy - oy) * flight.t,
+                scale: 1 + (tgt.scale - 1) * flight.t,
+              });
+            },
           });
         }, "exit")
+        // Landing: the scene's sign fades in underneath while the flown logo fades out — a straight swap.
         .add(() => {
           finish();
           lenis?.start();
         }, "exit+=1.25")
-        .to(stage, { autoAlpha: 0, duration: 0.7, ease: "power2.in" }, "exit+=1.4");
+        .to(stage, { autoAlpha: 0, duration: 0.4, ease: "power1.inOut" }, "exit+=1.3");
 
       // React StrictMode mounts twice — without this the first ticker keeps overwriting `d` and blocks the morph.
       return () => {

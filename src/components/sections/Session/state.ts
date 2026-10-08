@@ -23,6 +23,10 @@ export const session = {
   autoPlay: false,
   /** 0–1, a gentle zoom towards the phone while the conversation is open (tweened by GSAP) */
   focus: 0,
+  /** 0–1, the wall sign; it appears when the preloader's logo lands on the wall */
+  sign: 0,
+  /** Live screen box (px) of the sign's wordmark, written by the scene every frame; w = 0 until it renders */
+  signScreen: { x: 0, y: 0, w: 0, h: 0 },
   /** Render-loop counter (debug: confirms the canvas is actually drawing) */
   frames: 0,
 };

@@ -10,7 +10,7 @@ import { Line, useTexture } from "@react-three/drei";
 import * as THREE from "three";
 import type { Line2, LineSegments2 } from "three-stdlib";
 import { onPluck, playRiff, pluck, sampleAudio, unlockAudio } from "./audio";
-import { coverFit, dismissGuitarHint, session } from "./state";
+import { coverFit, dismissGuitarHint, session, SIGN_WORDMARK } from "./state";
 
 const TAN = "#e7b47e";
 const IMG = { w: 1536, h: 1024 };
@@ -215,11 +215,13 @@ function Studio() {
     configure,
   ) as unknown as PlateTextures;
 
+  const sign = useTexture({ map: "/scene/sign.webp", depth: "/scene/hero-depth.jpg" }, configure) as unknown as PlateTextures;
+
   const heroFocus = useMemo(() => uvOf(...HERO_PHONE), []);
 
   return (
     <>
-      {/* empty studio */}
+      {/* the studio, wall left bare */}
       <Plate
         textures={bg}
         focus={heroFocus}
@@ -233,6 +235,24 @@ function Studio() {
           // one photo, moved as a whole: no depth warping, so nothing can double up
           u.uDepthFlat.value = PAN_DEPTH;
           u.uDepthMix.value = 0;
+        }}
+      />
+      {/* the wall sign: the preloader's logo lands here and becomes it; already lit while the room is dark */}
+      <Plate
+        textures={sign}
+        focus={heroFocus}
+        centerX={HERO_CENTER_X}
+        hasAlpha
+        parallaxScale={PAN}
+        depthZoom={0}
+        z={0.5}
+        update={(u) => {
+          u.uZoom.value = frame.heroZoom;
+          u.uDepthFlat.value = PAN_DEPTH;
+          u.uDepthMix.value = 0;
+          u.uLights.value.set(0, 0, 1);
+          u.uPhoneGlow.value = 0;
+          u.uFade.value = session.sign;
         }}
       />
       <Strings />
@@ -451,6 +471,22 @@ function Driver() {
     session.phonePulse *= Math.exp(-dt * 4);
     // the zoom pivots on the phone, so its screen position only drifts with the parallax
     const { w, h, shift } = coverFit(size.width, size.height);
+    // Where the sign's wordmark is on screen right now (plate px → shader uv → screen), for the preloader handoff.
+    {
+      const z = frame.heroZoom;
+      const fx = HERO_PHONE[0] / IMG.w;
+      const fy = 1 - HERO_PHONE[1] / IMG.h;
+      const ox = frame.parallax.x * PAN * (PAN_DEPTH - 0.5);
+      const oy = frame.parallax.y * PAN * (PAN_DEPTH - 0.5);
+      const toScreen = (px: number, py: number) => {
+        const vx = fx + (px / IMG.w - ox - fx) * z;
+        const vy = fy + (1 - py / IMG.h - oy - fy) * z;
+        return [size.width / 2 + shift + (vx - 0.5) * w, size.height / 2 - (vy - 0.5) * h];
+      };
+      const [x0, y0] = toScreen(SIGN_WORDMARK.x, SIGN_WORDMARK.y);
+      const [x1, y1] = toScreen(SIGN_WORDMARK.x + SIGN_WORDMARK.w, SIGN_WORDMARK.y + SIGN_WORDMARK.h);
+      Object.assign(session.signScreen, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+    }
     session.phoneScreen.x = size.width / 2 + shift + (HERO_PHONE[0] / IMG.w - 0.5) * w - frame.parallax.x * PAN * (PAN_DEPTH - 0.5) * w;
     session.phoneScreen.y = size.height / 2 + (HERO_PHONE[1] / IMG.h - 0.5) * h + frame.parallax.y * PAN * (PAN_DEPTH - 0.5) * h;
     frame.breath = Math.sin(clock.elapsedTime * 1.1) * 0.004;

@@ -28,7 +28,8 @@ def webp_alpha(src: Path, name: str, quality: int = 90) -> None:
 
 
 jpg(FINAL / "02-B-clean-plate.png", "clean.jpg")
-jpg(FINAL / "03-A-hero.png", "hero.jpg")
+jpg(FINAL / "03-A-hero-nosign.png", "hero.jpg")  # bare wall: the sign arrives with the preloader
+webp_alpha(FINAL / "03-A-hero-sign.png", "sign.webp")
 jpg(FINAL / "04-D-phone-closeup.png", "closeup.jpg")
 jpg(FINAL / "08-A-hero-mobile.png", "hero-mobile.jpg")
 jpg(LAYERS / "clean-depth.png", "clean-depth.jpg", 85, grayscale=True)

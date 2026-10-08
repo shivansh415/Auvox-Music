@@ -149,6 +149,16 @@ def resign(src: Path, protect: np.ndarray | None = None) -> tuple[int, int, int,
 
     Image.fromarray(np.clip(out, 0, 255).astype(np.uint8)).save(src)
     print("✓", src.name, "(sign replaced)")
+
+    # Split versions for the site: the bare wall, and the sign on its own (logo + shadow, occluded by him).
+    Image.fromarray(np.clip(wall, 0, 255).astype(np.uint8)).save(src.with_name(src.stem + "-nosign.png"))
+    layer = np.zeros((H, W, 4), np.float32)
+    a_out = alpha + shadow * (1 - alpha)
+    rgb = np.where(a_out[..., None] > 1e-4, colour * alpha[..., None] / np.maximum(a_out[..., None], 1e-4), 0)
+    layer[ty : ty + lh, tx : tx + lw, :3] = rgb
+    layer[ty : ty + lh, tx : tx + lw, 3] = a_out * 255
+    Image.fromarray(np.clip(layer, 0, 255).astype(np.uint8), "RGBA").save(src.with_name(src.stem + "-sign.png"))
+    print("✓", src.stem + "-nosign.png,", src.stem + "-sign.png")
     return tx, ty, lw, int(round(wordmark_h))
 
 
