@@ -54,18 +54,19 @@ def cutout(image: Image.Image) -> None:
 
 
 def light_masks(image: Image.Image) -> None:
+    """Two light beats for the intro: mask-red = the warm LED strip glow, mask-lamp = the spotlit highlights."""
     rgb = np.asarray(image.convert("RGB")).astype(np.float32) / 255.0
     r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
     lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
 
-    # red wall: red clearly dominant over green/blue, not too dark
-    red = np.clip((r - np.maximum(g, b) - 0.08) * 4.0, 0, 1) * np.clip((lum - 0.05) * 6, 0, 1)
-    Image.fromarray((red * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(18)).save(OUT / "mask-red.png")
+    # LED strip: bright and warm, spread into a glow
+    led = np.clip((lum - 0.5) * 3.0, 0, 1) * np.clip((r - b) * 4.0, 0, 1)
+    Image.fromarray((led * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(30)).save(OUT / "mask-red.png")
 
-    # lamp: the brightest warm highlights, spread out into a glow
-    warm = np.clip((lum - 0.55) * 3.0, 0, 1) * np.clip((r - b) * 3.0, 0, 1)
-    Image.fromarray((warm * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(40)).save(OUT / "mask-lamp.png")
-    print("✓ mask-red.png, mask-lamp.png")
+    # spotlights / general: everything reasonably lit, softly
+    lit = np.clip((lum - 0.22) / 0.45, 0, 1)
+    Image.fromarray((lit * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(22)).save(OUT / "mask-lamp.png")
+    print("✓ mask-red.png (LED), mask-lamp.png (spots)")
 
 
 def main() -> None:
@@ -83,8 +84,7 @@ def main() -> None:
     closeup_path = FINAL / "04-D-phone-closeup.png"
     if closeup_path.exists():
         depth(Image.open(closeup_path).convert("RGB"), "closeup-depth.png")
-    cutout(hero)
-    light_masks(clean)
+    light_masks(hero)
 
 
 if __name__ == "__main__":

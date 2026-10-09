@@ -61,11 +61,11 @@ export function requestAutoPlay() {
 // ---------------------------------------------------------------------------
 export const PLATE = { w: 1536, h: 1024 };
 /** Image x (0–1) kept in view when a narrow screen crops the plate */
-export const HERO_CENTER_X = 0.6;
+export const HERO_CENTER_X = 0.5;
 /** Wall sign on the hero/clean plate, in plate pixels: the "auvox" wordmark box */
-export const SIGN_WORDMARK = { x: 505, y: 113, w: 448, h: 105 };
+export const SIGN_WORDMARK = { x: 200, y: 128, w: 270, h: 63 };
 /** Phone screen centre on the hero plate, in plate pixels */
-export const HERO_PHONE = { x: 1080, y: 515 };
+export const HERO_PHONE = { x: 850, y: 428 };
 
 /** Cover-fit of the plate inside a viewport: plate size in px and the horizontal shift that keeps `centerX` visible. */
 export function coverFit(vw: number, vh: number, centerX = HERO_CENTER_X) {

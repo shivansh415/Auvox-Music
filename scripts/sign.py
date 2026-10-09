@@ -162,13 +162,55 @@ def resign(src: Path, protect: np.ndarray | None = None) -> tuple[int, int, int,
     return tx, ty, lw, int(round(wordmark_h))
 
 
+# ---- v2 room (client feedback 2026-10-09): light greige wall, sign on the bare upper-left wall ----
+V2_X, V2_W, V2_CY = 200, 270, 160      # lockup left edge, lockup width, wordmark centre (plate px)
+RED = np.array([133, 9, 9], dtype=np.float32)
+HALO = np.array([255, 196, 130], dtype=np.float32)
+
+
+def place_backlit_sign(src: Path) -> tuple[int, int, int, int]:
+    """Writes <src>-sign.png (RGBA layer: red letters, soft shadow, warm LED halo) and <src>-signed.png (preview)."""
+    plate = np.asarray(Image.open(src).convert("RGB")).astype(np.float32)
+    H, W, _ = plate.shape
+    alpha_img = render_logo(V2_W)
+    lw, lh = alpha_img.size
+    wordmark_h = lh * 303 / 446
+    tx, ty = V2_X, int(round(V2_CY - wordmark_h / 2))
+    a = np.zeros((H, W), np.float32)
+    a[ty : ty + lh, tx : tx + lw] = np.asarray(alpha_img).astype(np.float32) / 255.0
+
+    # letters: brand red, shaded a touch by the wall's own light falloff
+    local = cv2.GaussianBlur(plate.mean(axis=2), (0, 0), 30)
+    shade = np.clip(local / max(local[ty : ty + lh, tx : tx + lw].mean(), 1), 0.8, 1.15)[..., None]
+    letters = RED[None, None, :] * shade
+    # halo: the letters stand off the wall with a warm LED behind them, like the slat panels
+    halo = cv2.GaussianBlur(a, (0, 0), 16) * 0.55 + cv2.GaussianBlur(a, (0, 0), 5) * 0.35
+    shadow = shift(cv2.GaussianBlur(a, (0, 0), 2.5), 3, 2) * 0.35
+
+    # composite as one RGBA layer, back to front: halo (warm light) → shadow → letters
+    rgb = np.zeros((H, W, 3), np.float32)
+    al = np.zeros((H, W), np.float32)
+    for colour, amount in ((HALO, np.clip(halo, 0, 1) * 0.6), (np.zeros(3, np.float32), shadow)):
+        a_out = amount + al * (1 - amount)
+        mix = colour[None, None, :] * amount[..., None] + rgb * (al * (1 - amount))[..., None]
+        rgb = mix / np.maximum(a_out, 1e-5)[..., None]
+        al = a_out
+    a_out = a + al * (1 - a)
+    rgb = (letters * a[..., None] + rgb * (al * (1 - a))[..., None]) / np.maximum(a_out, 1e-5)[..., None]
+    al = a_out
+    layer = np.dstack([np.clip(rgb, 0, 255), np.clip(al * 255, 0, 255)]).astype(np.uint8)
+    Image.fromarray(layer, "RGBA").save(src.with_name(src.stem + "-sign.png"))
+
+    preview = plate * (1 - al[..., None]) + rgb * al[..., None]
+    Image.fromarray(np.clip(preview, 0, 255).astype(np.uint8)).save(src.with_name(src.stem + "-signed.png"))
+    print("✓", src.stem + "-sign.png,", src.stem + "-signed.png")
+    return tx, ty, lw, int(round(wordmark_h))
+
+
 def main() -> None:
-    tx, ty, lw, wh = resign(FINAL / "02-B-clean-plate.png")
-    mask_path = FINAL / "layers" / "hero-cutout-mask.png"
-    protect = np.asarray(Image.open(mask_path).convert("L")).astype(np.float32) / 255.0 if mask_path.exists() else None
-    resign(FINAL / "03-A-hero.png", protect)
+    tx, ty, lw, wh = place_backlit_sign(FINAL / "03-A-hero.png")
     print(f"SIGN_WORDMARK = {{ x: {tx}, y: {ty}, w: {lw}, h: {wh} }}")
-    Image.open(FINAL / "03-A-hero.png").crop((380, 60, 1080, 320)).save(FINAL / "layers" / "sign-preview.png")
+    Image.open(FINAL / "03-A-hero-signed.png").crop((120, 40, 620, 300)).save(FINAL / "layers" / "sign-preview.png")
 
 
 if __name__ == "__main__":

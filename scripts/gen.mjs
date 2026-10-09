@@ -87,6 +87,19 @@ const STEPS = {
     refs: [],
     prompt: `Close-up portrait for a chat profile picture: a cheerful young Canadian man around twenty, big grin, short light-blond hair, clean-shaven, wearing a cream crew-neck t-shirt, soft warm tungsten light from the side, blurred deep-red music studio background, centred head and shoulders, looking at the camera. Photorealistic, natural skin texture, shallow depth of field. No text, no logos, no watermark.`,
   },
+  // ---- v2 (client feedback 2026-10-09): realistic warm home studio, photoreal model, guitar held up ----
+  plateB2: {
+    final: "02-B-clean-plate.png",
+    size: "1536x1024",
+    refs: [ref("ref-client-studio-v2.webp")],
+    prompt: `A real photograph of a modern, warm home music studio, straight-on view at chest height, 16:9. Layout and mood very similar to the reference image: warm greige/taupe back wall; two tall vertical light-oak wood slat acoustic panels on the back wall, centred slightly right, with a soft warm LED strip glowing behind and below them; a light-oak desk with black legs across the back wall, a large monitor in the middle, two black studio monitor speakers on stands, a small synth keyboard and a mixer on the desk; on the left an electric guitar and a bass guitar on stands and an acoustic guitar leaning against the desk; on the right floating oak shelves with small plants and books, a tall potted plant and a black rack unit; black ceiling track spotlights; a beige curtain at the far left; light oak floor with a cream rug. In the centre foreground, slightly right of centre, an empty black stool facing the camera. The upper-left part of the back wall, left of the slat panels and above the guitars, is plain bare wall with nothing on it (clear space for a sign). Evening, warm cosy practical light from the LED strip and the spotlights, realistic exposure, natural colours. Real camera photo, 35mm lens, slight depth of field, subtle film grain. No people, no text, no logos, no posters, no watermark.`,
+  },
+  plateA2: {
+    final: "03-A-hero.png",
+    size: "1536x1024",
+    refs: [fin("02-B-clean-plate.png"), ref("ref-tshirt-auvox.png"), ref("ref-pose-guitar-phone.webp"), ref("ref-guitar-brand-red.png")],
+    prompt: `Edit the first image. Keep the room, the camera angle, the lighting and every object exactly the same. Add a young white Canadian man, about 22, sitting on the black desk chair, which is turned around to face the camera, in the centre of the room in front of the desk. He must look like a real person in a real photograph: natural skin with visible pores, light freckles and small imperfections, natural asymmetry, relaxed genuine smile, short slightly messy light-brown hair, a little stubble — not a model, not airbrushed, not CGI, not anime or illustration. He wears the cream AUVOX t-shirt with exactly the print from the second image, dark jeans, over-ear headphones around his neck. He holds the red electric guitar from the fourth image on a black strap over his shoulder, in a proper playing position: the guitar body rests on his right thigh, the neck points to his left and is raised upward at about 20 degrees (the guitar is upright, not lying flat across his lap), his right hand rests on the strings over the pickups like the third image. His left hand holds a smartphone up at chest height with the screen facing him; the screen is black and switched off; his eyes are on the phone and he smiles at what he reads. All six guitar strings are clearly visible, straight and on the guitar. Both hands anatomically correct. Warm light from the LED strip and spotlights falls naturally on him. Real camera photo, 35mm, natural colours, subtle film grain. No text other than the t-shirt print, no watermark.`,
+  },
   mobile: {
     final: "08-A-hero-mobile.png",
     size: "1024x1536",

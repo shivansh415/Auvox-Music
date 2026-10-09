@@ -10,7 +10,14 @@ import { Line, useTexture } from "@react-three/drei";
 import * as THREE from "three";
 import type { Line2, LineSegments2 } from "three-stdlib";
 import { onPluck, playRiff, pluck, sampleAudio, unlockAudio } from "./audio";
-import { coverFit, dismissGuitarHint, session, SIGN_WORDMARK } from "./state";
+import {
+  coverFit,
+  dismissGuitarHint,
+  HERO_CENTER_X as HERO_CENTER_X_SHARED,
+  HERO_PHONE as HERO_PHONE_PX,
+  session,
+  SIGN_WORDMARK,
+} from "./state";
 
 const TAN = "#e7b47e";
 const IMG = { w: 1536, h: 1024 };
@@ -18,14 +25,17 @@ const IMG = { w: 1536, h: 1024 };
 // ---------------------------------------------------------------------------
 // Calibration (pixels in the 1536×1024 plates)
 // ---------------------------------------------------------------------------
-/** Six strings on 03-A-hero.png, low E (top) → high E, bridge → nut */
+/** Six strings on 03-A-hero.png, low E (top) → high E, bridge saddles → nut (measured from the fretboard) */
 const STRINGS = Array.from({ length: 6 }, (_, i) => ({
-  a: [700, 716 + i * 9.2] as [number, number],
-  b: [1290, 789 + i * 9.6] as [number, number],
+  a: [392, 743 + i * 10.8] as [number, number],
+  b: [1037, 763 + i * 7.8] as [number, number],
 }));
-const GUITAR_BODY = { x: 560, y: 640, w: 360, h: 250 };
-const HERO_PHONE = [1080, 515] as const;
-const HERO_CHEST = [900, 560] as const;
+const GUITAR_BODY = { x: 290, y: 650, w: 330, h: 260 };
+const HERO_PHONE = [HERO_PHONE_PX.x, HERO_PHONE_PX.y] as const;
+const HERO_CHEST = [680, 560] as const;
+/** Strings at rest read as bright silver; a plucked string flares to brand gold */
+const STRING_REST = new THREE.Color("#e9e6df");
+const STRING_LIT = new THREE.Color(TAN).multiplyScalar(1.5);
 
 /** Pointer pan, as a whole-frame camera drift (uv units at full deflection = PAN * (PAN_DEPTH - 0.5)) */
 const PAN = 0.05;
@@ -57,7 +67,7 @@ function useCover(centerX = 0.5) {
   const shift = THREE.MathUtils.clamp((0.5 - centerX) * w, -maxShift, maxShift);
   return { w, h, s, shift };
 }
-const HERO_CENTER_X = 0.6;
+const HERO_CENTER_X = HERO_CENTER_X_SHARED;
 
 // ---------------------------------------------------------------------------
 // Plate shader
@@ -261,7 +271,7 @@ function Studio() {
 }
 
 // ---------------------------------------------------------------------------
-// Playable strings drawn over the photo's strings (invisible at rest)
+// Playable strings drawn over the photo's strings: silver at rest, gold while ringing
 // ---------------------------------------------------------------------------
 const SEGMENTS = 40;
 /** The whole plate pans as one: strings use the same flat depth so they stay glued to the photo */
@@ -317,14 +327,15 @@ function Strings() {
     const pv = par.current.copy(frame.parallax).multiplyScalar(STRING_PARALLAX * (STRING_DEPTH - 0.5));
     g.scale.set(z, z, 1);
     g.position.set(shift + focusWorld[0] * (1 - z) - pv.x * w, focusWorld[1] * (1 - z) - pv.y * h, 0);
-    const visible = 1;
-
     for (let i = 0; i < 6; i++) {
       const line = lines.current[i];
       if (!line) continue;
       const e = energy.current[i];
-      const mat = line.material as THREE.Material & { opacity: number };
-      mat.opacity = Math.min(1, e * 2.5) * visible;
+      const glow = Math.min(1, e * 2.5);
+      const mat = line.material as THREE.Material & { opacity: number; color: THREE.Color; linewidth: number };
+      mat.opacity = 0.55 + 0.45 * glow;
+      mat.color.copy(STRING_REST).lerp(STRING_LIT, glow);
+      mat.linewidth = (1.1 - i * 0.08) * (1 + glow * 0.8);
       if (e < 0.004) continue;
       age.current[i] += dt;
       energy.current[i] = e * Math.exp(-dt * 2.6);
@@ -373,10 +384,10 @@ function Strings() {
             lines.current[i] = el;
           }}
           points={s.points}
-          color={new THREE.Color(TAN).multiplyScalar(1.6)}
-          lineWidth={1.6 - i * 0.12}
+          color={STRING_REST}
+          lineWidth={1.1 - i * 0.08}
           transparent
-          opacity={0}
+          opacity={0.55}
           frustumCulled={false}
           material-toneMapped={false}
           renderOrder={2}

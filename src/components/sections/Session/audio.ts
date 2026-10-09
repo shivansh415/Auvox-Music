@@ -1,7 +1,7 @@
 "use client";
 
-// Plucked-string synth (Karplus-Strong) + analyser. No audio files needed: every note is
-// generated from a noise burst run through a tuned delay line, which is how a real string behaves.
+// Guitar audio. Uses real recordings when they are present in /public/audio/guitar/ (see SAMPLE_FILES),
+// and falls back to a plucked-string synth (Karplus-Strong) for anything that is missing.
 
 /** Open strings, low E → high E */
 export const STRING_FREQS = [82.41, 110, 146.83, 196, 246.94, 329.63];
@@ -13,6 +13,34 @@ let master: GainNode | null = null;
 let analyser: AnalyserNode | null = null;
 let muted = false;
 let riffing = false;
+
+/**
+ * Drop real recordings here (mp3/ogg/wav, short, dry, normalised) and list them in
+ * /public/audio/guitar/manifest.json as { "strings": ["0.mp3", …6 files, low E → high E], "riff": "riff.mp3" }.
+ */
+const SAMPLE_DIR = "/audio/guitar/";
+const samples: { strings: (AudioBuffer | null)[]; riff: AudioBuffer | null } = { strings: [], riff: null };
+let samplesRequested = false;
+
+async function loadSamples() {
+  if (samplesRequested || !ctx) return;
+  samplesRequested = true;
+  try {
+    const res = await fetch(SAMPLE_DIR + "manifest.json");
+    if (!res.ok) return; // no recordings yet: keep the synth
+    const manifest = (await res.json()) as { strings?: string[]; riff?: string };
+    const decode = async (file?: string) => {
+      if (!file || !ctx) return null;
+      const r = await fetch(SAMPLE_DIR + file);
+      return r.ok ? ctx.decodeAudioData(await r.arrayBuffer()) : null;
+    };
+    const [riff, ...strings] = await Promise.all([decode(manifest.riff), ...(manifest.strings ?? []).map(decode)]);
+    samples.riff = riff;
+    samples.strings = strings;
+  } catch {
+    // a broken file just means that note stays synthesised
+  }
+}
 
 const listeners = new Set<PluckListener>();
 const muteListeners = new Set<(muted: boolean) => void>();
@@ -42,6 +70,7 @@ export function unlockAudio() {
     master.connect(warmth).connect(analyser).connect(ctx.destination);
   }
   if (ctx.state === "suspended") void ctx.resume();
+  void loadSamples();
 }
 
 export function isMuted() {
@@ -128,8 +157,20 @@ function playNote(freq: number, when: number, velocity: number) {
 
 /** Pluck one open string (fret shifts the pitch in semitones). The string still vibrates when silent. */
 export function pluck(string: number, velocity = 1, fret = 0) {
-  if (ctx) playNote(STRING_FREQS[string] * 2 ** (fret / 12), 0, velocity);
+  const recorded = fret === 0 ? samples.strings[string] : null;
+  if (recorded) playBuffer(recorded, 0.9 * velocity);
+  else if (ctx) playNote(STRING_FREQS[string] * 2 ** (fret / 12), 0, velocity);
   emit(string);
+}
+
+function playBuffer(buffer: AudioBuffer, gainValue: number) {
+  if (!ctx || !master || !running()) return;
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  const gain = ctx.createGain();
+  gain.gain.value = gainValue;
+  src.connect(gain).connect(master);
+  src.start();
 }
 
 /** A short fingerpicked E-minor phrase that ends in a strum. */
@@ -137,6 +178,17 @@ export function playRiff() {
   if (riffing) return;
   unlockAudio();
   riffing = true;
+
+  // A recorded riff wins; the strings still shimmer along with it.
+  if (samples.riff && running()) {
+    playBuffer(samples.riff, 0.9);
+    const ms = samples.riff.duration * 1000;
+    for (let t = 0; t < ms - 200; t += 140) window.setTimeout(() => emit((t / 140) % 6 | 0), t);
+    window.setTimeout(() => {
+      riffing = false;
+    }, ms);
+    return;
+  }
 
   const step = 0.14;
   const pattern: [string: number, fret: number][] = [

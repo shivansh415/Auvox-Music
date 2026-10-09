@@ -13,6 +13,7 @@ const ONCE_PER_SESSION = false;
 const SESSION_KEY = "auvox:preloader-seen";
 
 const TAN = "#e7b47e";
+const RED = "#850909";
 const PEARL = "#f1ede9";
 const BLACK = "#000000";
 
@@ -243,6 +244,8 @@ export default function Preloader() {
             };
           };
           gsap.set(stage, { transformOrigin: `${(W * unit) / 2}px ${(WORDMARK.height * unit) / 2}px` });
+          // the sign on the wall is brand red, so the lockup takes that colour on the way
+          gsap.to(stage, { color: RED, duration: 1.1, ease: "power2.inOut", delay: 0.15 });
           const flight = { t: 0 };
           gsap.to(flight, {
             t: 1,
