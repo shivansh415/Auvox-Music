@@ -19,6 +19,7 @@ export default function Session() {
   const scrollHint = useRef<HTMLDivElement>(null);
   const tapHint = useRef<HTMLDivElement>(null);
   const phoneHint = useRef<HTMLButtonElement>(null);
+  const held = useRef<{ x: number; y: number } | null>(null);
   const done = usePreloaderStore((s) => s.done);
   const [muted, setMutedState] = useState(false);
   useEffect(() => onMuteChange(setMutedState), []);
@@ -48,8 +49,21 @@ export default function Session() {
       window.addEventListener("resize", onResize);
       const tick = () => {
         if (phoneHint.current) {
+          // Hold still once the pointer is close: the room's pan must not move the target away from the hand.
           const { x, y } = session.phoneScreen;
-          phoneHint.current.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
+          const px = (session.mouse.x + 1) * 0.5 * window.innerWidth;
+          const py = (1 - session.mouse.y) * 0.5 * window.innerHeight;
+          const near = Math.hypot(px - x, py - y) < 140;
+          const h = held.current ?? (held.current = { x, y });
+          // far from the target, or the pointer away: track exactly. Pointer near: ease, so it never dodges.
+          if (!near || Math.hypot(h.x - x, h.y - y) > 60) {
+            h.x = x;
+            h.y = y;
+          } else {
+            h.x += (x - h.x) * 0.04;
+            h.y += (y - h.y) * 0.04;
+          }
+          phoneHint.current.style.transform = `translate(${h.x}px, ${h.y}px) translate(-50%, -50%)`;
           const painted = gsap.utils.clamp(0, 1, (session.reveal - 0.75) / 0.25);
           const show = session.phoneHint * painted * (1 - gsap.utils.clamp(0, 1, session.progress / 0.12));
           phoneHint.current.style.opacity = String(show);
@@ -86,6 +100,7 @@ export default function Session() {
     gsap.set(session.lights, { red: 1, lamp: 1, ambient: 1 });
     const tl = gsap.timeline({ delay: 0.05 });
     tl.fromTo(session, { sign: 0 }, { sign: 1, duration: 0.4, ease: "power1.inOut" }, 0)
+      .fromTo(session, { signShimmer: 0 }, { signShimmer: 1, duration: 1.3, ease: "power1.inOut" }, 0.25)
       // the portal opens out of the phone the moment the logo lands — no hold, one continuous move
       .to(session, { reveal: 1, duration: 3.4, ease: "power2.inOut" }, 0)
       .to(session, { bloom: 1, duration: 0.4, ease: "power2.out" }, 3.0)
@@ -124,10 +139,12 @@ export default function Session() {
         ref={phoneHint}
         onClick={tapPhone}
         aria-label="Open the conversation on the phone"
-        className="tap-ring absolute top-0 left-0 z-10 flex h-12 w-12 items-center justify-center rounded-full border border-tan bg-red text-pearl shadow-[0_0_30px_rgba(133,9,9,0.55)] transition-transform hover:scale-110"
+        className="group absolute top-0 left-0 z-10 flex h-20 w-20 items-center justify-center rounded-full"
         style={{ opacity: 0, pointerEvents: "none" }}
       >
-        <span className="text-[9px] font-semibold tracking-[0.3em]">TAP</span>
+        <span className="tap-ring relative flex h-12 w-12 items-center justify-center rounded-full border border-tan bg-red text-pearl shadow-[0_0_30px_rgba(133,9,9,0.55)] transition-transform duration-200 group-hover:scale-110">
+          <span className="text-[9px] font-semibold tracking-[0.3em]">TAP</span>
+        </span>
       </button>
 
       <div

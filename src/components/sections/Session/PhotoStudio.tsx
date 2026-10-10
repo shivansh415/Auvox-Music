@@ -95,7 +95,7 @@ const FRAG = /* glsl */ `
   uniform vec2 uParallax, uFocus, uChest, uPhone, uPointer;
   uniform float uZoom, uParallaxScale, uDepthZoom, uBreath, uDepthFlat, uDepthMix, uShift;
   uniform vec3 uLights;      // red, lamp, ambient
-  uniform float uAudio, uFlicker, uTime, uGrain, uVignette, uFade, uPhoneGlow, uReveal, uBloom;
+  uniform float uAudio, uFlicker, uTime, uGrain, uVignette, uFade, uPhoneGlow, uReveal, uBloom, uShimmer;
   varying vec2 vUv;
 
   const vec2 TEXEL = vec2(1.0 / 1536.0, 1.0 / 1024.0);
@@ -277,6 +277,15 @@ const FRAG = /* glsl */ `
       col = outc;
     }
 
+    // a diagonal sweep of light with glitter, used once when the sign lands
+    if (uShimmer > 0.001 && uShimmer < 0.999) {
+      vec2 scr = vUv * ASPECT;
+      float pos = vUv.x + vUv.y * 0.6 - (uShimmer * 2.2 - 0.4);
+      float band = exp(-pos * pos * 60.0);
+      float gl = glitter(scr, vec2(0.7, 0.7), band);
+      col += vec3(1.0, 0.98, 0.95) * (band * 0.8 + gl * band * 2.0) * alpha;
+    }
+
     float n2 = fract(sin(dot(vUv * 913.0 + uTime, vec2(12.9898, 78.233))) * 43758.5453);
     col += (n2 - 0.5) * uGrain;
     float v = smoothstep(1.25, 0.3, distance(vUv, vec2(0.5)) * 1.35);
@@ -320,6 +329,7 @@ function makeUniforms(t: PlateTextures, focus: THREE.Vector2, hasAlpha: boolean)
     uReveal: { value: 0 },
     uBloom: { value: 0 },
     uShift: { value: 0 },
+    uShimmer: { value: 0 },
     uPointer: { value: new THREE.Vector2(0.5, 0.5) },
   };
 }
@@ -434,6 +444,7 @@ function Studio() {
           u.uLights.value.set(0, 0, 1);
           u.uPhoneGlow.value = 0;
           u.uFade.value = session.sign;
+          u.uShimmer.value = session.signShimmer;
         }}
       />
       <Strings />

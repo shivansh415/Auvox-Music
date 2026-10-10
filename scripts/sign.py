@@ -163,7 +163,7 @@ def resign(src: Path, protect: np.ndarray | None = None) -> tuple[int, int, int,
 
 
 # ---- v2 room (client feedback 2026-10-09): light greige wall, sign on the bare upper-left wall ----
-V2_X, V2_W, V2_CY = 200, 270, 160      # lockup left edge, lockup width, wordmark centre (plate px)
+V2_X, V2_W, V2_CY = 150, 400, 175      # lockup left edge, lockup width, wordmark centre (plate px)
 RED = np.array([133, 9, 9], dtype=np.float32)
 HALO = np.array([255, 196, 130], dtype=np.float32)
 
@@ -179,16 +179,14 @@ def place_backlit_sign(src: Path) -> tuple[int, int, int, int]:
     a = np.zeros((H, W), np.float32)
     a[ty : ty + lh, tx : tx + lw] = np.asarray(alpha_img).astype(np.float32) / 255.0
 
-    # letters: brand red, shaded a touch by the wall's own light falloff
+    # letters: bold cream type, a touch of the wall's light falloff so it belongs to the room
     local = cv2.GaussianBlur(plate.mean(axis=2), (0, 0), 30)
-    shade = np.clip(local / max(local[ty : ty + lh, tx : tx + lw].mean(), 1), 0.8, 1.15)[..., None]
-    letters = RED[None, None, :] * shade
-    # halo: the letters stand off the wall with a warm LED behind them, like the slat panels
-    halo = cv2.GaussianBlur(a, (0, 0), 16) * 0.55 + cv2.GaussianBlur(a, (0, 0), 5) * 0.35
-    shadow = shift(cv2.GaussianBlur(a, (0, 0), 2.5), 3, 2) * 0.35
-    # a hair of thickness: the top edge of each letter catches the spots
-    rim = np.clip(a - shift(a, 1, 0), 0, 1) * 0.9
-    letters = letters * (1 - rim[..., None]) + np.array([205, 70, 60], np.float32)[None, None, :] * rim[..., None]
+    shade = np.clip(local / max(local[ty : ty + lh, tx : tx + lw].mean(), 1), 0.9, 1.08)[..., None]
+    letters = CREAM[None, None, :] * shade
+    # no halo — this reads as typography over the scene, not a lit sign
+    halo = np.zeros_like(a)
+    # a soft drop shadow lifts it off the wall
+    shadow = shift(cv2.GaussianBlur(a, (0, 0), 7.0), 8, 5) * 0.55
 
     # composite as one RGBA layer, back to front: halo (warm light) → shadow → letters
     rgb = np.zeros((H, W, 3), np.float32)

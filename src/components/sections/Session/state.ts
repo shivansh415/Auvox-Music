@@ -25,6 +25,8 @@ export const session = {
   focus: 0,
   /** 0–1, the wall sign; it appears when the preloader's logo lands on the wall */
   sign: 0,
+  /** 0–1, one glitter sweep across the sign's letters right after it lands */
+  signShimmer: 0,
   /** 0–1, the ink wipe: 0 = the whole studio is a pencil sketch, 1 = fully painted (tweened by GSAP) */
   reveal: 0,
   /** 0–1, a warm LED bloom right after the wipe lands */
@@ -69,7 +71,7 @@ export const PLATE = { w: 1536, h: 1024 };
 /** Image x (0–1) kept in view when a narrow screen crops the plate */
 export const HERO_CENTER_X = 0.5;
 /** Wall sign on the hero/clean plate, in plate pixels: the "auvox" wordmark box */
-export const SIGN_WORDMARK = { x: 200, y: 128, w: 270, h: 63 };
+export const SIGN_WORDMARK = { x: 150, y: 128, w: 400, h: 94 };
 /** Phone screen centre on the hero plate, in plate pixels */
 export const HERO_PHONE = { x: 850, y: 428 };
 
