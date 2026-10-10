@@ -150,8 +150,10 @@ const FRAG = /* glsl */ `
       float lum = lumAt(cellUv);
       float r = hashn(cell + float(k));
       float keep = step(1.0 - amount * (0.10 + 0.55 * lum), r);
-      float rad = (k == 0) ? 0.10 : (k == 1) ? 0.075 : 0.055;
-      float dotm = 1.0 - smoothstep(rad, rad + 0.06, length(cuv));
+      float rad = (k == 0) ? 0.11 : (k == 1) ? 0.08 : 0.055;
+      float rd = length(cuv);
+      // bokeh ring: bright rim, dim centre
+      float dotm = smoothstep(rad - 0.05, rad, rd) * (1.0 - smoothstep(rad, rad + 0.04, rd)) + 0.3 * (1.0 - smoothstep(0.0, rad, rd));
       float bright = ((k == 0) ? 0.35 : (k == 1) ? 0.7 : 1.0) * (0.35 + 0.65 * lum);
       g += dotm * keep * bright * (0.75 + 0.25 * sin(uTime * (1.5 + r * 3.0) + r * 40.0));
     }
@@ -159,8 +161,8 @@ const FRAG = /* glsl */ `
     vec2 cell = floor(sp);
     vec2 cuv = fract(sp) - 0.5 + (vec2(hashn(cell + 2.7), hashn(cell + 8.9)) - 0.5) * 0.7;
     float r = hashn(cell + 3.3);
-    float star = (max(1.0 - abs(cuv.x) * 9.0, 0.0) * max(1.0 - abs(cuv.y) * 2.2, 0.0)
-                + max(1.0 - abs(cuv.y) * 9.0, 0.0) * max(1.0 - abs(cuv.x) * 2.2, 0.0));
+    float star = (pow(max(1.0 - abs(cuv.x) * 30.0, 0.0), 2.0) * max(1.0 - abs(cuv.y) * 1.6, 0.0)
+                + pow(max(1.0 - abs(cuv.y) * 30.0, 0.0), 2.0) * max(1.0 - abs(cuv.x) * 1.6, 0.0));
     float core = exp(-dot(cuv, cuv) * 60.0);
     float tw = 0.5 + 0.5 * sin(uTime * 2.2 + r * 60.0);
     g += (star * 0.9 + core) * step(0.985, r) * tw * amount;
@@ -213,37 +215,42 @@ const FRAG = /* glsl */ `
     // the guitar makes the LED light pulse; the bloom is the wipe landing
     col += base * red * (uAudio * 0.5 + uBloom * 0.9);
 
-    // The portal. A circle grows out of the phone; its rim is a wide band of white-hot glitter that
-    // keeps pouring over the freshly painted edge; outside it the world is a white-line etching under
-    // a galaxy made of the photo's own light. uReveal 0 = closed (a point on the phone), 1 = all painted.
+    // The portal, after Shopify Editions: not a circle but an ink blot. The boundary is domain-warped
+    // noise whose amplitude grows with the radius, so it stays fluffy at every size. Both sides of the
+    // boundary fall into a dark, smoky feather; while the portal is still small that feather burns
+    // white-hot with sparkle, and the burn dies down as the blot spreads.
     if (uSketch > 0.5) {
       vec2 scr = vUv * ASPECT;
       vec2 c = uPhone * ASPECT;
-      float dist = distance(scr, c);
-      float rr = 0.02 + pow(uReveal, 1.5) * 1.95;
-      float n = (fbm(scr * 4.0 + uTime * 0.2) - 0.5) * 0.12 * (0.4 + 0.6 * uReveal)
-              + exp(-distance(scr, uPointer * ASPECT) * 5.0) * 0.05 * uReveal;
-      float d = dist - rr + n;             // < 0 inside
+      vec2 rel = scr - c;
+      float dist = length(rel);
+      float rr = 0.02 + pow(uReveal, 1.3) * 1.5;
+      vec2 q = vec2(fbm(scr * 3.0 + uTime * 0.05), fbm(scr * 3.0 + 7.1 - uTime * 0.04));
+      float f1 = fbm(scr * 6.0 + q * 1.5 + uTime * 0.08);
+      float f2 = fbm(scr * 18.0 + q * 3.0 - uTime * 0.12);
+      float f3 = vnoise(scr * 60.0 + uTime * 0.5);
+      float wob = (f1 - 0.5) * 0.9 + (f2 - 0.5) * 0.35 + (f3 - 0.5) * 0.08
+                + exp(-distance(scr, uPointer * ASPECT) * 5.0) * 0.12 * uReveal;
+      float amp = 0.05 + rr * 0.28;
+      float d = dist - rr - wob * amp;             // < 0 inside
       float moving = step(0.001, uReveal) * step(uReveal, 0.999);
 
       vec3 etched = etching(uv, base, scr) + galaxy(scr, uv, 1.0) * 0.95;
-      float inside = 1.0 - smoothstep(-0.006, 0.006, d);
+      float inside = 1.0 - smoothstep(-0.003, 0.003, d);
       vec3 outc = mix(etched, col, inside);
 
-      // soft bloom either side of the edge, warm just outside, white inside
-      vec3 hot = vec3(1.0, 0.98, 0.94);
-      vec3 warm = vec3(1.0, 0.78, 0.5);
-      float bloomIn = exp(-max(-d, 0.0) * 9.0) * inside;
-      float bloomOut = exp(-max(d, 0.0) * 22.0) * (1.0 - inside);
-      outc += hot * bloomIn * 0.35 + warm * bloomOut * 0.45;
-      // a thin hot seam right at the edge
-      outc += hot * exp(-abs(d) * 260.0) * (0.9 + 0.8 * fbm(scr * 50.0 + uTime * 2.0));
+      // smoke feather: the boundary bleeds dark into both sides, broken up by the fine noise
+      float feather = exp(-abs(d) * 10.0) * (0.5 + 0.5 * f2) * moving;
+      outc *= 1.0 - feather * 0.95;
 
-      // the glitter: densest at the seam, trailing well inside the painted area
-      vec2 dir = normalize(scr - c + 1e-4);
-      float band = exp(-max(-d, 0.0) * 11.0) * inside + exp(-max(d, 0.0) * 30.0) * (1.0 - inside) * 0.6;
-      float gl = glitter(scr, dir, band);
-      outc += hot * gl * band * (1.6 * moving + 0.25);
+      // the burn: a wide white-hot bloom with sparkle, strongest while the portal is small
+      float burn = 1.0 - smoothstep(0.04, 0.32, uReveal);
+      float gband = exp(-abs(d) * 12.0) * (0.5 + 0.5 * f1);
+      vec3 hot = vec3(1.0, 0.985, 0.95);
+      float gl = glitter(scr, normalize(rel + 1e-4), gband);
+      outc += hot * (gband * gband * 1.2 * burn + gband * f3 * 0.5 * burn + gl * gband * (1.5 * burn + 0.12));
+      // a thin bright crust right on the boundary that stays as the blot spreads
+      outc += hot * exp(-abs(d) * 220.0) * (0.35 + 0.65 * f2) * (0.12 + 0.88 * burn) * moving;
 
       col = outc;
     }
