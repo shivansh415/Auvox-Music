@@ -86,10 +86,10 @@ export default function Session() {
     gsap.set(session.lights, { red: 1, lamp: 1, ambient: 1 });
     const tl = gsap.timeline({ delay: 0.05 });
     tl.fromTo(session, { sign: 0 }, { sign: 1, duration: 0.4, ease: "power1.inOut" }, 0)
-      .to(session, { reveal: 1, duration: 2.0, ease: "expo.inOut" }, 0.35)
-      .to(session, { bloom: 1, duration: 0.35, ease: "power2.out" }, 1.85)
-      .to(session, { bloom: 0, duration: 1.0, ease: "power2.inOut" })
-      .fromTo(session, { guitarHintIn: 0 }, { guitarHintIn: 1, duration: 0.8, ease: "power2.out" }, 3.4);
+      .to(session, { reveal: 1, duration: 3.6, ease: "power1.inOut" }, 0.15)
+      .to(session, { bloom: 1, duration: 0.4, ease: "power2.out" }, 3.4)
+      .to(session, { bloom: 0, duration: 1.1, ease: "power2.inOut" })
+      .fromTo(session, { guitarHintIn: 0 }, { guitarHintIn: 1, duration: 0.8, ease: "power2.out" }, 4.8);
     return () => {
       tl.kill();
     };

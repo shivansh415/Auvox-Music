@@ -165,26 +165,47 @@ const FRAG = /* glsl */ `
     // the guitar makes the LED light pulse; the bloom is the wipe landing
     col += base * red * (uAudio * 0.5 + uBloom * 0.9);
 
-    // The ink wipe: paint sweeps in from the right over the sketch. The edge is a noisy, bleeding
-    // line that bulges towards the pointer; just behind it the paint is still wet and a touch too vivid.
+    // The reveal: the painted photo pushes in from the right over the sketch. The boundary is not a
+    // line but a cloud of particles — each cell flips from paper to paint at its own moment, and while
+    // it is in flux it is drawn as a monochrome dot of the image, drifting left, with the odd glint.
     if (uSketch > 0.5) {
       vec2 scr = vUv * ASPECT;
-      float edgeX = 1.65 - uReveal * 1.95;
-      float n = (fbm(scr * 4.0 + vec2(0.0, uTime * 0.12)) - 0.5) * 0.16
-              + (vnoise(scr * 38.0 + uTime * 0.3) - 0.5) * 0.035
-              + exp(-distance(scr, uPointer * ASPECT) * 5.0) * 0.08;
-      float x = scr.x + n;
-      float painted = smoothstep(edgeX - 0.012, edgeX + 0.012, x);
-      float wet = painted * (1.0 - smoothstep(edgeX + 0.02, edgeX + 0.16, x));
+      vec2 g = scr * 112.0;
+      vec2 cell = floor(g);
+      vec2 cuv = fract(g) - 0.5;
+      float r1 = hashn(cell), r2 = hashn(cell * 1.7 + 3.1), r3 = hashn(cell * 0.37 + 9.0);
+      float edgeX = 1.9 - uReveal * 2.3;
+      float flow = fbm(scr * 3.0 + vec2(0.0, uTime * 0.1)) - 0.5;      // the front bends like poured ink
+      float x = scr.x + flow * 0.22 + exp(-distance(scr, uPointer * ASPECT) * 5.0) * 0.08;
+      float dEdge = x - edgeX;
+      float band = 1.0 - smoothstep(0.0, 0.30, abs(dEdge + (r1 - 0.5) * 0.14));
+      float painted = step(edgeX + (r1 - 0.5) * 0.24, x);
+
+      // just-painted paint is still wet: a touch too vivid, a faint sheen
+      float wet = painted * (1.0 - smoothstep(0.02, 0.22, dEdge));
       float l = lumOf(col);
       vec3 vivid = (col - l) * 1.4 + l * 1.06;
       col = mix(col, vivid, wet * 0.8) + wet * 0.04;
+
       vec3 sk = sketch(uv, base, scr);
-      col = mix(sk, col, painted);
-      // the brush's leading edge: a thin dark line of wet ink, only while the wipe is moving
-      float inkLine = (1.0 - smoothstep(0.0, 0.014, abs(x - edgeX))) * step(0.001, uReveal) * step(uReveal, 0.999);
-      col = mix(col, vec3(0.12, 0.07, 0.06), inkLine * 0.55);
-      // the sketch is on paper, not film: no grain, no alpha
+      vec3 outc = mix(sk, col, painted);
+
+      // the particles
+      vec2 duv = uv + vec2(-r2 * 0.028 * band, (r3 - 0.5) * 0.006 * band);
+      float pl = lumOf(texture2D(uMap, duv).rgb);
+      float rad = (0.10 + 0.34 * (1.0 - pl)) * band;
+      float dotm = 1.0 - smoothstep(rad - 0.08, rad + 0.08, length(cuv));
+      float tone = mix(0.06, 0.96, step(0.55, r2));
+      outc = mix(outc, vec3(tone), dotm * band * 0.92);
+      // glints
+      float star = max(1.0 - abs(cuv.x) * 7.0, 0.0) * max(1.0 - abs(cuv.y) * 1.8, 0.0)
+                 + max(1.0 - abs(cuv.y) * 7.0, 0.0) * max(1.0 - abs(cuv.x) * 1.8, 0.0);
+      float twinkle = 0.55 + 0.45 * sin(uTime * 7.0 + r1 * 50.0);
+      outc += vec3(1.0) * step(0.986, r3) * star * band * twinkle;
+
+      // frozen states carry none of this
+      float moving = step(0.001, uReveal) * step(uReveal, 0.999);
+      col = mix(mix(sk, col, step(0.5, uReveal)), outc, moving);
     }
 
     float n2 = fract(sin(dot(vUv * 913.0 + uTime, vec2(12.9898, 78.233))) * 43758.5453);
