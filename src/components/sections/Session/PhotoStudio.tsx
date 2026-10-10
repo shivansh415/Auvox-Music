@@ -117,25 +117,51 @@ const FRAG = /* glsl */ `
   // a thin dark line through the middle of each unit cell
   float hatch(float v) { return 1.0 - smoothstep(0.0, 0.24, abs(fract(v) - 0.5) * 2.0); }
 
-  // The studio as pencil on paper: Sobel edges for the line work, luminance-driven cross-hatch for tone.
-  vec3 sketch(vec2 uv, vec3 base, vec2 scr) {
+  // The studio as a white-line etching on dark space (the un-painted world): Sobel edges, inverted,
+  // with a faint ghost of the tones, and a galaxy of particles floating over it.
+  vec3 etching(vec2 uv, vec3 base, vec2 scr) {
     float tl = lumAt(uv + TEXEL * vec2(-1.0,  1.0)), tc = lumAt(uv + TEXEL * vec2(0.0,  1.0)), tr = lumAt(uv + TEXEL * vec2(1.0,  1.0));
     float ml = lumAt(uv + TEXEL * vec2(-1.0,  0.0)),                                              mr = lumAt(uv + TEXEL * vec2(1.0,  0.0));
     float bl = lumAt(uv + TEXEL * vec2(-1.0, -1.0)), bc = lumAt(uv + TEXEL * vec2(0.0, -1.0)), br = lumAt(uv + TEXEL * vec2(1.0, -1.0));
     float gx = (tr + 2.0 * mr + br) - (tl + 2.0 * ml + bl);
     float gy = (bl + 2.0 * bc + br) - (tl + 2.0 * tc + tr);
-    float edge = smoothstep(0.05, 0.28, length(vec2(gx, gy)));
+    float edge = smoothstep(0.04, 0.30, length(vec2(gx, gy)));
     float lum = lumOf(base);
-    // pencil strokes: a hand-drawn wobble on the hatch lines, denser only where the photo is dark
-    vec2 h = scr * 92.0 + (vnoise(scr * 40.0) - 0.5) * 0.9;
-    float tone = 0.0;
-    tone += hatch((h.x + h.y) * 0.5)       * (1.0 - smoothstep(0.42, 0.66, lum)) * 0.75;
-    tone += hatch((h.x - h.y) * 0.5)       * (1.0 - smoothstep(0.22, 0.42, lum)) * 0.85;
-    tone += hatch((h.x + h.y) * 1.0 + 0.5) * (1.0 - smoothstep(0.06, 0.20, lum));
-    float ink = clamp(edge * 1.0 + tone * 0.42, 0.0, 1.0);
-    float paperGrain = vnoise(scr * 900.0) * 0.05 + fbm(scr * 14.0) * 0.07;
-    vec3 paper = vec3(0.945, 0.925, 0.89) * (0.88 + 0.12 * lum) - paperGrain;
-    return mix(paper, vec3(0.17, 0.13, 0.11), ink);
+    // a trace of the tones, like a plate that was only lightly inked
+    vec3 ghost = base * 0.16 + vec3(0.03, 0.035, 0.05);
+    vec3 line = vec3(0.92, 0.93, 0.96);
+    vec3 col = mix(ghost, line, edge * (0.55 + 0.45 * lum));
+    // fine engraving texture along the strokes
+    col -= (vnoise(scr * 700.0) - 0.5) * 0.06;
+    return col;
+  }
+
+  // Galaxy: three sizes of dots on a cell grid, plus a few twinkling 4-point stars.
+  vec3 galaxy(vec2 scr, float amount) {
+    vec3 g = vec3(0.0);
+    for (int k = 0; k < 3; k++) {
+      float scale = (k == 0) ? 55.0 : (k == 1) ? 110.0 : 220.0;
+      vec2 gp = scr * scale + float(k) * 7.3;
+      vec2 cell = floor(gp);
+      vec2 cuv = fract(gp) - 0.5 + (vec2(hashn(cell + 1.3), hashn(cell + 5.1)) - 0.5) * 0.6;
+      float r = hashn(cell + float(k));
+      float keep = step(1.0 - amount * (k == 2 ? 0.32 : 0.14), r);
+      float rad = (k == 0) ? 0.09 : (k == 1) ? 0.07 : 0.05;
+      float dotm = 1.0 - smoothstep(rad, rad + 0.05, length(cuv));
+      float bright = (k == 0) ? 0.45 : (k == 1) ? 0.8 : 1.0;
+      g += dotm * keep * bright * (0.7 + 0.3 * sin(uTime * (1.5 + r * 3.0) + r * 40.0));
+    }
+    // stars
+    vec2 sp = scr * 28.0;
+    vec2 cell = floor(sp);
+    vec2 cuv = fract(sp) - 0.5 + (vec2(hashn(cell + 2.7), hashn(cell + 8.9)) - 0.5) * 0.7;
+    float r = hashn(cell + 3.3);
+    float star = (max(1.0 - abs(cuv.x) * 9.0, 0.0) * max(1.0 - abs(cuv.y) * 2.2, 0.0)
+                + max(1.0 - abs(cuv.y) * 9.0, 0.0) * max(1.0 - abs(cuv.x) * 2.2, 0.0));
+    float core = exp(-dot(cuv, cuv) * 60.0);
+    float tw = 0.5 + 0.5 * sin(uTime * 2.2 + r * 60.0);
+    g += (star * 0.9 + core) * step(0.985, r) * tw * amount;
+    return g;
   }
 
   void main() {
@@ -165,47 +191,46 @@ const FRAG = /* glsl */ `
     // the guitar makes the LED light pulse; the bloom is the wipe landing
     col += base * red * (uAudio * 0.5 + uBloom * 0.9);
 
-    // The reveal: the painted photo pushes in from the right over the sketch. The boundary is not a
-    // line but a cloud of particles — each cell flips from paper to paint at its own moment, and while
-    // it is in flux it is drawn as a monochrome dot of the image, drifting left, with the odd glint.
+    // The portal. A circle grows out of the phone; its rim is white-hot sparks, outside it the world is
+    // a white-line etching under a galaxy, inside it is the painted studio. uReveal 0 = a small pulsing
+    // portal on the phone, 1 = the whole screen is painted.
     if (uSketch > 0.5) {
       vec2 scr = vUv * ASPECT;
-      vec2 g = scr * 112.0;
-      vec2 cell = floor(g);
-      vec2 cuv = fract(g) - 0.5;
-      float r1 = hashn(cell), r2 = hashn(cell * 1.7 + 3.1), r3 = hashn(cell * 0.37 + 9.0);
-      float edgeX = 1.9 - uReveal * 2.3;
-      float flow = fbm(scr * 3.0 + vec2(0.0, uTime * 0.1)) - 0.5;      // the front bends like poured ink
-      float x = scr.x + flow * 0.22 + exp(-distance(scr, uPointer * ASPECT) * 5.0) * 0.08;
-      float dEdge = x - edgeX;
-      float band = 1.0 - smoothstep(0.0, 0.30, abs(dEdge + (r1 - 0.5) * 0.14));
-      float painted = step(edgeX + (r1 - 0.5) * 0.24, x);
+      vec2 c = uPhone * ASPECT;
+      float dist = distance(scr, c);
+      float pulse = 0.5 + 0.5 * sin(uTime * 1.6);
+      float r0 = 0.055 + 0.012 * pulse;
+      float rr = r0 + pow(uReveal, 1.6) * 1.9;
+      float n = (fbm(scr * 5.0 + uTime * 0.25) - 0.5) * (0.10 + 0.06 * (1.0 - uReveal))
+              + exp(-distance(scr, uPointer * ASPECT) * 5.0) * 0.05 * uReveal;
+      float d = dist - rr + n;             // < 0 inside
 
-      // just-painted paint is still wet: a touch too vivid, a faint sheen
-      float wet = painted * (1.0 - smoothstep(0.02, 0.22, dEdge));
-      float l = lumOf(col);
-      vec3 vivid = (col - l) * 1.4 + l * 1.06;
-      col = mix(col, vivid, wet * 0.8) + wet * 0.04;
+      vec3 etched = etching(uv, base, scr) + galaxy(scr, 1.0) * 0.9;
+      float inside = 1.0 - smoothstep(-0.008, 0.008, d);
+      vec3 outc = mix(etched, col, inside);
 
-      vec3 sk = sketch(uv, base, scr);
-      vec3 outc = mix(sk, col, painted);
+      // the rim: a hot core and a wider glow, both additive, plus sparks flung outward
+      float core = exp(-abs(d) * 320.0);
+      float glowb = exp(-abs(d) * 60.0);
+      float rimN = fbm(scr * 40.0 + uTime * 1.5);           // crackle along the rim
+      vec3 hot = vec3(1.0, 0.97, 0.92);
+      vec3 warm = vec3(1.0, 0.72, 0.45);
+      outc += hot * core * (1.2 + rimN * 1.2) + mix(warm, hot, rimN) * glowb * 0.5;
+      // sparks: cells near the rim, each a short streak pushed outward and fading
+      vec2 dir = normalize(scr - c + 1e-4);
+      vec2 sp = scr * 90.0;
+      vec2 cell = floor(sp);
+      float sr = hashn(cell + 4.4), sr2 = hashn(cell + 9.9);
+      float life = fract(uTime * 1.6 + sr * 7.0);
+      vec2 cuv = fract(sp) - 0.5 - dir * life * 1.4;
+      float streak = max(1.0 - abs(dot(cuv, vec2(-dir.y, dir.x))) * 18.0, 0.0) * max(1.0 - abs(dot(cuv, dir)) * 2.2, 0.0);
+      float nearRim = exp(-max(d, 0.0) * 9.0) * step(-0.015, d);
+      outc += mix(warm, hot, sr) * streak * step(0.62, sr2) * (1.0 - life) * nearRim * 1.6;
+      // and a dusting of embers just inside the rim
+      float ember = exp(-max(-d, 0.0) * 30.0) * inside;
+      outc += hot * step(0.9, hashn(cell + 2.2)) * exp(-dot(fract(sp) - 0.5, fract(sp) - 0.5) * 40.0) * ember * 0.8;
 
-      // the particles
-      vec2 duv = uv + vec2(-r2 * 0.028 * band, (r3 - 0.5) * 0.006 * band);
-      float pl = lumOf(texture2D(uMap, duv).rgb);
-      float rad = (0.10 + 0.34 * (1.0 - pl)) * band;
-      float dotm = 1.0 - smoothstep(rad - 0.08, rad + 0.08, length(cuv));
-      float tone = mix(0.06, 0.96, step(0.55, r2));
-      outc = mix(outc, vec3(tone), dotm * band * 0.92);
-      // glints
-      float star = max(1.0 - abs(cuv.x) * 7.0, 0.0) * max(1.0 - abs(cuv.y) * 1.8, 0.0)
-                 + max(1.0 - abs(cuv.y) * 7.0, 0.0) * max(1.0 - abs(cuv.x) * 1.8, 0.0);
-      float twinkle = 0.55 + 0.45 * sin(uTime * 7.0 + r1 * 50.0);
-      outc += vec3(1.0) * step(0.986, r3) * star * band * twinkle;
-
-      // frozen states carry none of this
-      float moving = step(0.001, uReveal) * step(uReveal, 0.999);
-      col = mix(mix(sk, col, step(0.5, uReveal)), outc, moving);
+      col = outc;
     }
 
     float n2 = fract(sin(dot(vUv * 913.0 + uTime, vec2(12.9898, 78.233))) * 43758.5453);
