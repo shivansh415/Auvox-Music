@@ -215,42 +215,64 @@ const FRAG = /* glsl */ `
     // the guitar makes the LED light pulse; the bloom is the wipe landing
     col += base * red * (uAudio * 0.5 + uBloom * 0.9);
 
-    // The portal, after Shopify Editions: not a circle but an ink blot. The boundary is domain-warped
-    // noise whose amplitude grows with the radius, so it stays fluffy at every size. Both sides of the
-    // boundary fall into a dark, smoky feather; while the portal is still small that feather burns
-    // white-hot with sparkle, and the burn dies down as the blot spreads.
+    // The portal, after Shopify Editions. Two fronts grow out of the phone as ink blots (domain-warped
+    // noise whose amplitude scales with the radius). The outer front turns the etching into a dark
+    // galaxy — a dense field of bokeh dots following the photo — and its edge is a white-hot splash
+    // while the blot is small. The inner front, a beat behind, paints the photo in over the galaxy.
     if (uSketch > 0.5) {
       vec2 scr = vUv * ASPECT;
       vec2 c = uPhone * ASPECT;
       vec2 rel = scr - c;
       float dist = length(rel);
-      float rr = 0.02 + pow(uReveal, 1.3) * 1.5;
+      float ang = atan(rel.y, rel.x);
+      float moving = step(0.001, uReveal) * step(uReveal, 0.999);
+
       vec2 q = vec2(fbm(scr * 3.0 + uTime * 0.05), fbm(scr * 3.0 + 7.1 - uTime * 0.04));
       float f1 = fbm(scr * 6.0 + q * 1.5 + uTime * 0.08);
       float f2 = fbm(scr * 18.0 + q * 3.0 - uTime * 0.12);
       float f3 = vnoise(scr * 60.0 + uTime * 0.5);
-      float wob = (f1 - 0.5) * 0.9 + (f2 - 0.5) * 0.35 + (f3 - 0.5) * 0.08
-                + exp(-distance(scr, uPointer * ASPECT) * 5.0) * 0.12 * uReveal;
-      float amp = 0.05 + rr * 0.28;
-      float d = dist - rr - wob * amp;             // < 0 inside
-      float moving = step(0.001, uReveal) * step(uReveal, 0.999);
+      float pointerBulge = exp(-distance(scr, uPointer * ASPECT) * 5.0) * 0.12 * uReveal;
+      // radial streaks: noise stretched along the direction out of the phone, for the splash
+      float streaks = fbm(vec2(dist * 14.0 - uTime * 0.6, ang * 5.0));
 
+      // outer front: etching → galaxy
+      float rr = 0.03 + pow(uReveal, 1.3) * 1.6;
+      float amp = 0.06 + rr * 0.3;
+      float wob = (f1 - 0.5) * 0.9 + (f2 - 0.5) * 0.4 + (f3 - 0.5) * 0.1 + (streaks - 0.5) * 0.35 + pointerBulge;
+      float d = dist - rr - wob * amp;              // < 0 inside the galaxy
+      // inner front: galaxy → painted, a beat behind
+      float p2 = clamp((uReveal - 0.16) / 0.84, 0.0, 1.0);
+      float rr2 = pow(p2, 1.25) * 1.75;
+      float amp2 = 0.04 + rr2 * 0.26;
+      float wob2 = (fbm(scr * 5.0 - q * 1.2 + uTime * 0.06) - 0.5) * 0.9 + (f2 - 0.5) * 0.3;
+      float d2 = dist - rr2 - wob2 * amp2;          // < 0 inside the painted area
+
+      // the three worlds
       vec3 etched = etching(uv, base, scr) + galaxy(scr, uv, 1.0) * 0.95;
-      float inside = 1.0 - smoothstep(-0.003, 0.003, d);
-      vec3 outc = mix(etched, col, inside);
+      vec3 space = base * 0.04 + vec3(0.015, 0.02, 0.035) + galaxy(scr, uv, 2.2) * 1.15;
+      float inGalaxy = 1.0 - smoothstep(-0.003, 0.003, d);
+      float inPaint = 1.0 - smoothstep(-0.003, 0.003, d2) * step(0.0001, rr2);
+      vec3 outc = mix(etched, space, inGalaxy);
+      outc = mix(outc, col, inPaint * inGalaxy);
 
-      // smoke feather: the boundary bleeds dark into both sides, broken up by the fine noise
-      float feather = exp(-abs(d) * 10.0) * (0.5 + 0.5 * f2) * moving;
-      outc *= 1.0 - feather * 0.95;
-
-      // the burn: a wide white-hot bloom with sparkle, strongest while the portal is small
-      float burn = 1.0 - smoothstep(0.04, 0.32, uReveal);
-      float gband = exp(-abs(d) * 12.0) * (0.5 + 0.5 * f1);
       vec3 hot = vec3(1.0, 0.985, 0.95);
-      float gl = glitter(scr, normalize(rel + 1e-4), gband);
-      outc += hot * (gband * gband * 1.2 * burn + gband * f3 * 0.5 * burn + gl * gband * (1.5 * burn + 0.12));
-      // a thin bright crust right on the boundary that stays as the blot spreads
-      outc += hot * exp(-abs(d) * 220.0) * (0.35 + 0.65 * f2) * (0.12 + 0.88 * burn) * moving;
+      vec2 dir = normalize(rel + 1e-4);
+
+      // outer edge: a white-hot splash while small (sparks and streaks flung outward), smoke feather once big
+      float burn = 1.0 - smoothstep(0.08, 0.45, uReveal);
+      float feather = exp(-abs(d) * 10.0) * (0.5 + 0.5 * f2) * moving;
+      outc *= 1.0 - feather * 0.9 * (1.0 - burn * 0.7);
+      float gband = exp(-abs(d) * 9.0) * (0.45 + 0.55 * f1);
+      float splash = exp(-max(d, 0.0) * 6.0) * pow(streaks, 2.0) * (1.0 - inGalaxy) * 1.6;   // tongues of light outside
+      float gl = glitter(scr, dir, gband + splash * 0.5);
+      outc += hot * (gband * gband * (0.6 + 0.6 * f2) + splash * (0.6 + 0.4 * f3) + gl * (gband + splash) * 1.7) * burn;
+      outc += hot * gl * gband * 0.12 * moving;
+      outc += hot * exp(-abs(d) * 220.0) * (0.35 + 0.65 * f2) * (0.1 + 0.9 * burn) * moving;
+
+      // inner edge: a soft glow where the paint meets the galaxy
+      float g2 = exp(-abs(d2) * 14.0) * step(0.0001, rr2) * moving;
+      outc += hot * (g2 * g2 * 0.5 + glitter(scr, dir, g2) * g2 * 0.6);
+      outc *= 1.0 - g2 * 0.25 * (0.5 + 0.5 * f2);
 
       col = outc;
     }
