@@ -27,7 +27,7 @@ def webp_alpha(src: Path, name: str, quality: int = 90) -> None:
     print("✓", name, f"{(OUT / name).stat().st_size // 1024} KB")
 
 
-jpg(FINAL / "03-A-hero.png", "hero.jpg")  # bare wall: the sign arrives with the preloader
+jpg(FINAL / "03-A-hero.png", "hero.jpg", 92)  # bare wall: the sign arrives with the preloader (3072×2048)
 webp_alpha(FINAL / "03-A-hero-sign.png", "sign.webp")
 jpg(LAYERS / "hero-depth.png", "hero-depth.jpg", 85, grayscale=True)
 jpg(LAYERS / "mask-red.png", "mask-red.jpg", 80, grayscale=True)

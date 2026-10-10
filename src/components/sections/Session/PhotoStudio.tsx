@@ -340,9 +340,11 @@ function makeUniforms(t: PlateTextures, focus: THREE.Vector2, hasAlpha: boolean)
 function configure(loaded: unknown) {
   const list = Array.isArray(loaded) ? loaded : Object.values(loaded as Record<string, THREE.Texture>);
   (list as THREE.Texture[]).forEach((t, i) => {
-    t.colorSpace = i === 0 ? THREE.SRGBColorSpace : THREE.NoColorSpace;
-    t.minFilter = THREE.LinearFilter;
-    t.generateMipmaps = false;
+    const colour = i === 0;
+    t.colorSpace = colour ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+    t.minFilter = colour ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter;
+    t.generateMipmaps = colour;
+    t.anisotropy = colour ? 8 : 1;
     t.needsUpdate = true;
   });
 }
@@ -713,7 +715,7 @@ export default function PhotoStudio() {
     <Canvas
       className="absolute inset-0"
       style={{ touchAction: "pan-y" }}
-      dpr={[1, 1.25]}
+      dpr={[1, 2]}
       orthographic
       camera={{ position: [0, 0, 100], zoom: 1, near: 0.1, far: 1000 }}
       gl={{ antialias: false, powerPreference: "high-performance", toneMapping: THREE.NoToneMapping }}

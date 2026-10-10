@@ -100,6 +100,13 @@ const STEPS = {
     refs: [fin("02-B-clean-plate.png"), ref("ref-tshirt-auvox.png"), ref("ref-pose-guitar-phone.webp"), ref("ref-guitar-brand-red.png")],
     prompt: `Edit the first image. Keep the room, the camera angle, the lighting and every object exactly the same. Add a young white Canadian man, about 22, sitting on the black desk chair, which is turned around to face the camera, in the centre of the room in front of the desk. He must look like a real person in a real photograph: natural skin with visible pores, light freckles and small imperfections, natural asymmetry, relaxed genuine smile, short slightly messy light-brown hair, a little stubble — not a model, not airbrushed, not CGI, not anime or illustration. He wears the cream AUVOX t-shirt with exactly the print from the second image, dark jeans, over-ear headphones around his neck. He holds the red electric guitar from the fourth image on a black strap over his shoulder, in a proper playing position: the guitar body rests on his right thigh, the neck points to his left and is raised upward at about 20 degrees (the guitar is upright, not lying flat across his lap), his right hand rests on the strings over the pickups like the third image. His left hand holds a smartphone up at chest height with the screen facing him; the screen is black and switched off; his eyes are on the phone and he smiles at what he reads. All six guitar strings are clearly visible, straight and on the guitar. Both hands anatomically correct. Warm light from the LED strip and spotlights falls naturally on him. Real camera photo, 35mm, natural colours, subtle film grain. No text other than the t-shirt print, no watermark.`,
   },
+  // the hero with the background brought into focus (the subject is kept from the original by compositing)
+  plateSharp: {
+    final: "03-A-hero-sharp.png",
+    size: "1536x1024",
+    refs: [fin("03-A-hero-dof.png")],
+    prompt: `Edit this photo. Keep every object, its position, the framing, the lighting and the colours exactly the same — change nothing about the person, the guitar or the phone. The only change: remove the depth-of-field blur from the background. Shot at f/11 with deep focus: the wooden slat panels, the speakers, the desk, the keyboard, the guitars on the left, the shelves, the plants, the rack and the floor are all crisp and in sharp focus, with fine detail and texture. Real camera photo, natural colours, no added text.`,
+  },
   mobile: {
     final: "08-A-hero-mobile.png",
     size: "1024x1536",
