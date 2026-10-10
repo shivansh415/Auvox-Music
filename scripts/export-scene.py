@@ -30,5 +30,7 @@ def webp_alpha(src: Path, name: str, quality: int = 90) -> None:
 jpg(FINAL / "03-A-hero.png", "hero.jpg")  # bare wall: the sign arrives with the preloader
 webp_alpha(FINAL / "03-A-hero-sign.png", "sign.webp")
 jpg(LAYERS / "hero-depth.png", "hero-depth.jpg", 85, grayscale=True)
+jpg(FINAL / "02-B-clean-plate.png", "clean.jpg")  # the room without him: fills the gaps behind his silhouette in 3D
+jpg(LAYERS / "clean-depth.png", "clean-depth.jpg", 85, grayscale=True)
 jpg(LAYERS / "mask-red.png", "mask-red.jpg", 80, grayscale=True)
 jpg(LAYERS / "mask-lamp.png", "mask-lamp.jpg", 80, grayscale=True)

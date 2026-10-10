@@ -1,17 +1,19 @@
 "use client";
 
-// The studio as a "living photograph": the generated plates are layered in an orthographic scene
-// (1 world unit = 1 px). The shader also draws the studio as a pencil sketch and paints the photo
-// over it with an ink wipe (the intro, and in reverse as the section scrolls away).
+// The studio as a "living photograph" in 3D: the plates are planes displaced by their depth maps
+// (1 world unit = 1 CSS px on the plane at z = 0) in front of a perspective camera that trucks with the
+// pointer, so the room has real parallax. The hero plate sits over the empty room; where the hero's
+// depth jumps (his silhouette) the stretched skirts are discarded and the room behind shows through.
+// The shader also draws the un-painted world as an etching under a galaxy and paints the photo in
+// through the portal (the intro, and in reverse as the section scrolls away).
 
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Line, useTexture } from "@react-three/drei";
 import * as THREE from "three";
 import type { Line2, LineSegments2 } from "three-stdlib";
 import { onPluck, playRiff, pluck, sampleAudio, unlockAudio } from "./audio";
 import {
-  coverFit,
   dismissGuitarHint,
   HERO_CENTER_X as HERO_CENTER_X_SHARED,
   HERO_PHONE as HERO_PHONE_PX,
@@ -43,11 +45,17 @@ const STRING_LIT = ["#ff3b3b", "#ff8c2a", "#ffd43b", "#3ddc84", "#3fa9ff", "#b56
   new THREE.Color(c).multiplyScalar(1.5),
 );
 
-/** Pointer pan, as a whole-frame camera drift (uv units at full deflection = PAN * (PAN_DEPTH - 0.5)) */
-const PAN = 0.05;
-const PAN_DEPTH = 0.75;
-/** Slight overscan so the pan never reveals the plate's edge */
-const OVERSCAN = 1.035;
+/** How far near pixels pop toward the camera, as a fraction of the plane height */
+const DEPTH_SCALE = 0.45;
+/** Camera field of view; the distance is derived so the plane fills the viewport at z = 0 */
+const FOV = 30;
+/** The planes are a little larger than the viewport so the camera's truck never shows their edge */
+const PLANE_OVERSCAN = 1.12;
+/** Camera truck with the pointer, as fractions of the plane size */
+const TRUCK_X = 0.08;
+const TRUCK_Y = 0.05;
+/** Depth of the back wall (depth-map value), used as the camera's pivot */
+const WALL_DEPTH = 0.3;
 
 const uvOf = (px: number, py: number) => new THREE.Vector2(px / IMG.w, 1 - py / IMG.h);
 const smooth = (p: number, a: number, b: number) => THREE.MathUtils.clamp((p - a) / (b - a), 0, 1);
@@ -58,7 +66,7 @@ const smooth = (p: number, a: number, b: number) => THREE.MathUtils.clamp((p - a
 const frame = {
   parallax: new THREE.Vector2(),
   heroZoom: 1,
-  /** uv shift to the right while the conversation is open, so the bubbles don't sit on the guitar */
+  /** uv shift (unused in 3D — the camera trucks instead) */
   shift: 0,
   /** the ink wipe actually drawn: the intro reveal, undone again as the section scrolls away */
   reveal: 0,
@@ -66,39 +74,134 @@ const frame = {
   breath: 0,
   time: 0,
   pointer: new THREE.Vector2(0.5, 0.5),
+  /** smoothed pointer the camera follows */
+  cam: new THREE.Vector2(),
 };
 
-/** Cover-fit plane size, plus a horizontal shift that keeps `centerX` (image uv) in view on narrow screens. */
-function useCover(centerX = 0.5) {
+/** Cover-fit plane size (px), the horizontal shift that keeps `centerX` in view, and the camera distance. */
+function useFit(centerX = 0.5) {
   const { size } = useThree();
   const s = Math.max(size.width / IMG.w, size.height / IMG.h);
   const w = IMG.w * s;
   const h = IMG.h * s;
   const maxShift = Math.max(0, (w - size.width) / 2);
   const shift = THREE.MathUtils.clamp((0.5 - centerX) * w, -maxShift, maxShift);
-  return { w, h, s, shift };
+  const dist = size.height / 2 / Math.tan(THREE.MathUtils.degToRad(FOV / 2));
+  return { w, h, s, shift, dist };
 }
+
+// ---------------------------------------------------------------------------
+// CPU-side depth sampling, so strings, hints and the sign can sit on the displaced surface
+// ---------------------------------------------------------------------------
+type DepthFn = (u: number, v: number) => number;
+const depthLoads = new Map<string, Promise<DepthFn>>();
+function loadDepth(url: string): Promise<DepthFn> {
+  let p = depthLoads.get(url);
+  if (!p) {
+    p = new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const W = 768;
+        const H = 512;
+        const c = document.createElement("canvas");
+        c.width = W;
+        c.height = H;
+        const g = c.getContext("2d")!;
+        g.drawImage(img, 0, 0, W, H);
+        const data = g.getImageData(0, 0, W, H).data;
+        const at = (x: number, y: number) =>
+          data[(THREE.MathUtils.clamp(y, 0, H - 1) * W + THREE.MathUtils.clamp(x, 0, W - 1)) * 4] / 255;
+        // bilinear, over a small box — the GPU samples the same map with linear filtering, so this keeps
+        // things placed on the surface (strings, hints) from stepping where the mesh does not
+        resolve((u, v) => {
+          const fx = u * (W - 1);
+          const fy = (1 - v) * (H - 1);
+          const x0 = Math.floor(fx);
+          const y0 = Math.floor(fy);
+          const tx = fx - x0;
+          const ty = fy - y0;
+          let sum = 0;
+          for (let dy = -1; dy <= 1; dy++)
+            for (let dx = -1; dx <= 1; dx++) {
+              const a = at(x0 + dx, y0 + dy) * (1 - tx) + at(x0 + dx + 1, y0 + dy) * tx;
+              const b = at(x0 + dx, y0 + dy + 1) * (1 - tx) + at(x0 + dx + 1, y0 + dy + 1) * tx;
+              sum += a * (1 - ty) + b * ty;
+            }
+          return sum / 9;
+        });
+      };
+      img.src = url;
+    });
+    depthLoads.set(url, p);
+  }
+  return p;
+}
+function useDepth(url: string) {
+  const [fn, setFn] = useState<DepthFn | null>(null);
+  useEffect(() => {
+    let live = true;
+    loadDepth(url).then((f) => live && setFn(() => f));
+    return () => {
+      live = false;
+    };
+  }, [url]);
+  return fn;
+}
+
+/**
+ * Plate pixel → world position on the displaced plane (z from the depth map). `probe` samples a
+ * vertical window and keeps the nearest value, for things that sit on a thin near surface (the
+ * strings on the fretboard) where the depth map's soft edge would otherwise pull them back.
+ */
+function plateToWorld(px: number, py: number, fit: { w: number; h: number; shift: number }, depth: DepthFn | null, probe = 0) {
+  const u = px / IMG.w;
+  const v = 1 - py / IMG.h;
+  let d = depth ? depth(u, v) : 0.5;
+  if (depth && probe > 0) for (let k = -probe; k <= probe; k += 4) d = Math.max(d, depth(u, v - k / IMG.h));
+  return new THREE.Vector3(
+    (u - 0.5) * fit.w * PLANE_OVERSCAN + fit.shift,
+    (v - 0.5) * fit.h * PLANE_OVERSCAN,
+    (d - WALL_DEPTH) * DEPTH_SCALE * fit.h,
+  );
+}
+
 const HERO_CENTER_X = HERO_CENTER_X_SHARED;
 
 // ---------------------------------------------------------------------------
 // Plate shader
 // ---------------------------------------------------------------------------
 const VERT = /* glsl */ `
+  uniform sampler2D uDepth;
+  uniform float uDepthScale, uZOffset;
   varying vec2 vUv;
+  varying float vStretch;
+  const float WALL = 0.3;
   void main() {
     vUv = uv;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    float d = texture2D(uDepth, uv).r;
+    // a far-side vertex next to a near object: the triangle between them is the stretched skirt.
+    // Flag only this side, so the near object keeps its own edge and just the smear behind it is dropped.
+    vec2 e = vec2(2.0 / 384.0, 2.0 / 256.0);
+    float dmax = max(max(texture2D(uDepth, uv + vec2(e.x, 0.0)).r, texture2D(uDepth, uv - vec2(e.x, 0.0)).r),
+                     max(texture2D(uDepth, uv + vec2(0.0, e.y)).r, texture2D(uDepth, uv - vec2(0.0, e.y)).r));
+    float dmin = min(min(texture2D(uDepth, uv + vec2(e.x, 0.0)).r, texture2D(uDepth, uv - vec2(e.x, 0.0)).r),
+                     min(texture2D(uDepth, uv + vec2(0.0, e.y)).r, texture2D(uDepth, uv - vec2(0.0, e.y)).r));
+    vStretch = max((dmax - d - 0.06) / 0.08, (d - dmin - 0.22) / 0.1);
+    vec3 p = position;
+    p.z += (d - WALL) * uDepthScale + uZOffset;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
   }
 `;
 
 const FRAG = /* glsl */ `
-  uniform sampler2D uMap, uDepth, uMaskRed, uMaskLamp;
-  uniform float uHasAlpha, uHasMasks, uSketch;
+  uniform sampler2D uMap, uDepth, uMaskRed, uMaskLamp, uMatte;
+  uniform float uHasAlpha, uHasMasks, uSketch, uHasMatte;
   uniform vec2 uParallax, uFocus, uChest, uPhone, uPointer;
   uniform float uZoom, uParallaxScale, uDepthZoom, uBreath, uDepthFlat, uDepthMix, uShift;
   uniform vec3 uLights;      // red, lamp, ambient
-  uniform float uAudio, uFlicker, uTime, uGrain, uVignette, uFade, uPhoneGlow, uReveal, uBloom, uShimmer;
+  uniform float uAudio, uFlicker, uTime, uGrain, uVignette, uFade, uPhoneGlow, uReveal, uBloom, uShimmer, uSkirt;
   varying vec2 vUv;
+  varying float vStretch;
 
   const vec2 TEXEL = vec2(1.0 / 1536.0, 1.0 / 1024.0);
   const vec2 ASPECT = vec2(1.5, 1.0);
@@ -191,6 +294,8 @@ const FRAG = /* glsl */ `
   }
 
   void main() {
+    // the stretched skirt at a depth jump: drop it, the layer behind fills the gap
+    if (uSkirt > 0.5 && vStretch > 1.0) discard;
     // push-in: scale the image around the focus point
     vec2 uv = uFocus + (vUv - uFocus) / uZoom;
     // breathing: a tiny scale around the chest
@@ -204,6 +309,8 @@ const FRAG = /* glsl */ `
 
     vec4 tex = texture2D(uMap, uv);
     float alpha = uHasAlpha > 0.5 ? tex.a : 1.0;
+    // a matte (the rembg cutout) gives the front layer its clean silhouette
+    if (uHasMatte > 0.5) alpha *= texture2D(uMatte, uv).r;
     vec3 base = tex.rgb;
     float red = uHasMasks > 0.5 ? texture2D(uMaskRed, uv).r : 0.0;
     float lamp = uHasMasks > 0.5 ? texture2D(uMaskLamp, uv).r : 0.0;
@@ -293,15 +400,16 @@ const FRAG = /* glsl */ `
     float v = smoothstep(1.25, 0.3, distance(vUv, vec2(0.5)) * 1.35);
     col *= mix(1.0, v, uVignette);
 
-    gl_FragColor = vec4(col, alpha * uFade);
+    float skirtFade = uSkirt > 0.5 ? 1.0 - smoothstep(0.4, 1.0, vStretch) : 1.0;
+    gl_FragColor = vec4(col, alpha * uFade * skirtFade);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }
 `;
 
-type PlateTextures = { map: THREE.Texture; depth: THREE.Texture; red?: THREE.Texture; lamp?: THREE.Texture };
+type PlateTextures = { map: THREE.Texture; depth: THREE.Texture; red?: THREE.Texture; lamp?: THREE.Texture; matte?: THREE.Texture };
 
-function makeUniforms(t: PlateTextures, focus: THREE.Vector2, hasAlpha: boolean) {
+function makeUniforms(t: PlateTextures, hasAlpha: boolean) {
   return {
     uMap: { value: t.map },
     uDepth: { value: t.depth },
@@ -309,15 +417,17 @@ function makeUniforms(t: PlateTextures, focus: THREE.Vector2, hasAlpha: boolean)
     uMaskLamp: { value: t.lamp ?? t.depth },
     uHasAlpha: { value: hasAlpha ? 1 : 0 },
     uHasMasks: { value: t.red ? 1 : 0 },
+    uMatte: { value: t.matte ?? t.depth },
+    uHasMatte: { value: t.matte ? 1 : 0 },
     uParallax: { value: new THREE.Vector2() },
-    uFocus: { value: focus },
+    uFocus: { value: uvOf(...HERO_PHONE) },
     uChest: { value: uvOf(...HERO_CHEST) },
     uPhone: { value: uvOf(...HERO_PHONE) },
     uZoom: { value: 1 },
-    uParallaxScale: { value: 0.01 },
-    uDepthZoom: { value: 0.2 },
+    uParallaxScale: { value: 0 },
+    uDepthZoom: { value: 0 },
     uDepthFlat: { value: 0.5 },
-    uDepthMix: { value: 1 },
+    uDepthMix: { value: 0 },
     uBreath: { value: 0 },
     uLights: { value: new THREE.Vector3() },
     uAudio: { value: 0 },
@@ -333,6 +443,9 @@ function makeUniforms(t: PlateTextures, focus: THREE.Vector2, hasAlpha: boolean)
     uShift: { value: 0 },
     uShimmer: { value: 0 },
     uPointer: { value: new THREE.Vector2(0.5, 0.5) },
+    uDepthScale: { value: 0 },
+    uZOffset: { value: 0 },
+    uSkirt: { value: 0 },
   };
 }
 
@@ -349,33 +462,33 @@ function configure(loaded: unknown) {
 
 type PlateProps = {
   textures: PlateTextures;
-  focus: THREE.Vector2;
-  centerX?: number;
   hasAlpha?: boolean;
-  parallaxScale: number;
-  depthZoom?: number;
-  z: number;
-  /** Called every frame with the material's uniforms so the plate can read the shared frame values */
+  /** drop the stretched skirts at depth jumps (the hero layer, which has the room behind it) */
+  skirt?: boolean;
+  /** world-z nudge, so stacked layers never fight for the same depth */
+  zOffset?: number;
+  order: number;
   update: (u: ReturnType<typeof makeUniforms>) => void;
 };
 
-function Plate({ textures, focus, centerX = 0.5, hasAlpha = false, parallaxScale, depthZoom = 0.2, z, update }: PlateProps) {
-  const { w, h, shift } = useCover(centerX);
+const SEGS = { x: 480, y: 320 };
+
+function Plate({ textures, hasAlpha = false, skirt = false, zOffset = 0, order, update }: PlateProps) {
+  const { w, h, shift } = useFit(HERO_CENTER_X);
   const material = useRef<THREE.ShaderMaterial>(null);
-  const uniforms = useMemo(() => makeUniforms(textures, focus, hasAlpha), [textures, focus, hasAlpha]);
+  const uniforms = useMemo(() => makeUniforms(textures, hasAlpha), [textures, hasAlpha]);
 
   useFrame(() => {
     const m = material.current;
     if (!m) return;
     const u = m.uniforms as ReturnType<typeof makeUniforms>;
-    u.uParallax.value.copy(frame.parallax);
-    u.uParallaxScale.value = parallaxScale;
-    u.uDepthZoom.value = depthZoom;
+    u.uDepthScale.value = DEPTH_SCALE * h;
+    u.uZOffset.value = zOffset;
+    u.uSkirt.value = skirt ? 1 : 0;
     u.uLights.value.set(session.lights.red, session.lights.lamp, session.lights.ambient);
     u.uAudio.value = session.audio.level;
     u.uFlicker.value = frame.flicker;
     u.uTime.value = frame.time;
-    u.uShift.value = frame.shift;
     u.uReveal.value = frame.reveal;
     u.uBloom.value = session.bloom;
     u.uPointer.value.copy(frame.pointer);
@@ -383,16 +496,15 @@ function Plate({ textures, focus, centerX = 0.5, hasAlpha = false, parallaxScale
   });
 
   return (
-    <mesh position={[shift, 0, z]} renderOrder={z}>
-      <planeGeometry args={[w, h]} />
+    <mesh position={[shift, 0, 0]} renderOrder={order}>
+      <planeGeometry args={[w * PLANE_OVERSCAN, h * PLANE_OVERSCAN, SEGS.x, SEGS.y]} />
       <shaderMaterial
         ref={material}
         uniforms={uniforms}
         vertexShader={VERT}
         fragmentShader={FRAG}
-        transparent
-        depthTest={false}
-        depthWrite={false}
+        transparent={hasAlpha}
+        depthWrite={!hasAlpha}
       />
     </mesh>
   );
@@ -402,47 +514,40 @@ function Plate({ textures, focus, centerX = 0.5, hasAlpha = false, parallaxScale
 // Layers
 // ---------------------------------------------------------------------------
 function Studio() {
-  const bg = useTexture(
-    { map: "/scene/hero.jpg", depth: "/scene/hero-depth.jpg", red: "/scene/mask-red.jpg", lamp: "/scene/mask-lamp.jpg" },
+  const room = useTexture(
+    { map: "/scene/hero-back.jpg", depth: "/scene/hero-depth-back.jpg", red: "/scene/mask-red.jpg", lamp: "/scene/mask-lamp.jpg" },
     configure,
   ) as unknown as PlateTextures;
-
+  const hero = useTexture(
+    {
+      map: "/scene/hero.jpg",
+      depth: "/scene/hero-depth.jpg",
+      red: "/scene/mask-red.jpg",
+      lamp: "/scene/mask-lamp.jpg",
+      matte: "/scene/hero-mask.jpg",
+    },
+    configure,
+  ) as unknown as PlateTextures;
   const sign = useTexture({ map: "/scene/sign.webp", depth: "/scene/hero-depth.jpg" }, configure) as unknown as PlateTextures;
 
-  const heroFocus = useMemo(() => uvOf(...HERO_PHONE), []);
+  const scene = (u: ReturnType<typeof makeUniforms>) => {
+    u.uPhoneGlow.value = 1 + session.phonePulse * 2.5;
+    u.uSketch.value = 1;
+  };
 
   return (
     <>
-      {/* the studio, wall left bare */}
-      <Plate
-        textures={bg}
-        focus={heroFocus}
-        centerX={HERO_CENTER_X}
-        parallaxScale={PAN}
-        depthZoom={0}
-        z={0}
-        update={(u) => {
-          u.uZoom.value = frame.heroZoom;
-          u.uPhoneGlow.value = 1 + session.phonePulse * 2.5;
-          // one photo, moved as a whole: no depth warping, so nothing can double up
-          u.uDepthFlat.value = PAN_DEPTH;
-          u.uDepthMix.value = 0;
-          u.uSketch.value = 1;
-        }}
-      />
-      {/* the wall sign: the preloader's logo lands here and becomes it — red ink on the sketch, a lit sign once painted */}
+      {/* the room without him (inpainted, eroded depth), a hair behind: shows through where his silhouette is cut away */}
+      <Plate textures={room} zOffset={-3} order={0} update={scene} />
+      {/* him (and the guitar, the phone): the cutout matte gives the layer a clean silhouette */}
+      <Plate textures={hero} hasAlpha order={1} update={scene} />
+      {/* the title on the wall: lands with the preloader, shimmers once */}
       <Plate
         textures={sign}
-        focus={heroFocus}
-        centerX={HERO_CENTER_X}
         hasAlpha
-        parallaxScale={PAN}
-        depthZoom={0}
-        z={0.5}
+        zOffset={4}
+        order={2}
         update={(u) => {
-          u.uZoom.value = frame.heroZoom;
-          u.uDepthFlat.value = PAN_DEPTH;
-          u.uDepthMix.value = 0;
           u.uLights.value.set(0, 0, 1);
           u.uPhoneGlow.value = 0;
           u.uFade.value = session.sign;
@@ -455,44 +560,40 @@ function Studio() {
 }
 
 // ---------------------------------------------------------------------------
-// Playable strings drawn over the photo's strings: silver at rest, gold while ringing
+// Playable strings laid on the displaced guitar: silver at rest, each one its own colour when ringing
 // ---------------------------------------------------------------------------
 const SEGMENTS = 40;
-/** The whole plate pans as one: strings use the same flat depth so they stay glued to the photo */
-const STRING_DEPTH = PAN_DEPTH;
-const STRING_PARALLAX = PAN;
 
 function Strings() {
-  const { w, h, shift } = useCover(HERO_CENTER_X);
-  const group = useRef<THREE.Group>(null);
+  const fit = useFit(HERO_CENTER_X);
+  const depth = useDepth("/scene/hero-depth.jpg");
   const lines = useRef<(Line2 | LineSegments2 | null)[]>([]);
   const energy = useRef(new Float32Array(6));
   const age = useRef(new Float32Array(6));
   const phase = useRef(new Float32Array(6));
   const scratch = useRef(new Float32Array((SEGMENTS + 1) * 3));
-  const hintPoint = useRef(new THREE.Vector3());
-  const par = useRef(new THREE.Vector2());
 
-  const toWorld = (px: number, py: number): [number, number] => [(px / IMG.w - 0.5) * w, (0.5 - py / IMG.h) * h];
   const geometry = useMemo(
     () =>
-      STRINGS.map((s) => {
-        const a = toWorld(...s.a);
-        const b = toWorld(...s.b);
-        const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-        const angle = Math.atan2(b[1] - a[1], b[0] - a[0]);
-        const mid: [number, number] = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-        const from = STRING_VISIBLE_FROM[STRINGS.indexOf(s)];
+      STRINGS.map((s, i) => {
+        const from = STRING_VISIBLE_FROM[i];
+        const at = (u: number) =>
+          plateToWorld(s.a[0] + (s.b[0] - s.a[0]) * u, s.a[1] + (s.b[1] - s.a[1]) * u, fit, depth, 16);
+        const a = at(from);
+        const b = at(1);
+        // a string is straight: interpolate z between its ends rather than following every bump of the depth map
         const points = Array.from({ length: SEGMENTS + 1 }, (_, k) => {
-          const u = from + (1 - from) * (k / SEGMENTS);
-          return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, 2] as [number, number, number];
+          const t = k / SEGMENTS;
+          const p = at(from + (1 - from) * t);
+          return [p.x, p.y, a.z + (b.z - a.z) * t + 2] as [number, number, number];
         });
-        return { a, b, len, angle, mid, points };
+        const mid = at((from + 1) / 2);
+        const len = Math.hypot(b.x - a.x, b.y - a.y);
+        const angle = Math.atan2(b.y - a.y, b.x - a.x);
+        return { points, mid, len, angle };
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [w, h],
+    [fit, depth],
   );
-  const focusWorld = useMemo(() => toWorld(...HERO_PHONE), [w, h]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(
     () =>
@@ -504,14 +605,7 @@ function Strings() {
     [],
   );
 
-  useFrame(({ size }, dt) => {
-    const g = group.current;
-    if (!g) return;
-    // follow the hero layer: push-in scale around the phone + depth parallax
-    const z = frame.heroZoom;
-    const pv = par.current.copy(frame.parallax).multiplyScalar(STRING_PARALLAX * (STRING_DEPTH - 0.5));
-    g.scale.set(z, z, 1);
-    g.position.set(shift + frame.shift * w + focusWorld[0] * (1 - z) - pv.x * w, focusWorld[1] * (1 - z) - pv.y * h, 0);
+  useFrame((_, dt) => {
     for (let i = 0; i < 6; i++) {
       const line = lines.current[i];
       if (!line) continue;
@@ -524,31 +618,23 @@ function Strings() {
       if (e < 0.004) continue;
       age.current[i] += dt;
       energy.current[i] = e * Math.exp(-dt * 3.0);
-      const { a, b, angle } = geometry[i];
+      const { points, angle } = geometry[i];
       const t = age.current[i];
       // a real string barely moves — a couple of pixels, fast, so it reads as a blur
       const amp = 2.2 * e;
       const wv = 46 + i * 6;
       const nx = -Math.sin(angle);
       const ny = Math.cos(angle);
-      const from = STRING_VISIBLE_FROM[i];
       for (let k = 0; k <= SEGMENTS; k++) {
-        const u = from + (1 - from) * (k / SEGMENTS);
+        const u = k / SEGMENTS;
         const env = Math.sin(Math.PI * u);
-        const s = amp * env * (Math.sin(t * wv + phase.current[i]) + 0.35 * Math.sin(2 * Math.PI * u) * Math.sin(t * wv * 2.1));
-        scratch.current[k * 3] = a[0] + (b[0] - a[0]) * u + nx * s;
-        scratch.current[k * 3 + 1] = a[1] + (b[1] - a[1]) * u + ny * s;
-        scratch.current[k * 3 + 2] = 2;
+        const sw = amp * env * (Math.sin(t * wv + phase.current[i]) + 0.35 * Math.sin(2 * Math.PI * u) * Math.sin(t * wv * 2.1));
+        scratch.current[k * 3] = points[k][0] + nx * sw;
+        scratch.current[k * 3 + 1] = points[k][1] + ny * sw;
+        scratch.current[k * 3 + 2] = points[k][2];
       }
       line.geometry.setPositions(scratch.current);
     }
-
-    // TAP hint anchored above the guitar body
-    const [hx, hy] = toWorld(GUITAR_BODY.x + GUITAR_BODY.w * 0.45, GUITAR_BODY.y + 20);
-    hintPoint.current.set(hx, hy, 0).applyMatrix4(g.matrixWorld);
-    session.hintScreen.x = size.width / 2 + hintPoint.current.x;
-    session.hintScreen.y = size.height / 2 - hintPoint.current.y;
-    session.hintScreen.opacity = session.guitarHint * session.guitarHintIn * (1 - smooth(session.progress, 0, 0.12));
   });
 
   const strike = (i: number) => {
@@ -560,13 +646,13 @@ function Strings() {
     dismissGuitarHint();
     playRiff();
   };
-  const body = toWorld(GUITAR_BODY.x + GUITAR_BODY.w / 2, GUITAR_BODY.y + GUITAR_BODY.h / 2);
+  const body = plateToWorld(GUITAR_BODY.x + GUITAR_BODY.w / 2, GUITAR_BODY.y + GUITAR_BODY.h / 2, fit, depth);
 
   return (
-    <group ref={group}>
+    <group>
       {geometry.map((s, i) => (
         <Line
-          key={i}
+          key={`${i}-${depth ? 1 : 0}`}
           ref={(el) => {
             lines.current[i] = el;
           }}
@@ -576,15 +662,16 @@ function Strings() {
           transparent
           opacity={0.55}
           frustumCulled={false}
+          depthTest={false}
           material-toneMapped={false}
-          renderOrder={2}
+          renderOrder={5}
         />
       ))}
       {/* hit zones along each string — crossing one plucks it, so a swipe is a strum */}
       {geometry.map((s, i) => (
         <mesh
           key={i}
-          position={[s.mid[0], s.mid[1], 2]}
+          position={[s.mid.x, s.mid.y, s.mid.z + 3]}
           rotation={[0, 0, s.angle]}
           onPointerEnter={() => strike(i)}
           onPointerOver={() => (document.body.style.cursor = PLUCK_CURSOR)}
@@ -596,12 +683,12 @@ function Strings() {
       ))}
       {/* guitar body: tap for the riff */}
       <mesh
-        position={[body[0], body[1], 1.5]}
+        position={[body.x, body.y, body.z + 2]}
         onPointerDown={strum}
         onPointerOver={() => (document.body.style.cursor = "pointer")}
         onPointerOut={() => (document.body.style.cursor = "")}
       >
-        <planeGeometry args={[(GUITAR_BODY.w * w) / IMG.w, (GUITAR_BODY.h * h) / IMG.h]} />
+        <planeGeometry args={[(GUITAR_BODY.w * fit.w) / IMG.w, (GUITAR_BODY.h * fit.h) / IMG.h]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
     </group>
@@ -618,7 +705,7 @@ const hash = (n: number) => {
 };
 
 function Dust() {
-  const { w, h } = useCover();
+  const { w, h } = useFit();
   const points = useRef<THREE.Points>(null);
   const positions = useMemo(() => {
     const pos = new Float32Array(DUST_COUNT * 3);
@@ -626,7 +713,7 @@ function Dust() {
       // only where the LED strip and the spots actually light the air: the centre band of the room
       pos[i * 3] = (0.28 + hash(i * 3) * 0.5 - 0.5) * w;
       pos[i * 3 + 1] = (0.30 + hash(i * 3 + 1) * 0.5 - 0.5) * h;
-      pos[i * 3 + 2] = 2.5;
+      pos[i * 3 + 2] = (hash(i * 3 + 2) * 0.4 - 0.1) * DEPTH_SCALE * h;
     }
     return pos;
   }, [w, h]);
@@ -646,7 +733,7 @@ function Dust() {
     (mesh.material as THREE.PointsMaterial).opacity = 0.3 * frame.reveal;
   });
   return (
-    <points ref={points} renderOrder={2}>
+    <points ref={points} renderOrder={6}>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
@@ -656,53 +743,84 @@ function Dust() {
 }
 
 // ---------------------------------------------------------------------------
-// Drives the shared frame values from scroll, pointer, lights and audio
+// Camera: trucks with the pointer around a pivot on the back wall, leans in to the phone for the chat
 // ---------------------------------------------------------------------------
-function Driver() {
-  const smoothMouse = useRef(new THREE.Vector2());
-  useFrame(({ clock, size }, dt) => {
-    sampleAudio(session.audio);
+function Rig() {
+  const fit = useFit(HERO_CENTER_X);
+  const depth = useDepth("/scene/hero-depth.jpg");
+  const { camera, size } = useThree();
+  const scratch = useRef({ pos: new THREE.Vector3(), target: new THREE.Vector3(), phone: new THREE.Vector3() });
+
+  useEffect(() => {
+    const cam = camera as THREE.PerspectiveCamera;
+    Object.assign(cam, { fov: FOV, near: 1, far: fit.dist * 4 });
+    cam.updateProjectionMatrix();
+  }, [camera, fit.dist, size.width, size.height]);
+
+  useFrame(({ clock }, dt) => {
     const t = clock.elapsedTime;
     // critically-damped ease towards the pointer, plus a slow idle sway so the room never sits still
     const k = 1 - Math.exp(-dt * 2.2);
-    const targetX = session.mouse.x + Math.sin(t * 0.23) * 0.12;
-    const targetY = session.mouse.y + Math.cos(t * 0.19) * 0.08;
-    smoothMouse.current.x += (targetX - smoothMouse.current.x) * k;
-    smoothMouse.current.y += (targetY - smoothMouse.current.y) * k;
+    const tx = session.mouse.x + Math.sin(t * 0.23) * 0.12;
+    const ty = session.mouse.y + Math.cos(t * 0.19) * 0.08;
+    frame.cam.x += (tx - frame.cam.x) * k;
+    frame.cam.y += (ty - frame.cam.y) * k;
 
-    // No scroll zoom: only the gentle lean towards the phone while the conversation is open.
-    frame.parallax.copy(smoothMouse.current);
-    frame.heroZoom = OVERSCAN + 0.12 * session.focus;
-    frame.shift = 0.045 * session.focus;
+    const { pos, target, phone } = scratch.current;
+    phone.copy(plateToWorld(HERO_PHONE[0], HERO_PHONE[1], fit, depth));
+    const focus = session.focus;
+    // rest: look at the wall through the room's centre; chat: lean towards the phone and step left
+    // chat: a small step left and a slight turn towards the phone — the title must stay in frame
+    pos.set(frame.cam.x * TRUCK_X * fit.w - focus * 0.03 * fit.w, frame.cam.y * TRUCK_Y * fit.h, fit.dist);
+    target.set(fit.shift, 0, 0);
+    pos.lerp(phone, focus * 0.05);
+    target.lerp(phone, focus * 0.18);
+    camera.position.lerp(pos, Math.min(1, dt * 6));
+    camera.lookAt(target);
+  });
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Drives the shared frame values and projects the hint anchors to the screen
+// ---------------------------------------------------------------------------
+function Driver() {
+  const fit = useFit(HERO_CENTER_X);
+  const depth = useDepth("/scene/hero-depth.jpg");
+  const { camera, size, scene } = useThree();
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") (window as unknown as { __scene: THREE.Scene }).__scene = scene;
+  }, [scene]);
+  const v = useRef(new THREE.Vector3());
+
+  const toScreen = (p: THREE.Vector3) => {
+    v.current.copy(p).project(camera);
+    return { x: (v.current.x * 0.5 + 0.5) * size.width, y: (-v.current.y * 0.5 + 0.5) * size.height };
+  };
+
+  useFrame(({ clock }, dt) => {
+    sampleAudio(session.audio);
+    const t = clock.elapsedTime;
+    frame.pointer.set(session.mouse.x * 0.5 + 0.5, session.mouse.y * 0.5 + 0.5);
     // the wipe paints the room in, and un-paints it again as the section leaves the screen
     frame.reveal = session.reveal * (1 - smooth(session.progress, 0.02, 0.6));
-    frame.pointer.set(session.mouse.x * 0.5 + 0.5, session.mouse.y * 0.5 + 0.5);
-    frame.time = clock.elapsedTime;
+    frame.time = t;
     session.phonePulse *= Math.exp(-dt * 4);
-    // the zoom pivots on the phone, so its screen position only drifts with the parallax
-    const { w, h, shift } = coverFit(size.width, size.height);
-    // Where the sign's wordmark is on screen right now (plate px → shader uv → screen), for the preloader handoff.
-    {
-      const z = frame.heroZoom;
-      const fx = HERO_PHONE[0] / IMG.w;
-      const fy = 1 - HERO_PHONE[1] / IMG.h;
-      const ox = frame.parallax.x * PAN * (PAN_DEPTH - 0.5) - frame.shift;
-      const oy = frame.parallax.y * PAN * (PAN_DEPTH - 0.5);
-      const toScreen = (px: number, py: number) => {
-        const vx = fx + (px / IMG.w - ox - fx) * z;
-        const vy = fy + (1 - py / IMG.h - oy - fy) * z;
-        return [size.width / 2 + shift + (vx - 0.5) * w, size.height / 2 - (vy - 0.5) * h];
-      };
-      const [x0, y0] = toScreen(SIGN_WORDMARK.x, SIGN_WORDMARK.y);
-      const [x1, y1] = toScreen(SIGN_WORDMARK.x + SIGN_WORDMARK.w, SIGN_WORDMARK.y + SIGN_WORDMARK.h);
-      Object.assign(session.signScreen, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
-    }
-    session.phoneScreen.x =
-      size.width / 2 + shift + (HERO_PHONE[0] / IMG.w - 0.5 + frame.shift) * w - frame.parallax.x * PAN * (PAN_DEPTH - 0.5) * w;
-    session.phoneScreen.y = size.height / 2 + (HERO_PHONE[1] / IMG.h - 0.5) * h + frame.parallax.y * PAN * (PAN_DEPTH - 0.5) * h;
-    frame.breath = Math.sin(clock.elapsedTime * 1.1) * 0.004;
     const a = session.audio.level;
     frame.flicker = session.lights.lamp > 0.9 ? 1 + Math.sin(t * 37) * Math.sin(t * 11) * (0.015 + a * 0.25) : 1;
+
+    // hint anchors
+    const ph = toScreen(plateToWorld(HERO_PHONE[0], HERO_PHONE[1], fit, depth));
+    session.phoneScreen.x = ph.x;
+    session.phoneScreen.y = ph.y;
+    const gh = toScreen(plateToWorld(GUITAR_BODY.x + GUITAR_BODY.w * 0.45, GUITAR_BODY.y + 20, fit, depth));
+    session.hintScreen.x = gh.x;
+    session.hintScreen.y = gh.y;
+    session.hintScreen.opacity = session.guitarHint * session.guitarHintIn * (1 - smooth(session.progress, 0, 0.12));
+    // the sign's wordmark box on screen, for the preloader's flight
+    const tl = toScreen(plateToWorld(SIGN_WORDMARK.x, SIGN_WORDMARK.y, fit, depth));
+    const br = toScreen(plateToWorld(SIGN_WORDMARK.x + SIGN_WORDMARK.w, SIGN_WORDMARK.y + SIGN_WORDMARK.h, fit, depth));
+    Object.assign(session.signScreen, { x: tl.x, y: tl.y, w: br.x - tl.x, h: br.y - tl.y });
     session.frames += 1;
   });
   return null;
@@ -714,8 +832,7 @@ export default function PhotoStudio() {
       className="absolute inset-0"
       style={{ touchAction: "pan-y" }}
       dpr={[1, 1.25]}
-      orthographic
-      camera={{ position: [0, 0, 100], zoom: 1, near: 0.1, far: 1000 }}
+      camera={{ fov: FOV, near: 1, far: 10000, position: [0, 0, 1500] }}
       gl={{ antialias: false, powerPreference: "high-performance", toneMapping: THREE.NoToneMapping }}
       onPointerDown={unlockAudio}
     >
@@ -724,6 +841,7 @@ export default function PhotoStudio() {
         <Studio />
       </Suspense>
       <Dust />
+      <Rig />
       <Driver />
     </Canvas>
   );
