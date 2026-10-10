@@ -115,7 +115,7 @@ export default function ChatOverlay() {
       {stage !== "idle" && (
         <div
           ref={panel}
-          className="absolute z-20 flex flex-col gap-3 text-pearl max-md:inset-x-4 max-md:bottom-24 md:bottom-[9vh] md:left-[5vw] md:w-[min(440px,40vw)]"
+          className="absolute z-20 flex flex-col gap-3 text-pearl max-md:inset-x-4 max-md:bottom-24 md:bottom-[9vh] md:left-[4vw] md:w-[min(400px,34vw)]"
           style={{ animation: "bubble-in 0.6s cubic-bezier(0.2,0.9,0.3,1.1)" }}
         >
           {LINES.slice(0, shown).map((line, i) => (

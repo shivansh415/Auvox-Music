@@ -186,6 +186,9 @@ def place_backlit_sign(src: Path) -> tuple[int, int, int, int]:
     # halo: the letters stand off the wall with a warm LED behind them, like the slat panels
     halo = cv2.GaussianBlur(a, (0, 0), 16) * 0.55 + cv2.GaussianBlur(a, (0, 0), 5) * 0.35
     shadow = shift(cv2.GaussianBlur(a, (0, 0), 2.5), 3, 2) * 0.35
+    # a hair of thickness: the top edge of each letter catches the spots
+    rim = np.clip(a - shift(a, 1, 0), 0, 1) * 0.9
+    letters = letters * (1 - rim[..., None]) + np.array([205, 70, 60], np.float32)[None, None, :] * rim[..., None]
 
     # composite as one RGBA layer, back to front: halo (warm light) → shadow → letters
     rgb = np.zeros((H, W, 3), np.float32)

@@ -130,7 +130,8 @@ export default function Preloader() {
         state.t += delta / 1000;
         const p = state.progress / 100;
         const beat = 0.85 + 0.15 * Math.sin(state.t * 6);
-        const amp = MAX_AMPLITUDE * Math.pow(Math.sin(Math.PI * p), 0.9) * beat;
+        // never fully flat: a faint tremor stays while the counter hangs on 99
+        const amp = MAX_AMPLITUDE * Math.max(0.06, Math.pow(Math.sin(Math.PI * p), 0.9)) * beat;
         strings.forEach((el, i) => el.setAttribute("d", ribbonPath(i, state.t, amp)));
       };
       gsap.ticker.add(tick);
@@ -139,7 +140,7 @@ export default function Preloader() {
       const count = gsap
         .timeline({ defaults: { onUpdate: setCounter } })
         .to(state, { progress: 99, duration: 2.3, ease: "power2.inOut" })
-        .to(state, { progress: 100, duration: 0.25, ease: "power3.out" }, "+=0.35");
+        .to({}, { duration: 0.35 });
 
       const tl = gsap.timeline({
         defaults: { ease: "power3.out" },
@@ -166,15 +167,20 @@ export default function Preloader() {
         }, "morph")
         // Drop the intro transform + its cached %-origin, otherwise GSAP's smoothOrigin re-centres each
         // letter on the old string midpoint once the shape changes and the wordmark piles up mid-screen.
-        .set(strings, { clearProps: "transform,transformOrigin" }, "morph");
+        .set(strings, { clearProps: "transform,transformOrigin" }, "morph")
+        // while the shapes are in flux they soften and dip, so the in-between blobs never read as a frame
+        .to(stage, { filter: "blur(1.6px)", opacity: 0.72, duration: 0.35, ease: "power2.out" }, "morph")
+        .to(stage, { filter: "blur(0px)", opacity: 1, duration: 0.8, ease: "power2.inOut" }, "morph+=0.9")
+        // 100 lands with the letters, not before them
+        .to(state, { progress: 100, duration: 0.3, ease: "power3.out", onUpdate: setCounter }, "morph+=1.5");
       // Two beats per string: gather over its letter's width, then bloom into the letter.
       strings.forEach((el, i) => {
         const { x0, x1 } = LETTER_SPANS[i];
         const gathered = ribbonPath(i, 0, 0, x0, x1);
         tl.to(
           el,
-          { morphSVG: { shape: gathered, shapeIndex: "auto" }, duration: 0.7, ease: "expo.inOut" },
-          `morph+=${i * 0.06}`,
+          { morphSVG: { shape: gathered, shapeIndex: "auto" }, duration: 0.4, ease: "expo.inOut" },
+          `morph+=${i * 0.05}`,
         ).to(
           el,
           {
@@ -182,7 +188,7 @@ export default function Preloader() {
             duration: 1.1,
             ease: "power3.inOut",
           },
-          `morph+=${0.55 + i * 0.07}`,
+          `morph+=${0.35 + i * 0.07}`,
         );
       });
       tl.fromTo(
@@ -205,13 +211,12 @@ export default function Preloader() {
         .to(bars, { autoAlpha: 0, duration: 0.6 }, "flip+=0.3")
 
         // Gate: the visitor's click is the gesture browsers require before any sound can play.
-        .fromTo(enter, { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 0.8, ease: "expo.out" }, "flip+=0.5")
-        .addPause("flip+=0.9", () => {
+        .fromTo(enter, { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 0.6, ease: "expo.out" }, "flip+=0.4")
+        .addPause("flip+=1.0", () => {
           const go = (withSound: boolean) => {
             window.removeEventListener("keydown", onKey);
             unlockAudio();
             setMuted(!withSound);
-            gsap.to(enter, { autoAlpha: 0, y: -8, duration: 0.35, ease: "power2.in" });
             tl.play();
           };
           const onKey = (e: KeyboardEvent) => {
@@ -221,11 +226,12 @@ export default function Preloader() {
           enterGo.current = go;
         })
 
-        // Handoff: the logo flies onto the studio wall and becomes the sign, then the room's lights pick it up.
-        .add("exit", "flip+=0.95")
+        // Handoff: the enter gate leaves, the sketched studio shows through, the logo flies onto the wall in red ink.
+        .to(enter, { autoAlpha: 0, y: -8, duration: 0.3, ease: "power2.in" }, "flip+=1.0")
+        .add("exit", "flip+=1.05")
         .to(presents, { autoAlpha: 0, duration: 0.3 }, "exit")
         .to(grain, { autoAlpha: 0, duration: 0.5 }, "exit")
-        .to(overlay, { backgroundColor: "rgba(7,6,6,0)", duration: 1.0, ease: "power2.inOut" }, "exit")
+        .to(overlay, { backgroundColor: "rgba(7,6,6,0)", duration: 0.9, ease: "power2.inOut" }, "exit+=0.1")
         .add(() => {
           // Fly the lockup onto the wall sign. The target is read live from the scene every frame,
           // so the pointer's pan during the flight can't knock it off its mark.

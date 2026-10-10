@@ -1,8 +1,8 @@
 "use client";
 
 // The studio as a "living photograph": the generated plates are layered in an orthographic scene
-// (1 world unit = 1 px). Each layer is a plane with a depth map, so the pointer and the scroll push
-// move the room with real parallax. Lights, grain and the audio reaction happen in the shader.
+// (1 world unit = 1 px). The shader also draws the studio as a pencil sketch and paints the photo
+// over it with an ink wipe (the intro, and in reverse as the section scrolls away).
 
 import { Suspense, useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
@@ -31,6 +31,10 @@ const STRINGS = Array.from({ length: 6 }, (_, i) => ({
   b: [1037, 763 + i * 7.8] as [number, number],
 }));
 const GUITAR_BODY = { x: 290, y: 650, w: 330, h: 260 };
+/** Fraction of each string hidden under his picking hand at the bridge end — lines start past it */
+const STRING_VISIBLE_FROM = 0.135;
+const PLUCK_CURSOR =
+  'url("data:image/svg+xml;utf8,<svg xmlns=%27http://www.w3.org/2000/svg%27 width=%2722%27 height=%2722%27><circle cx=%2711%27 cy=%2711%27 r=%274.5%27 fill=%27%23e7b47e%27/><circle cx=%2711%27 cy=%2711%27 r=%279.5%27 fill=%27none%27 stroke=%27%23e7b47e%27 stroke-opacity=%27.5%27/></svg>") 11 11, pointer';
 const HERO_PHONE = [HERO_PHONE_PX.x, HERO_PHONE_PX.y] as const;
 const HERO_CHEST = [680, 560] as const;
 /** Strings at rest read as bright silver; a plucked string flares to brand gold */
@@ -52,9 +56,14 @@ const smooth = (p: number, a: number, b: number) => THREE.MathUtils.clamp((p - a
 const frame = {
   parallax: new THREE.Vector2(),
   heroZoom: 1,
+  /** uv shift to the right while the conversation is open, so the bubbles don't sit on the guitar */
+  shift: 0,
+  /** the ink wipe actually drawn: the intro reveal, undone again as the section scrolls away */
+  reveal: 0,
   flicker: 1,
   breath: 0,
   time: 0,
+  pointer: new THREE.Vector2(0.5, 0.5),
 };
 
 /** Cover-fit plane size, plus a horizontal shift that keeps `centerX` (image uv) in view on narrow screens. */
@@ -82,18 +91,59 @@ const VERT = /* glsl */ `
 
 const FRAG = /* glsl */ `
   uniform sampler2D uMap, uDepth, uMaskRed, uMaskLamp;
-  uniform float uHasAlpha, uHasMasks;
-  uniform vec2 uParallax, uFocus, uChest, uPhone;
-  uniform float uZoom, uParallaxScale, uDepthZoom, uBreath, uDepthFlat, uDepthMix;
+  uniform float uHasAlpha, uHasMasks, uSketch;
+  uniform vec2 uParallax, uFocus, uChest, uPhone, uPointer;
+  uniform float uZoom, uParallaxScale, uDepthZoom, uBreath, uDepthFlat, uDepthMix, uShift;
   uniform vec3 uLights;      // red, lamp, ambient
-  uniform float uAudio, uFlicker, uTime, uGrain, uVignette, uFade, uPhoneGlow;
+  uniform float uAudio, uFlicker, uTime, uGrain, uVignette, uFade, uPhoneGlow, uReveal, uBloom;
   varying vec2 vUv;
+
+  const vec2 TEXEL = vec2(1.0 / 1536.0, 1.0 / 1024.0);
+  const vec2 ASPECT = vec2(1.5, 1.0);
+
+  float hashn(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+  float vnoise(vec2 p) {
+    vec2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hashn(i), hashn(i + vec2(1, 0)), f.x), mix(hashn(i + vec2(0, 1)), hashn(i + vec2(1, 1)), f.x), f.y);
+  }
+  float fbm(vec2 p) {
+    float v = 0.0, a = 0.5;
+    for (int k = 0; k < 4; k++) { v += a * vnoise(p); p = p * 2.03 + 11.3; a *= 0.5; }
+    return v;
+  }
+  float lumOf(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+  float lumAt(vec2 uv) { return lumOf(texture2D(uMap, uv).rgb); }
+  // a thin dark line through the middle of each unit cell
+  float hatch(float v) { return 1.0 - smoothstep(0.0, 0.24, abs(fract(v) - 0.5) * 2.0); }
+
+  // The studio as pencil on paper: Sobel edges for the line work, luminance-driven cross-hatch for tone.
+  vec3 sketch(vec2 uv, vec3 base, vec2 scr) {
+    float tl = lumAt(uv + TEXEL * vec2(-1.0,  1.0)), tc = lumAt(uv + TEXEL * vec2(0.0,  1.0)), tr = lumAt(uv + TEXEL * vec2(1.0,  1.0));
+    float ml = lumAt(uv + TEXEL * vec2(-1.0,  0.0)),                                              mr = lumAt(uv + TEXEL * vec2(1.0,  0.0));
+    float bl = lumAt(uv + TEXEL * vec2(-1.0, -1.0)), bc = lumAt(uv + TEXEL * vec2(0.0, -1.0)), br = lumAt(uv + TEXEL * vec2(1.0, -1.0));
+    float gx = (tr + 2.0 * mr + br) - (tl + 2.0 * ml + bl);
+    float gy = (bl + 2.0 * bc + br) - (tl + 2.0 * tc + tr);
+    float edge = smoothstep(0.05, 0.28, length(vec2(gx, gy)));
+    float lum = lumOf(base);
+    // pencil strokes: a hand-drawn wobble on the hatch lines, denser only where the photo is dark
+    vec2 h = scr * 92.0 + (vnoise(scr * 40.0) - 0.5) * 0.9;
+    float tone = 0.0;
+    tone += hatch((h.x + h.y) * 0.5)       * (1.0 - smoothstep(0.42, 0.66, lum)) * 0.75;
+    tone += hatch((h.x - h.y) * 0.5)       * (1.0 - smoothstep(0.22, 0.42, lum)) * 0.85;
+    tone += hatch((h.x + h.y) * 1.0 + 0.5) * (1.0 - smoothstep(0.06, 0.20, lum));
+    float ink = clamp(edge * 1.0 + tone * 0.42, 0.0, 1.0);
+    float paperGrain = vnoise(scr * 900.0) * 0.05 + fbm(scr * 14.0) * 0.07;
+    vec3 paper = vec3(0.945, 0.925, 0.89) * (0.88 + 0.12 * lum) - paperGrain;
+    return mix(paper, vec3(0.17, 0.13, 0.11), ink);
+  }
 
   void main() {
     // push-in: scale the image around the focus point
     vec2 uv = uFocus + (vUv - uFocus) / uZoom;
     // breathing: a tiny scale around the chest
     uv = uChest + (uv - uChest) / (1.0 + uBreath);
+    uv.x -= uShift;
     float d = mix(uDepthFlat, texture2D(uDepth, uv).r, uDepthMix); // 1 = near
     // nearer pixels slide more with the pointer, and spread more as the camera pushes in
     vec2 off = uParallax * uParallaxScale * (d - 0.5)
@@ -109,15 +159,36 @@ const FRAG = /* glsl */ `
     // Dark room: almost nothing, except the phone lighting his face.
     float glow = exp(-distance(uv, uPhone) * 9.0) * uPhoneGlow;
     vec3 dark = base * 0.04 + base * glow * vec3(0.9, 0.95, 1.15) * 2.4;
-    // The beats: red wall light flickers on, then the lamp. Once the ambient is up, the photo is itself.
     dark += base * red * uLights.x * 1.3;
     dark += base * lamp * uLights.y * uFlicker * 0.9;
     vec3 col = mix(dark, base, uLights.z);
-    // the guitar makes the red light pulse
-    col += base * red * uAudio * 0.5;
+    // the guitar makes the LED light pulse; the bloom is the wipe landing
+    col += base * red * (uAudio * 0.5 + uBloom * 0.9);
 
-    float n = fract(sin(dot(vUv * 913.0 + uTime, vec2(12.9898, 78.233))) * 43758.5453);
-    col += (n - 0.5) * uGrain;
+    // The ink wipe: paint sweeps in from the right over the sketch. The edge is a noisy, bleeding
+    // line that bulges towards the pointer; just behind it the paint is still wet and a touch too vivid.
+    if (uSketch > 0.5) {
+      vec2 scr = vUv * ASPECT;
+      float edgeX = 1.65 - uReveal * 1.95;
+      float n = (fbm(scr * 4.0 + vec2(0.0, uTime * 0.12)) - 0.5) * 0.16
+              + (vnoise(scr * 38.0 + uTime * 0.3) - 0.5) * 0.035
+              + exp(-distance(scr, uPointer * ASPECT) * 5.0) * 0.08;
+      float x = scr.x + n;
+      float painted = smoothstep(edgeX - 0.012, edgeX + 0.012, x);
+      float wet = painted * (1.0 - smoothstep(edgeX + 0.02, edgeX + 0.16, x));
+      float l = lumOf(col);
+      vec3 vivid = (col - l) * 1.4 + l * 1.06;
+      col = mix(col, vivid, wet * 0.8) + wet * 0.04;
+      vec3 sk = sketch(uv, base, scr);
+      col = mix(sk, col, painted);
+      // the brush's leading edge: a thin dark line of wet ink, only while the wipe is moving
+      float inkLine = (1.0 - smoothstep(0.0, 0.014, abs(x - edgeX))) * step(0.001, uReveal) * step(uReveal, 0.999);
+      col = mix(col, vec3(0.12, 0.07, 0.06), inkLine * 0.55);
+      // the sketch is on paper, not film: no grain, no alpha
+    }
+
+    float n2 = fract(sin(dot(vUv * 913.0 + uTime, vec2(12.9898, 78.233))) * 43758.5453);
+    col += (n2 - 0.5) * uGrain;
     float v = smoothstep(1.25, 0.3, distance(vUv, vec2(0.5)) * 1.35);
     col *= mix(1.0, v, uVignette);
 
@@ -155,6 +226,11 @@ function makeUniforms(t: PlateTextures, focus: THREE.Vector2, hasAlpha: boolean)
     uVignette: { value: 0.0 },
     uFade: { value: 1 },
     uPhoneGlow: { value: 1 },
+    uSketch: { value: 0 },
+    uReveal: { value: 0 },
+    uBloom: { value: 0 },
+    uShift: { value: 0 },
+    uPointer: { value: new THREE.Vector2(0.5, 0.5) },
   };
 }
 
@@ -197,6 +273,10 @@ function Plate({ textures, focus, centerX = 0.5, hasAlpha = false, parallaxScale
     u.uAudio.value = session.audio.level;
     u.uFlicker.value = frame.flicker;
     u.uTime.value = frame.time;
+    u.uShift.value = frame.shift;
+    u.uReveal.value = frame.reveal;
+    u.uBloom.value = session.bloom;
+    u.uPointer.value.copy(frame.pointer);
     update(u);
   });
 
@@ -245,9 +325,10 @@ function Studio() {
           // one photo, moved as a whole: no depth warping, so nothing can double up
           u.uDepthFlat.value = PAN_DEPTH;
           u.uDepthMix.value = 0;
+          u.uSketch.value = 1;
         }}
       />
-      {/* the wall sign: the preloader's logo lands here and becomes it; already lit while the room is dark */}
+      {/* the wall sign: the preloader's logo lands here and becomes it — red ink on the sketch, a lit sign once painted */}
       <Plate
         textures={sign}
         focus={heroFocus}
@@ -299,7 +380,7 @@ function Strings() {
         const angle = Math.atan2(b[1] - a[1], b[0] - a[0]);
         const mid: [number, number] = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
         const points = Array.from({ length: SEGMENTS + 1 }, (_, k) => {
-          const u = k / SEGMENTS;
+          const u = STRING_VISIBLE_FROM + (1 - STRING_VISIBLE_FROM) * (k / SEGMENTS);
           return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, 2] as [number, number, number];
         });
         return { a, b, len, angle, mid, points };
@@ -326,7 +407,7 @@ function Strings() {
     const z = frame.heroZoom;
     const pv = par.current.copy(frame.parallax).multiplyScalar(STRING_PARALLAX * (STRING_DEPTH - 0.5));
     g.scale.set(z, z, 1);
-    g.position.set(shift + focusWorld[0] * (1 - z) - pv.x * w, focusWorld[1] * (1 - z) - pv.y * h, 0);
+    g.position.set(shift + frame.shift * w + focusWorld[0] * (1 - z) - pv.x * w, focusWorld[1] * (1 - z) - pv.y * h, 0);
     for (let i = 0; i < 6; i++) {
       const line = lines.current[i];
       if (!line) continue;
@@ -346,7 +427,7 @@ function Strings() {
       const nx = -Math.sin(angle);
       const ny = Math.cos(angle);
       for (let k = 0; k <= SEGMENTS; k++) {
-        const u = k / SEGMENTS;
+        const u = STRING_VISIBLE_FROM + (1 - STRING_VISIBLE_FROM) * (k / SEGMENTS);
         const env = Math.sin(Math.PI * u);
         const s = amp * env * (Math.sin(t * wv + phase.current[i]) + 0.35 * Math.sin(2 * Math.PI * u) * Math.sin(t * wv * 2.1));
         scratch.current[k * 3] = a[0] + (b[0] - a[0]) * u + nx * s;
@@ -361,7 +442,7 @@ function Strings() {
     hintPoint.current.set(hx, hy, 0).applyMatrix4(g.matrixWorld);
     session.hintScreen.x = size.width / 2 + hintPoint.current.x;
     session.hintScreen.y = size.height / 2 - hintPoint.current.y;
-    session.hintScreen.opacity = session.guitarHint * session.lights.lamp * (1 - smooth(session.progress, 0, 0.12));
+    session.hintScreen.opacity = session.guitarHint * session.guitarHintIn * (1 - smooth(session.progress, 0, 0.12));
   });
 
   const strike = (i: number) => {
@@ -395,7 +476,14 @@ function Strings() {
       ))}
       {/* hit zones along each string — crossing one plucks it, so a swipe is a strum */}
       {geometry.map((s, i) => (
-        <mesh key={i} position={[s.mid[0], s.mid[1], 2]} rotation={[0, 0, s.angle]} onPointerEnter={() => strike(i)}>
+        <mesh
+          key={i}
+          position={[s.mid[0], s.mid[1], 2]}
+          rotation={[0, 0, s.angle]}
+          onPointerEnter={() => strike(i)}
+          onPointerOver={() => (document.body.style.cursor = PLUCK_CURSOR)}
+          onPointerOut={() => (document.body.style.cursor = "")}
+        >
           <planeGeometry args={[s.len, 9]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
@@ -417,7 +505,7 @@ function Strings() {
 // ---------------------------------------------------------------------------
 // Dust in the lamp light
 // ---------------------------------------------------------------------------
-const DUST_COUNT = 110;
+const DUST_COUNT = 70;
 const hash = (n: number) => {
   const x = Math.sin(n * 12.9898 + 78.233) * 43758.5453;
   return x - Math.floor(x);
@@ -429,8 +517,9 @@ function Dust() {
   const positions = useMemo(() => {
     const pos = new Float32Array(DUST_COUNT * 3);
     for (let i = 0; i < DUST_COUNT; i++) {
-      pos[i * 3] = (hash(i * 3) - 0.5) * w;
-      pos[i * 3 + 1] = (hash(i * 3 + 1) - 0.5) * h;
+      // only where the LED strip and the spots actually light the air: the centre band of the room
+      pos[i * 3] = (0.28 + hash(i * 3) * 0.5 - 0.5) * w;
+      pos[i * 3 + 1] = (0.30 + hash(i * 3 + 1) * 0.5 - 0.5) * h;
       pos[i * 3 + 2] = 2.5;
     }
     return pos;
@@ -445,10 +534,10 @@ function Dust() {
     for (let i = 0; i < DUST_COUNT; i++) {
       arr[i * 3] += Math.sin(t * 0.3 + i) * 2 * dt;
       arr[i * 3 + 1] += (6 + kick) * dt;
-      if (arr[i * 3 + 1] > h / 2) arr[i * 3 + 1] = -h / 2;
+      if (arr[i * 3 + 1] > h * 0.3) arr[i * 3 + 1] = -h * 0.2;
     }
     attr.needsUpdate = true;
-    (mesh.material as THREE.PointsMaterial).opacity = 0.35 * session.lights.lamp;
+    (mesh.material as THREE.PointsMaterial).opacity = 0.3 * frame.reveal;
   });
   return (
     <points ref={points} renderOrder={2}>
@@ -478,6 +567,10 @@ function Driver() {
     // No scroll zoom: only the gentle lean towards the phone while the conversation is open.
     frame.parallax.copy(smoothMouse.current);
     frame.heroZoom = OVERSCAN + 0.12 * session.focus;
+    frame.shift = 0.045 * session.focus;
+    // the wipe paints the room in, and un-paints it again as the section leaves the screen
+    frame.reveal = session.reveal * (1 - smooth(session.progress, 0.02, 0.6));
+    frame.pointer.set(session.mouse.x * 0.5 + 0.5, session.mouse.y * 0.5 + 0.5);
     frame.time = clock.elapsedTime;
     session.phonePulse *= Math.exp(-dt * 4);
     // the zoom pivots on the phone, so its screen position only drifts with the parallax
@@ -487,7 +580,7 @@ function Driver() {
       const z = frame.heroZoom;
       const fx = HERO_PHONE[0] / IMG.w;
       const fy = 1 - HERO_PHONE[1] / IMG.h;
-      const ox = frame.parallax.x * PAN * (PAN_DEPTH - 0.5);
+      const ox = frame.parallax.x * PAN * (PAN_DEPTH - 0.5) - frame.shift;
       const oy = frame.parallax.y * PAN * (PAN_DEPTH - 0.5);
       const toScreen = (px: number, py: number) => {
         const vx = fx + (px / IMG.w - ox - fx) * z;
@@ -498,7 +591,8 @@ function Driver() {
       const [x1, y1] = toScreen(SIGN_WORDMARK.x + SIGN_WORDMARK.w, SIGN_WORDMARK.y + SIGN_WORDMARK.h);
       Object.assign(session.signScreen, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
     }
-    session.phoneScreen.x = size.width / 2 + shift + (HERO_PHONE[0] / IMG.w - 0.5) * w - frame.parallax.x * PAN * (PAN_DEPTH - 0.5) * w;
+    session.phoneScreen.x =
+      size.width / 2 + shift + (HERO_PHONE[0] / IMG.w - 0.5 + frame.shift) * w - frame.parallax.x * PAN * (PAN_DEPTH - 0.5) * w;
     session.phoneScreen.y = size.height / 2 + (HERO_PHONE[1] / IMG.h - 0.5) * h + frame.parallax.y * PAN * (PAN_DEPTH - 0.5) * h;
     frame.breath = Math.sin(clock.elapsedTime * 1.1) * 0.004;
     const a = session.audio.level;

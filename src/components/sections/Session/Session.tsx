@@ -50,7 +50,8 @@ export default function Session() {
         if (phoneHint.current) {
           const { x, y } = session.phoneScreen;
           phoneHint.current.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
-          const show = session.phoneHint * session.lights.lamp * (1 - gsap.utils.clamp(0, 1, session.progress / 0.12));
+          const painted = gsap.utils.clamp(0, 1, (session.reveal - 0.75) / 0.25);
+          const show = session.phoneHint * painted * (1 - gsap.utils.clamp(0, 1, session.progress / 0.12));
           phoneHint.current.style.opacity = String(show);
           phoneHint.current.style.pointerEvents = show > 0.5 ? "auto" : "none";
         }
@@ -62,7 +63,8 @@ export default function Session() {
         }
         if (scrollHint.current) {
           const gone = gsap.utils.clamp(0, 1, session.progress / 0.06);
-          scrollHint.current.style.opacity = String(session.lights.lamp * (1 - gone));
+          const painted = gsap.utils.clamp(0, 1, (session.reveal - 0.85) / 0.15);
+          scrollHint.current.style.opacity = String(painted * (1 - gone) * (1 - session.focus));
         }
       };
       gsap.ticker.add(tick);
@@ -77,15 +79,17 @@ export default function Session() {
     { scope: root },
   );
 
-  // Lights on, once the preloader has left: red wall light flickers awake, then the lamp warms up.
+  // The preloader's logo has just landed on the wall: the sign takes over under it, then the ink wipe
+  // paints the sketched studio in from the right, the LEDs bloom as it lands, and the hints follow.
   useEffect(() => {
     if (!done) return;
+    gsap.set(session.lights, { red: 1, lamp: 1, ambient: 1 });
     const tl = gsap.timeline({ delay: 0.05 });
-    // the preloader's logo has just landed on the wall: the real sign takes over under it
-    tl.fromTo(session, { sign: 0 }, { sign: 1, duration: 0.4, ease: "power1.inOut" }, 0);
-    tl.to(session.lights, { keyframes: { red: [0, 0.85, 0.1, 1, 0.25, 0.05, 1], easeEach: "none" }, duration: 1.1 })
-      .to(session.lights, { lamp: 1, duration: 1.6, ease: "power2.inOut" }, "-=0.15")
-      .to(session.lights, { ambient: 1, duration: 1.8, ease: "power2.inOut" }, "<");
+    tl.fromTo(session, { sign: 0 }, { sign: 1, duration: 0.4, ease: "power1.inOut" }, 0)
+      .to(session, { reveal: 1, duration: 2.0, ease: "expo.inOut" }, 0.35)
+      .to(session, { bloom: 1, duration: 0.35, ease: "power2.out" }, 1.85)
+      .to(session, { bloom: 0, duration: 1.0, ease: "power2.inOut" })
+      .fromTo(session, { guitarHintIn: 0 }, { guitarHintIn: 1, duration: 0.8, ease: "power2.out" }, 3.4);
     return () => {
       tl.kill();
     };
@@ -119,7 +123,7 @@ export default function Session() {
         ref={phoneHint}
         onClick={tapPhone}
         aria-label="Open the conversation on the phone"
-        className="tap-ring absolute top-0 left-0 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-tan bg-black/40 text-tan backdrop-blur-sm"
+        className="tap-ring absolute top-0 left-0 z-10 flex h-12 w-12 items-center justify-center rounded-full border border-tan bg-red text-pearl shadow-[0_0_30px_rgba(133,9,9,0.55)] transition-transform hover:scale-110"
         style={{ opacity: 0, pointerEvents: "none" }}
       >
         <span className="text-[9px] font-semibold tracking-[0.3em]">TAP</span>
