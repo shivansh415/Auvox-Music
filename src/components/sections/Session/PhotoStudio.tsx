@@ -31,15 +31,17 @@ const STRINGS = Array.from({ length: 6 }, (_, i) => ({
   b: [1037, 763 + i * 7.8] as [number, number],
 }));
 const GUITAR_BODY = { x: 290, y: 650, w: 330, h: 260 };
-/** Fraction of each string hidden under his picking hand at the bridge end — lines start past it */
-const STRING_VISIBLE_FROM = 0.135;
+/** Where each string comes out from under his picking hand (fraction of its length, measured from the plate) */
+const STRING_VISIBLE_FROM = [0.3, 0.31, 0.3, 0.3, 0.28, 0.26];
 const PLUCK_CURSOR =
   'url("data:image/svg+xml;utf8,<svg xmlns=%27http://www.w3.org/2000/svg%27 width=%2722%27 height=%2722%27><circle cx=%2711%27 cy=%2711%27 r=%274.5%27 fill=%27%23e7b47e%27/><circle cx=%2711%27 cy=%2711%27 r=%279.5%27 fill=%27none%27 stroke=%27%23e7b47e%27 stroke-opacity=%27.5%27/></svg>") 11 11, pointer';
 const HERO_PHONE = [HERO_PHONE_PX.x, HERO_PHONE_PX.y] as const;
 const HERO_CHEST = [680, 560] as const;
-/** Strings at rest read as bright silver; a plucked string flares to brand gold */
+/** Strings at rest read as bright silver; each plucked string flares in its own colour */
 const STRING_REST = new THREE.Color("#e9e6df");
-const STRING_LIT = new THREE.Color(TAN).multiplyScalar(1.5);
+const STRING_LIT = ["#ff3b3b", "#ff8c2a", "#ffd43b", "#3ddc84", "#3fa9ff", "#b56cff"].map((c) =>
+  new THREE.Color(c).multiplyScalar(1.5),
+);
 
 /** Pointer pan, as a whole-frame camera drift (uv units at full deflection = PAN * (PAN_DEPTH - 0.5)) */
 const PAN = 0.05;
@@ -480,8 +482,9 @@ function Strings() {
         const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
         const angle = Math.atan2(b[1] - a[1], b[0] - a[0]);
         const mid: [number, number] = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+        const from = STRING_VISIBLE_FROM[STRINGS.indexOf(s)];
         const points = Array.from({ length: SEGMENTS + 1 }, (_, k) => {
-          const u = STRING_VISIBLE_FROM + (1 - STRING_VISIBLE_FROM) * (k / SEGMENTS);
+          const u = from + (1 - from) * (k / SEGMENTS);
           return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, 2] as [number, number, number];
         });
         return { a, b, len, angle, mid, points };
@@ -516,19 +519,21 @@ function Strings() {
       const glow = Math.min(1, e * 2.5);
       const mat = line.material as THREE.Material & { opacity: number; color: THREE.Color; linewidth: number };
       mat.opacity = 0.55 + 0.45 * glow;
-      mat.color.copy(STRING_REST).lerp(STRING_LIT, glow);
-      mat.linewidth = (1.1 - i * 0.08) * (1 + glow * 0.8);
+      mat.color.copy(STRING_REST).lerp(STRING_LIT[i], glow);
+      mat.linewidth = (1.1 - i * 0.08) * (1 + glow * 0.6);
       if (e < 0.004) continue;
       age.current[i] += dt;
-      energy.current[i] = e * Math.exp(-dt * 2.6);
+      energy.current[i] = e * Math.exp(-dt * 3.0);
       const { a, b, angle } = geometry[i];
       const t = age.current[i];
-      const amp = 7 * e;
-      const wv = 34 + i * 5;
+      // a real string barely moves — a couple of pixels, fast, so it reads as a blur
+      const amp = 2.2 * e;
+      const wv = 46 + i * 6;
       const nx = -Math.sin(angle);
       const ny = Math.cos(angle);
+      const from = STRING_VISIBLE_FROM[i];
       for (let k = 0; k <= SEGMENTS; k++) {
-        const u = STRING_VISIBLE_FROM + (1 - STRING_VISIBLE_FROM) * (k / SEGMENTS);
+        const u = from + (1 - from) * (k / SEGMENTS);
         const env = Math.sin(Math.PI * u);
         const s = amp * env * (Math.sin(t * wv + phase.current[i]) + 0.35 * Math.sin(2 * Math.PI * u) * Math.sin(t * wv * 2.1));
         scratch.current[k * 3] = a[0] + (b[0] - a[0]) * u + nx * s;
