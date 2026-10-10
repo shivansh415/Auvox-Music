@@ -136,23 +136,26 @@ const FRAG = /* glsl */ `
     return col;
   }
 
-  // Galaxy: three sizes of dots on a cell grid, plus a few twinkling 4-point stars.
-  vec3 galaxy(vec2 scr, float amount) {
+  // Galaxy: the photo itself as a field of dots — denser and brighter where the picture is light —
+  // plus a few twinkling 4-point stars. Reads as a star cloud that still holds the room's shapes.
+  vec3 galaxy(vec2 scr, vec2 uv, float amount) {
     vec3 g = vec3(0.0);
     for (int k = 0; k < 3; k++) {
-      float scale = (k == 0) ? 55.0 : (k == 1) ? 110.0 : 220.0;
+      float scale = (k == 0) ? 60.0 : (k == 1) ? 120.0 : 240.0;
       vec2 gp = scr * scale + float(k) * 7.3;
       vec2 cell = floor(gp);
-      vec2 cuv = fract(gp) - 0.5 + (vec2(hashn(cell + 1.3), hashn(cell + 5.1)) - 0.5) * 0.6;
+      vec2 jitter = (vec2(hashn(cell + 1.3), hashn(cell + 5.1)) - 0.5) * 0.7;
+      vec2 cuv = fract(gp) - 0.5 + jitter;
+      vec2 cellUv = uv + (cell + 0.5 + jitter - gp) / scale / ASPECT;
+      float lum = lumAt(cellUv);
       float r = hashn(cell + float(k));
-      float keep = step(1.0 - amount * (k == 2 ? 0.32 : 0.14), r);
-      float rad = (k == 0) ? 0.09 : (k == 1) ? 0.07 : 0.05;
-      float dotm = 1.0 - smoothstep(rad, rad + 0.05, length(cuv));
-      float bright = (k == 0) ? 0.45 : (k == 1) ? 0.8 : 1.0;
-      g += dotm * keep * bright * (0.7 + 0.3 * sin(uTime * (1.5 + r * 3.0) + r * 40.0));
+      float keep = step(1.0 - amount * (0.10 + 0.55 * lum), r);
+      float rad = (k == 0) ? 0.10 : (k == 1) ? 0.075 : 0.055;
+      float dotm = 1.0 - smoothstep(rad, rad + 0.06, length(cuv));
+      float bright = ((k == 0) ? 0.35 : (k == 1) ? 0.7 : 1.0) * (0.35 + 0.65 * lum);
+      g += dotm * keep * bright * (0.75 + 0.25 * sin(uTime * (1.5 + r * 3.0) + r * 40.0));
     }
-    // stars
-    vec2 sp = scr * 28.0;
+    vec2 sp = scr * 26.0;
     vec2 cell = floor(sp);
     vec2 cuv = fract(sp) - 0.5 + (vec2(hashn(cell + 2.7), hashn(cell + 8.9)) - 0.5) * 0.7;
     float r = hashn(cell + 3.3);
@@ -161,6 +164,25 @@ const FRAG = /* glsl */ `
     float core = exp(-dot(cuv, cuv) * 60.0);
     float tw = 0.5 + 0.5 * sin(uTime * 2.2 + r * 60.0);
     g += (star * 0.9 + core) * step(0.985, r) * tw * amount;
+    return g;
+  }
+
+  // Glitter: a band of bright specks, several sizes, each flickering at its own rate and drifting
+  // outward from the portal. This is the rim and the "sparkle" that pours over the freshly painted edge.
+  float glitter(vec2 scr, vec2 dir, float band) {
+    float g = 0.0;
+    for (int k = 0; k < 3; k++) {
+      float scale = (k == 0) ? 140.0 : (k == 1) ? 260.0 : 420.0;
+      vec2 gp = scr * scale + float(k) * 3.7;
+      vec2 cell = floor(gp);
+      float r = hashn(cell + float(k) * 1.1), r2 = hashn(cell + 7.7 + float(k));
+      float life = fract(uTime * (0.8 + r2 * 0.8) + r * 9.0);
+      vec2 cuv = fract(gp) - 0.5 - dir * (life - 0.5) * 0.8;
+      float speck = exp(-dot(cuv, cuv) * ((k == 0) ? 22.0 : 40.0));
+      float flicker = pow(0.5 + 0.5 * sin(uTime * (6.0 + r * 18.0) + r2 * 30.0), 3.0);
+      float keep = step(1.0 - band * 0.55, r);
+      g += speck * keep * (0.5 + 0.9 * flicker) * ((k == 0) ? 1.2 : (k == 1) ? 0.9 : 0.7);
+    }
     return g;
   }
 
@@ -191,44 +213,37 @@ const FRAG = /* glsl */ `
     // the guitar makes the LED light pulse; the bloom is the wipe landing
     col += base * red * (uAudio * 0.5 + uBloom * 0.9);
 
-    // The portal. A circle grows out of the phone; its rim is white-hot sparks, outside it the world is
-    // a white-line etching under a galaxy, inside it is the painted studio. uReveal 0 = a small pulsing
-    // portal on the phone, 1 = the whole screen is painted.
+    // The portal. A circle grows out of the phone; its rim is a wide band of white-hot glitter that
+    // keeps pouring over the freshly painted edge; outside it the world is a white-line etching under
+    // a galaxy made of the photo's own light. uReveal 0 = closed (a point on the phone), 1 = all painted.
     if (uSketch > 0.5) {
       vec2 scr = vUv * ASPECT;
       vec2 c = uPhone * ASPECT;
       float dist = distance(scr, c);
-      float pulse = 0.5 + 0.5 * sin(uTime * 1.6);
-      float r0 = 0.055 + 0.012 * pulse;
-      float rr = r0 + pow(uReveal, 1.6) * 1.9;
-      float n = (fbm(scr * 5.0 + uTime * 0.25) - 0.5) * (0.10 + 0.06 * (1.0 - uReveal))
+      float rr = 0.02 + pow(uReveal, 1.5) * 1.95;
+      float n = (fbm(scr * 4.0 + uTime * 0.2) - 0.5) * 0.12 * (0.4 + 0.6 * uReveal)
               + exp(-distance(scr, uPointer * ASPECT) * 5.0) * 0.05 * uReveal;
       float d = dist - rr + n;             // < 0 inside
+      float moving = step(0.001, uReveal) * step(uReveal, 0.999);
 
-      vec3 etched = etching(uv, base, scr) + galaxy(scr, 1.0) * 0.9;
-      float inside = 1.0 - smoothstep(-0.008, 0.008, d);
+      vec3 etched = etching(uv, base, scr) + galaxy(scr, uv, 1.0) * 0.95;
+      float inside = 1.0 - smoothstep(-0.006, 0.006, d);
       vec3 outc = mix(etched, col, inside);
 
-      // the rim: a hot core and a wider glow, both additive, plus sparks flung outward
-      float core = exp(-abs(d) * 320.0);
-      float glowb = exp(-abs(d) * 60.0);
-      float rimN = fbm(scr * 40.0 + uTime * 1.5);           // crackle along the rim
-      vec3 hot = vec3(1.0, 0.97, 0.92);
-      vec3 warm = vec3(1.0, 0.72, 0.45);
-      outc += hot * core * (1.2 + rimN * 1.2) + mix(warm, hot, rimN) * glowb * 0.5;
-      // sparks: cells near the rim, each a short streak pushed outward and fading
+      // soft bloom either side of the edge, warm just outside, white inside
+      vec3 hot = vec3(1.0, 0.98, 0.94);
+      vec3 warm = vec3(1.0, 0.78, 0.5);
+      float bloomIn = exp(-max(-d, 0.0) * 9.0) * inside;
+      float bloomOut = exp(-max(d, 0.0) * 22.0) * (1.0 - inside);
+      outc += hot * bloomIn * 0.35 + warm * bloomOut * 0.45;
+      // a thin hot seam right at the edge
+      outc += hot * exp(-abs(d) * 260.0) * (0.9 + 0.8 * fbm(scr * 50.0 + uTime * 2.0));
+
+      // the glitter: densest at the seam, trailing well inside the painted area
       vec2 dir = normalize(scr - c + 1e-4);
-      vec2 sp = scr * 90.0;
-      vec2 cell = floor(sp);
-      float sr = hashn(cell + 4.4), sr2 = hashn(cell + 9.9);
-      float life = fract(uTime * 1.6 + sr * 7.0);
-      vec2 cuv = fract(sp) - 0.5 - dir * life * 1.4;
-      float streak = max(1.0 - abs(dot(cuv, vec2(-dir.y, dir.x))) * 18.0, 0.0) * max(1.0 - abs(dot(cuv, dir)) * 2.2, 0.0);
-      float nearRim = exp(-max(d, 0.0) * 9.0) * step(-0.015, d);
-      outc += mix(warm, hot, sr) * streak * step(0.62, sr2) * (1.0 - life) * nearRim * 1.6;
-      // and a dusting of embers just inside the rim
-      float ember = exp(-max(-d, 0.0) * 30.0) * inside;
-      outc += hot * step(0.9, hashn(cell + 2.2)) * exp(-dot(fract(sp) - 0.5, fract(sp) - 0.5) * 40.0) * ember * 0.8;
+      float band = exp(-max(-d, 0.0) * 11.0) * inside + exp(-max(d, 0.0) * 30.0) * (1.0 - inside) * 0.6;
+      float gl = glitter(scr, dir, band);
+      outc += hot * gl * band * (1.6 * moving + 0.25);
 
       col = outc;
     }

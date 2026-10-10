@@ -86,11 +86,11 @@ export default function Session() {
     gsap.set(session.lights, { red: 1, lamp: 1, ambient: 1 });
     const tl = gsap.timeline({ delay: 0.05 });
     tl.fromTo(session, { sign: 0 }, { sign: 1, duration: 0.4, ease: "power1.inOut" }, 0)
-      // the portal on the phone holds a beat, then swallows the screen
-      .to(session, { reveal: 1, duration: 3.2, ease: "power2.inOut" }, 0.9)
-      .to(session, { bloom: 1, duration: 0.4, ease: "power2.out" }, 3.6)
+      // the portal opens out of the phone the moment the logo lands — no hold, one continuous move
+      .to(session, { reveal: 1, duration: 3.4, ease: "power2.inOut" }, 0)
+      .to(session, { bloom: 1, duration: 0.4, ease: "power2.out" }, 3.0)
       .to(session, { bloom: 0, duration: 1.1, ease: "power2.inOut" })
-      .fromTo(session, { guitarHintIn: 0 }, { guitarHintIn: 1, duration: 0.8, ease: "power2.out" }, 5.0);
+      .fromTo(session, { guitarHintIn: 0 }, { guitarHintIn: 1, duration: 0.8, ease: "power2.out" }, 4.4);
     return () => {
       tl.kill();
     };

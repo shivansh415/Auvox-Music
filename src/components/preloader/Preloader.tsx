@@ -150,6 +150,23 @@ export default function Preloader() {
         },
       });
 
+      // The gate. Works from the moment the button is visible: jumping just past the pause point
+      // resumes the timeline whether it has reached the pause yet or not, and a second press is a no-op.
+      let entered = false;
+      const go = (withSound: boolean) => {
+        if (entered) return;
+        entered = true;
+        window.removeEventListener("keydown", onKey);
+        unlockAudio();
+        setMuted(!withSound);
+        tl.play("gate+=0.01");
+      };
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === "Enter" || e.key === " ") go(true);
+      };
+      window.addEventListener("keydown", onKey);
+      enterGo.current = go;
+
       tl.fromTo(bars, { scaleY: 0 }, { scaleY: 1, duration: 0.9, ease: "expo.out" }, 0)
         .fromTo(
           strings,
@@ -212,19 +229,8 @@ export default function Preloader() {
 
         // Gate: the visitor's click is the gesture browsers require before any sound can play.
         .fromTo(enter, { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 0.6, ease: "expo.out" }, "flip+=0.4")
-        .addPause("flip+=1.0", () => {
-          const go = (withSound: boolean) => {
-            window.removeEventListener("keydown", onKey);
-            unlockAudio();
-            setMuted(!withSound);
-            tl.play();
-          };
-          const onKey = (e: KeyboardEvent) => {
-            if (e.key === "Enter" || e.key === " ") go(true);
-          };
-          window.addEventListener("keydown", onKey);
-          enterGo.current = go;
-        })
+        .addLabel("gate", "flip+=1.0")
+        .addPause("gate")
 
         // Handoff: the enter gate leaves, the sketched studio shows through, the logo flies onto the wall in red ink.
         .to(enter, { autoAlpha: 0, y: -8, duration: 0.3, ease: "power2.in" }, "flip+=1.0")
@@ -277,6 +283,7 @@ export default function Preloader() {
       // React StrictMode mounts twice — without this the first ticker keeps overwriting `d` and blocks the morph.
       return () => {
         state.wave = false;
+        window.removeEventListener("keydown", onKey);
         gsap.ticker.remove(tick);
       };
     },
