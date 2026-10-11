@@ -218,6 +218,33 @@ export function playRiff() {
   }, total * 1000);
 }
 
+/** A soft electric-piano voice: two detuned triangles through a quick decay. */
+function pianoNote(freq: number, when: number, velocity: number, length = 1.6) {
+  if (!ctx || !master || !running()) return;
+  const t0 = ctx.currentTime + when;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.exponentialRampToValueAtTime(0.22 * velocity, t0 + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + length);
+  gain.connect(master);
+  for (const detune of [-4, 4]) {
+    const osc = ctx.createOscillator();
+    osc.type = "triangle";
+    osc.frequency.value = freq;
+    osc.detune.value = detune;
+    osc.connect(gain);
+    osc.start(t0);
+    osc.stop(t0 + length + 0.05);
+  }
+}
+
+/** A rolled major-7 chord on the keyboard (hover) — root in Hz. */
+export function playChord(root = 261.63, velocity = 1) {
+  unlockAudio();
+  const ratios = [1, 1.25, 1.5, 1.875, 2];
+  ratios.forEach((r, i) => pianoNote(root * r, i * 0.045, velocity * (1 - i * 0.08)));
+}
+
 /** Soft "message received" pop for the chat. */
 export function blip(high = false) {
   if (!ctx || !master || !running()) return;

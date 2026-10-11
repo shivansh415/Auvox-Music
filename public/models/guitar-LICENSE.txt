@@ -1,0 +1,11 @@
+Model Information:
+* title:	Western Acoustic Guitar
+* source:	https://sketchfab.com/3d-models/western-acoustic-guitar-044df4afd5bf442d8b0d71d80837557b
+* author:	Tomas_Tew (https://sketchfab.com/Tomas_Tew)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Western Acoustic Guitar" (https://sketchfab.com/3d-models/western-acoustic-guitar-044df4afd5bf442d8b0d71d80837557b) by Tomas_Tew (https://sketchfab.com/Tomas_Tew) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

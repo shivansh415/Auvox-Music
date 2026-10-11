@@ -1,8 +1,17 @@
 "use client";
 
-import { ReactLenis, type LenisRef } from "lenis/react";
+import { ReactLenis, useLenis, type LenisRef } from "lenis/react";
 import { useEffect, useRef } from "react";
 import { gsap, ScrollTrigger } from "@/lib/gsap";
+
+/** dev: the Lenis instance on window, for scripted scrolling */
+function DevHandle() {
+  const lenis = useLenis();
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") (window as unknown as { __lenis: unknown }).__lenis = lenis;
+  }, [lenis]);
+  return null;
+}
 
 export default function SmoothScroll({ children }: { children: React.ReactNode }) {
   const lenisRef = useRef<LenisRef>(null);
@@ -18,6 +27,7 @@ export default function SmoothScroll({ children }: { children: React.ReactNode }
 
   return (
     <ReactLenis root options={{ autoRaf: false, lerp: 0.1 }} ref={lenisRef}>
+      <DevHandle />
       {children}
     </ReactLenis>
   );

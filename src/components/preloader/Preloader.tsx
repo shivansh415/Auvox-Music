@@ -86,10 +86,13 @@ export default function Preloader() {
       const skip =
         process.env.NODE_ENV === "development" &&
         new URLSearchParams(window.location.search).has("nopreloader");
-      if (skip || (ONCE_PER_SESSION && sessionStorage.getItem(SESSION_KEY))) {
+      // never replay within the same app session (route changes keep this component mounted)
+      if (skip || usePreloaderStore.getState().done || (ONCE_PER_SESSION && sessionStorage.getItem(SESSION_KEY))) {
         done();
         return;
       }
+      // the lockup only flies onto the studio wall on the home page; elsewhere it simply lifts away
+      const home = window.location.pathname === "/";
       if (ONCE_PER_SESSION) sessionStorage.setItem(SESSION_KEY, "1");
       lenis?.stop();
 
@@ -238,6 +241,10 @@ export default function Preloader() {
         .to(grain, { autoAlpha: 0, duration: 0.5 }, "exit")
         .to(overlay, { backgroundColor: "rgba(7,6,6,0)", duration: 0.9, ease: "power2.inOut" }, "exit+=0.1")
         .add(() => {
+          if (!home) {
+            gsap.to(stage, { y: -28, scale: 0.96, duration: 0.9, ease: "power2.inOut" });
+            return;
+          }
           // Fly the lockup onto the wall sign. The target is read live from the scene every frame,
           // so the pointer's pan during the flight can't knock it off its mark.
           const r = stage.getBoundingClientRect();

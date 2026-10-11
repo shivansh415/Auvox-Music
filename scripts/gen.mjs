@@ -107,6 +107,13 @@ const STEPS = {
     refs: [fin("03-A-hero-dof.png")],
     prompt: `Edit this photo. Keep every object, its position, the framing, the lighting and the colours exactly the same — change nothing about the person, the guitar or the phone. The only change: remove the depth-of-field blur from the background. Shot at f/11 with deep focus: the wooden slat panels, the speakers, the desk, the keyboard, the guitars on the left, the shelves, the plants, the rack and the floor are all crisp and in sharp focus, with fine detail and texture. Real camera photo, natural colours, no added text.`,
   },
+  // ---- Section 3 hero: the empty sunlit room the 3D instruments float in ----
+  heroRoom: {
+    final: "20-hero-room.png",
+    size: "1536x1024",
+    refs: [ref("ref-hero-client.png")],
+    prompt: `Edit this image into an empty background photograph. Remove completely: the guitar, the keyboard/piano, the thin orbit lines, the small floating rocks and the orange beads, and every piece of text and interface — the logo, the menu, the headline, the paragraph, the button, the avatars, the labels, the numbers, the scroll icon. Fill those areas with the room behind them so nothing is left over. Keep: the warm sunlit cream room, the soft diagonal sunlight and leaf shadows on the wall, the tall arches and pillars on the right, the sheer cream fabric, the blurred green plants in the corners, the light floor and the wide rough pale stone plinth at the bottom centre-right (keep it exactly, empty on top). The left half is calm empty wall with soft light, nothing on it. Real architectural photograph, natural colours, warm cream and pearl tones, soft film grain, sharp focus. No text, no logos, no objects floating in the air, no watermark.`,
+  },
   mobile: {
     final: "08-A-hero-mobile.png",
     size: "1024x1536",

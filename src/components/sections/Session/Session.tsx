@@ -124,7 +124,7 @@ export default function Session() {
   };
 
   return (
-    <section ref={root} className="relative h-screen w-full overflow-clip bg-black text-pearl">
+    <section ref={root} data-theme="dark" className="relative h-screen w-full overflow-clip bg-black text-pearl">
       <Studio />
 
       <div
