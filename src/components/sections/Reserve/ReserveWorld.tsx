@@ -7,6 +7,7 @@ import { Suspense, useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Environment, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
+import PauseOffscreen from "@/lib/r3f/PauseOffscreen";
 import { reserve, type DemoInstrument } from "./state";
 
 const FOV = 30;
@@ -101,10 +102,11 @@ export default function ReserveWorld({ instrument }: { instrument: DemoInstrumen
     <Canvas
       className="absolute inset-0"
       style={{ pointerEvents: "none" }}
-      dpr={[1, 2]}
+      dpr={[1, 1.5]}
       camera={{ fov: FOV, near: 0.1, far: 60, position: [0, 0, CAM_Z] }}
       gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1 }}
     >
+      <PauseOffscreen name="reserve" />
       <Rig>
         <Suspense fallback={null}>
           <Environment files="/world/studio_1k.hdr" environmentIntensity={0.45} />

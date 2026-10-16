@@ -48,7 +48,7 @@ export default function PackagesBand({ verse }: { verse: Verse }) {
   return (
     <section ref={root} id="packages" className="verse-packages relative scroll-mt-4 overflow-clip bg-cream text-ink">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(55%_45%_at_100%_0%,rgba(250,227,197,0.9),transparent_70%)]" />
-      <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.04] mix-blend-multiply" />
+      <div className="grain pointer-events-none absolute inset-0 opacity-[0.04] mix-blend-multiply" />
       <div className="relative mx-auto max-w-[1440px] px-6 py-24 md:px-12 md:py-36">
         <SectionHead
           kicker="Packages"

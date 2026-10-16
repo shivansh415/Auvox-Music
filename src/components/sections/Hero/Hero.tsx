@@ -65,10 +65,17 @@ export default function Hero() {
         .fromTo(q(".hero-body"), { y: 18, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9 }, 0.85)
         .fromTo(q(".hero-cta"), { y: 18, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9 }, 1.0)
         .fromTo(q(".hero-social"), { y: 12, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.8 }, 1.15)
-        .fromTo(q(".hero-foot"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.8 }, 1.4)
         .to(hero, { enter: 1, duration: 2.2, ease: "expo.out" }, 0.4)
         // once revealed, hand the headline back to normal text so it re-wraps on resize
         .add(() => title.revert());
+
+      // --- the sheet: rounded top corners and a lifted shadow while it slides over the studio,
+      // squaring off as it lands, so the two read as one page in layers
+      const sheet = gsap.fromTo(
+        el,
+        { "--sheet-r": "28px", "--sheet-shadow": 1 },
+        { "--sheet-r": "0px", "--sheet-shadow": 0, ease: "none", scrollTrigger: { trigger: el, start: "top 30%", end: "top top", scrub: true } },
+      );
 
       // --- pointer: the photo drifts against the 3D layer's camera for a little depth
       const onMove = (e: PointerEvent) => {
@@ -83,9 +90,14 @@ export default function Hero() {
       const boxes = CALLOUTS.map((c) => ({
         c,
         el: q<HTMLButtonElement>(`.callout-${c.kind}`)[0],
-        line: q<SVGLineElement>(`.callout-line-${c.kind}`)[0],
+        line: q<HTMLSpanElement>(`.callout-line-${c.kind}`)[0],
       }));
+      // the DOM ticker only runs while the hero is on screen
+      let onScreen = true;
+      const io = new IntersectionObserver(([e]) => (onScreen = e.isIntersecting), { rootMargin: "10%" });
+      io.observe(el);
       const tick = () => {
+        if (!onScreen) return;
         roomX(hero.mouse.x * -10);
         roomY(hero.mouse.y * 6);
         const bw = stage.current?.clientWidth ?? window.innerWidth;
@@ -98,38 +110,107 @@ export default function Hero() {
           box.style.transform = `translate(${lx}px, ${ly}px) translate(-12px, -50%)`;
           box.dataset.on = a.on ? "1" : "0";
           box.dataset.active = hero.hover === c.kind ? "1" : "0";
-          line.setAttribute("x1", `${lx}`);
-          line.setAttribute("y1", `${ly + 14}`);
-          line.setAttribute("x2", `${a.x}`);
-          line.setAttribute("y2", `${a.y}`);
+          // a 1px div stretched and turned with a transform: compositor-only, unlike SVG line attributes
+          const dx = a.x - lx;
+          const dy = a.y - (ly + 14);
+          line.style.transform = `translate(${lx}px, ${ly + 14}px) rotate(${Math.atan2(dy, dx)}rad) scaleX(${Math.hypot(dx, dy)})`;
           line.style.opacity = a.on ? (hero.hover === c.kind ? "0.9" : "0.45") : "0";
         }
       };
       gsap.ticker.add(tick);
 
-      // --- the CTA flies into the header slot once the hero scrolls away (and back)
+      // --- the CTA and the header slot
       const slot = document.getElementById("header-cta-slot");
       const button = cta.current;
+      const home = ctaHome.current;
       let docked = false;
-      const dock = (toHeader: boolean) => {
-        if (!button || !slot || !ctaHome.current || docked === toHeader) return;
-        docked = toHeader;
-        const state = Flip.getState(button);
-        (toHeader ? slot : ctaHome.current).appendChild(button);
-        button.classList.toggle("is-docked", toHeader);
-        Flip.from(state, { duration: 0.8, ease: "expo.inOut", scale: true, absolute: true });
+      const toHeader = () => {
+        if (docked || !button || !slot) return;
+        docked = true;
+        gsap.killTweensOf(button);
+        gsap.set(button, { clearProps: "transform" });
+        button.classList.remove("is-flying");
+        slot.appendChild(button);
+        button.classList.add("is-docked");
+        gsap.fromTo(button, { scale: 0.88 }, { scale: 1, duration: 0.55, ease: "back.out(3)" });
       };
-      const st = ScrollTrigger.create({
-        trigger: el,
-        start: "top -20%",
-        onEnter: () => dock(true),
-        onLeaveBack: () => dock(false),
+      const toHome = () => {
+        if (!docked || !button || !home) return;
+        docked = false;
+        gsap.killTweensOf(button);
+        gsap.set(button, { clearProps: "transform" });
+        home.appendChild(button);
+        button.classList.remove("is-docked");
+      };
+      const mm = gsap.matchMedia();
+
+      // desktop: the hero holds still once it covers the screen; scrolling only flies the button —
+      // floating up in an arc into the header — and once it has landed the page scrolls on
+      mm.add("(min-width: 1024px) and (prefers-reduced-motion: no-preference)", () => {
+        if (!button || !home || !slot) return;
+        // the docked size, measured once on a hidden copy
+        const probe = button.cloneNode(true) as HTMLElement;
+        probe.classList.add("is-docked");
+        Object.assign(probe.style, { position: "fixed", left: "-9999px", top: "0", visibility: "hidden" });
+        document.body.appendChild(probe);
+        const dock = { w: probe.offsetWidth, h: probe.offsetHeight };
+        probe.remove();
+
+        const ease = gsap.parseEase("power2.inOut");
+        const flight = { p: 0 };
+        const fly = () => {
+          const p = flight.p;
+          if (p >= 0.995) return toHeader();
+          toHome();
+          const h = home.getBoundingClientRect();
+          const sl = slot.getBoundingClientRect();
+          const bw = button.offsetWidth;
+          const bh = button.offsetHeight;
+          const e = ease(p);
+          const lift = Math.sin(Math.PI * p);
+          const x = (sl.right - dock.w / 2 - (h.left + bw / 2)) * e;
+          // floats up in a gentle arc, never above the top of the screen
+          const y = Math.max((sl.top + sl.height / 2 - (h.top + bh / 2)) * e - lift * 55, 14 + bh / 2 - (h.top + bh / 2));
+          gsap.set(button, { x, y, scale: 1 + (dock.h / bh - 1) * e, rotation: -5 * lift, transformOrigin: "50% 50%" });
+          button.classList.toggle("is-flying", p > 0.01);
+        };
+        const pin = ScrollTrigger.create({ trigger: el, start: "top top", end: "+=85%", pin: true, pinSpacing: true, anticipatePin: 1 });
+        const flightTween = gsap.to(flight, {
+          p: 1,
+          ease: "none",
+          onUpdate: fly,
+          scrollTrigger: { trigger: el, start: "top top", end: "+=72%", scrub: 0.5 },
+        });
+        return () => {
+          flightTween.scrollTrigger?.kill();
+          flightTween.kill();
+          pin.kill();
+          button.classList.remove("is-flying");
+          gsap.set(button, { clearProps: "transform" });
+        };
+      });
+
+      // phones / tablets (the hero is taller than the screen there) and reduced motion: no hold,
+      // the button simply slides into the header once the hero scrolls away
+      mm.add("(max-width: 1023px), (prefers-reduced-motion: reduce)", () => {
+        if (!button || !home || !slot) return;
+        const go = (toSlot: boolean) => {
+          const state = Flip.getState(button);
+          if (toSlot) toHeader();
+          else toHome();
+          Flip.from(state, { duration: 0.8, ease: "expo.inOut", scale: true, absolute: true });
+        };
+        const st = ScrollTrigger.create({ trigger: el, start: "top -20%", onEnter: () => go(true), onLeaveBack: () => go(false) });
+        return () => st.kill();
       });
 
       return () => {
         window.removeEventListener("pointermove", onMove);
         gsap.ticker.remove(tick);
-        st.kill();
+        io.disconnect();
+        sheet.scrollTrigger?.kill();
+        sheet.kill();
+        mm.revert();
         title.revert();
       };
     },
@@ -137,20 +218,21 @@ export default function Hero() {
   );
 
   return (
-    <section ref={root} className="hero relative min-h-[100svh] overflow-clip bg-peach text-ink">
+    <section ref={root} className="hero hero-sheet relative z-10 min-h-[100svh] overflow-clip bg-peach text-ink">
       {/* the room + the 3D instruments: a band on top on phones, full-bleed on wide screens */}
       <div ref={stage} className="absolute inset-x-0 top-0 h-[56svh] lg:inset-0 lg:h-auto">
         <div ref={room} className="hero-room absolute opacity-0 will-change-transform">
           <Image src="/hero/room.jpg" alt="" fill priority sizes="100vw" className="object-cover" />
         </div>
-        <div className="hero-light pointer-events-none absolute inset-0 mix-blend-soft-light" />
+        <div className="hero-light pointer-events-none absolute inset-0" />
         <World />
         {/* callouts + their leader lines */}
-        <svg className="pointer-events-none absolute inset-0 hidden h-full w-full md:block">
-          {CALLOUTS.map((c) => (
-            <line key={c.kind} className={`callout-line-${c.kind} transition-opacity duration-500`} stroke="#1e1e1e" strokeWidth="1" />
-          ))}
-        </svg>
+        {CALLOUTS.map((c) => (
+          <span
+            key={c.kind}
+            className={`callout-line-${c.kind} pointer-events-none absolute top-0 left-0 hidden h-px w-px origin-left bg-ink opacity-0 transition-opacity duration-500 will-change-transform md:block`}
+          />
+        ))}
         {CALLOUTS.map((c) => (
           <button
             key={c.kind}
@@ -171,7 +253,7 @@ export default function Hero() {
         {/* phones: the band melts into the page */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-peach lg:hidden" />
       </div>
-      <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.04] mix-blend-multiply" />
+      <div className="grain pointer-events-none absolute inset-0 opacity-[0.04] mix-blend-multiply" />
 
       {/* copy */}
       <div className="pointer-events-none relative z-10 flex min-h-[100svh] flex-col justify-center px-6 pt-[52svh] pb-28 md:px-12 lg:w-[50%] lg:pt-28 lg:pb-32 lg:pl-[max(3rem,calc((100vw-1440px)/2+3rem))] [&_a]:pointer-events-auto">
@@ -213,18 +295,6 @@ export default function Hero() {
         </div>
       </div>
 
-      {/* section index + scroll cue */}
-      <div className="hero-foot pointer-events-none absolute inset-x-0 bottom-0 z-10 opacity-0">
-        <div className="absolute bottom-8 left-6 flex items-center gap-4 md:left-12">
-          <span className="font-display text-2xl text-ink/40">01</span>
-          <span className="flex gap-2">
-            <span className="block h-[2px] w-9 bg-red" />
-            <span className="block h-[2px] w-9 bg-ink/15" />
-            <span className="block h-[2px] w-9 bg-ink/15" />
-            <span className="block h-[2px] w-9 bg-ink/15" />
-          </span>
-        </div>
-      </div>
     </section>
   );
 }

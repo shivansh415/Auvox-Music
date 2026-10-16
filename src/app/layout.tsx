@@ -5,7 +5,6 @@ import PageTransition from "@/components/providers/PageTransition";
 import Preloader from "@/components/preloader/Preloader";
 import Header from "@/components/ui/Header";
 import Footer from "@/components/ui/Footer";
-import Cursor from "@/components/ui/Cursor";
 import ScrollCue from "@/components/ui/ScrollCue";
 import "./globals.css";
 
@@ -40,7 +39,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <Footer />
           <PageTransition />
           <ScrollCue />
-          <Cursor />
         </SmoothScroll>
       </body>
     </html>

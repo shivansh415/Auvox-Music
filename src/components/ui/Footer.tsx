@@ -36,7 +36,7 @@ export default function Footer() {
 
   return (
     <footer ref={root} data-theme="dark" className="relative overflow-clip bg-ink text-peach">
-      <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.06] mix-blend-screen" />
+      <div className="grain pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-screen" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_90%_0%,rgba(133,9,9,0.35),transparent_70%)]" />
 
       <div className="relative mx-auto max-w-[1440px] px-6 pt-24 md:px-12 md:pt-32">

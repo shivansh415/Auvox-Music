@@ -29,7 +29,7 @@ import {
 export default function EnrollPage() {
   return (
     <main className="relative overflow-hidden bg-peach text-ink">
-      <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.04] mix-blend-multiply" />
+      <div className="grain pointer-events-none absolute inset-0 opacity-[0.04] mix-blend-multiply" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_50%_at_100%_0%,rgba(231,180,126,0.45),transparent_70%)]" />
       <div className="relative mx-auto max-w-[1440px] px-6 pt-32 pb-24 md:px-12 md:pt-44 md:pb-36">
         <SectionHead
@@ -136,7 +136,7 @@ function EnrollBody({ saved, initialPackage }: { saved: Enrollment | null; initi
       {/* ---------- left: selected package summary ---------- */}
       <aside className="lg:sticky lg:top-28 lg:self-start">
         <div className="en-summary relative overflow-hidden rounded-[1.6rem] bg-cream p-7 ring-1 ring-ink/10 md:p-9">
-          <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.05] mix-blend-multiply" />
+          <div className="grain pointer-events-none absolute inset-0 opacity-[0.05] mix-blend-multiply" />
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_60%_at_100%_100%,rgba(231,180,126,0.35),transparent_70%)]" />
           <div className="relative">
             <div className="flex items-center justify-between gap-4">

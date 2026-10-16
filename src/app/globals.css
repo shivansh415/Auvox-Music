@@ -50,8 +50,9 @@ body {
 .grain {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-size: 300px 300px;
-  animation: grain 0.6s steps(5) infinite;
 }
+/* only the preloader's grain moves; everywhere else a still grain reads the same and costs nothing per frame */
+.grain-live { animation: grain 0.6s steps(5) infinite; will-change: transform; }
 @keyframes grain {
   0% { transform: translate(0, 0); }
   20% { transform: translate(-4%, 3%); }
@@ -61,7 +62,7 @@ body {
   100% { transform: translate(0, 0); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .grain { animation: none; }
+  .grain-live { animation: none; }
 }
 
 /* Scroll hint line */
@@ -104,17 +105,35 @@ body {
   to { transform: translateY(0) scale(1); opacity: 1; }
 }
 
-/* Hero: a slow drift of warm light over the room photo */
-.hero-light {
-  background: linear-gradient(115deg, rgba(255, 255, 255, 0) 30%, rgba(255, 244, 226, 0.7) 46%, rgba(255, 255, 255, 0) 62%);
-  background-size: 220% 100%;
-  animation: hero-light 16s ease-in-out infinite alternate;
+/* Hero: a slow drift of warm light over the room photo — moved with a transform (compositor only) */
+.hero-light { overflow: hidden; }
+.hero-light::before {
+  content: ""; position: absolute; inset: 0 -60%;
+  background: linear-gradient(115deg, rgba(255, 244, 226, 0) 40%, rgba(255, 244, 226, 0.38) 50%, rgba(255, 244, 226, 0) 60%);
+  animation: hero-light 16s ease-in-out infinite alternate; will-change: transform;
 }
 @keyframes hero-light {
-  from { background-position: 100% 0; }
-  to { background-position: 0% 0; }
+  from { transform: translateX(22%); }
+  to { transform: translateX(-22%); }
 }
+@media (prefers-reduced-motion: reduce) { .hero-light::before { animation: none; } }
 .hero-line { display: block; }
+
+/* the hero arrives as a sheet over the pinned studio */
+.hero-sheet {
+  --sheet-r: 28px;
+  --sheet-shadow: 1;
+  border-top-left-radius: var(--sheet-r);
+  border-top-right-radius: var(--sheet-r);
+  box-shadow: 0 -40px 90px -20px rgba(0, 0, 0, calc(0.6 * var(--sheet-shadow)));
+}
+.hero-sheet::before {
+  /* a hairline of light along the top edge, like the lip of a card */
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 1px; z-index: 30; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+  opacity: var(--sheet-shadow);
+}
+@media (max-width: 767px) { .hero-sheet { --sheet-r: 20px; } }
 
 /* callouts: hidden until the instruments have landed, the + turns on hover */
 .callout { opacity: 0; transition: opacity 0.6s ease; }
@@ -130,7 +149,8 @@ body {
   100% { transform: translateY(0); opacity: 0; }
 }
 
-/* the Reserve button after it has docked into the header */
+/* the Reserve button while it floats up to the header, and once it has docked there */
+.cta.is-flying { box-shadow: 0 24px 50px -18px rgba(30, 30, 30, 0.55); }
 .cta.is-docked {
   padding: 0.75rem 1.4rem;
   font-size: 0.62rem;
@@ -142,6 +162,9 @@ body {
 }
 
 /* ---------- shared UI ---------- */
+
+/* Tailwind v4 leaves buttons on the arrow cursor — give every clickable thing the hand */
+button:not(:disabled), [role="button"], label[for], select, summary { cursor: pointer; }
 
 /* marquee */
 .marquee-track { animation: marquee var(--marquee-s, 40s) linear infinite; }
@@ -165,28 +188,9 @@ body {
 .burger[data-open="1"] .burger-line:first-child { transform: rotate(45deg); }
 .burger[data-open="1"] .burger-line:last-child { transform: rotate(-45deg); }
 
-/* custom cursor */
-html.has-cursor, html.has-cursor a, html.has-cursor button, html.has-cursor [data-cursor] { cursor: none; }
-html.has-cursor input, html.has-cursor textarea, html.has-cursor select { cursor: auto; }
-.cursor { mix-blend-mode: difference; }
-.cursor-dot {
-  position: absolute; left: 0; top: 0; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 9999px; background: #fff;
-  transition: width 0.35s cubic-bezier(0.2, 0.9, 0.2, 1), height 0.35s cubic-bezier(0.2, 0.9, 0.2, 1), margin 0.35s cubic-bezier(0.2, 0.9, 0.2, 1), opacity 0.3s, background 0.3s;
-}
-.cursor[data-state="link"] .cursor-dot { width: 44px; height: 44px; margin: -22px 0 0 -22px; background: rgba(255,255,255,0.18); outline: 1px solid rgba(255,255,255,0.9); }
-.cursor[data-state="label"] { mix-blend-mode: normal; }
-.cursor[data-state="label"] .cursor-dot { width: 92px; height: 92px; margin: -46px 0 0 -46px; background: var(--auvox-ink); }
-.cursor[data-state="text"] .cursor-dot { width: 2px; height: 22px; margin: -11px 0 0 -1px; border-radius: 1px; }
-.cursor-label {
-  position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); font-size: 0.55rem; letter-spacing: 0.28em; text-transform: uppercase; color: var(--auvox-peach); text-align: center; line-height: 1.5;
-  opacity: 0; transition: opacity 0.25s; white-space: nowrap;
-}
-.cursor[data-state="label"] .cursor-label { opacity: 1; }
-
-/* reduced motion: no marquee/cursor/grain */
+/* reduced motion: no marquee */
 @media (prefers-reduced-motion: reduce) {
   .marquee-track { animation: none; }
-  .cursor { display: none; }
 }
 
 /* ---------- begin / reserve / packages ---------- */
@@ -388,6 +392,21 @@ html.has-cursor input, html.has-cursor textarea, html.has-cursor select { cursor
   0% { transform: scale(0.6); opacity: 0.9; }
   100% { transform: scale(2.8); opacity: 0; }
 }
+/* the big step numeral behind the copy: just an outline, so it adds depth without muddying the words */
+.jr-ghost { color: transparent; -webkit-text-stroke: 1px rgba(30, 30, 30, 0.16); transition: -webkit-text-stroke-color 0.7s; }
+.jr-step[data-active="1"] .jr-ghost { -webkit-text-stroke-color: rgba(133, 9, 9, 0.32); }
+/* the small red square on each picture: it pops when its step is the active one */
+.jr-mark { transform: scale(0); transition: transform 0.6s cubic-bezier(0.2, 0.9, 0.2, 1.4); }
+.jr-step[data-active="1"] .jr-mark { transform: scale(1); }
+/* the illustration has no card: ink printed on the page, fading out at the edges */
+.ink-fallback {
+  mix-blend-mode: multiply;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent), linear-gradient(180deg, transparent, #000 15%, #000 85%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent), linear-gradient(180deg, transparent, #000 15%, #000 85%, transparent);
+  mask-composite: intersect;
+}
+.ink-card[data-ready="1"] .ink-fallback { visibility: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .jr-step[data-active="1"] .jr-ring { animation: none; opacity: 0.5; transform: scale(1.8); }
 }
@@ -595,38 +614,28 @@ html.has-cursor input, html.has-cursor textarea, html.has-cursor select { cursor
     radial-gradient(circle closest-side at 50% 50%, transparent 90%, rgba(0, 0, 0, 0.3) 97%, rgba(0, 0, 0, 0.6) 100%),
     radial-gradient(circle closest-side at 50% 50%, rgba(253, 242, 227, 0.05), transparent 32%);
 }
-/* a specular sweep that stays put while the grooves turn under it */
-.vu-sheen {
-  background: conic-gradient(from 0deg at 50% 50%, transparent 0 6%, rgba(253, 242, 227, 0.14) 14%, transparent 23%, transparent 48%, rgba(253, 242, 227, 0.09) 58%, transparent 68%);
-  animation: vu-sheen 12s cubic-bezier(0.65, 0, 0.35, 1) infinite alternate;
-  mix-blend-mode: screen;
-}
-@keyframes vu-sheen {
-  from { transform: rotate(-18deg); }
-  to { transform: rotate(16deg); }
+/* the stand-in steps aside once the 3D record has drawn its first frame */
+.vu-standin { transition: opacity 0.9s ease; }
+.vu[data-gl="1"] .vu-standin { opacity: 0; }
+
+/* the vinyl is grabbable; vertical swipes still scroll the page, sideways ones turn the record */
+.vu-box { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.vu-drag { cursor: grab; }
+.vu[data-dragging="1"],
+.vu[data-dragging="1"] * { cursor: grabbing !important; }
+
+/* "grab the record": appears when the needle lands, leaves at the first spin */
+.vu-hint { opacity: 0; transition: opacity 0.9s cubic-bezier(0.2, 0.9, 0.2, 1); }
+.vu[data-hint="1"] .vu-hint { opacity: 1; }
+.vu-hint-arrow { animation: vu-hint 2.6s cubic-bezier(0.65, 0, 0.35, 1) infinite; }
+@keyframes vu-hint {
+  0%, 100% { transform: rotate(-28deg); }
+  50% { transform: rotate(28deg); }
 }
 
-/* the pucks the verses sit on */
-.vu-puck-in { transition: transform 0.6s cubic-bezier(0.2, 0.9, 0.2, 1), box-shadow 0.6s; }
-.vu-puck-solid {
-  background: radial-gradient(circle at 38% 32%, #fdf2e3, #e7b47e 62%, #deb886 100%);
-  box-shadow:
-    inset 0 -6px 14px rgba(133, 9, 9, 0.12),
-    inset 0 2px 4px rgba(253, 242, 227, 0.8),
-    0 14px 30px -8px rgba(0, 0, 0, 0.6);
-}
-.vu-puck-ghost {
-  border: 1px dashed rgba(253, 242, 227, 0.4);
-  background: radial-gradient(circle at 50% 50%, rgba(253, 242, 227, 0.05), transparent 70%);
-}
-.vu-puck[data-hover="1"] .vu-puck-in {
-  transform: scale(1.1);
-  box-shadow:
-    inset 0 -6px 14px rgba(133, 9, 9, 0.18),
-    inset 0 2px 4px rgba(253, 242, 227, 0.8),
-    0 22px 40px -8px rgba(0, 0, 0, 0.65),
-    0 0 0 6px rgba(231, 180, 126, 0.18);
-}
+/* the "now spinning" name slides in each time a new verse reaches the needle */
+.vu-now { animation: en-pop 0.6s cubic-bezier(0.2, 0.9, 0.2, 1) both; }
+.vu-eq-bar { transition: transform 0.08s linear; }
 
 /* the labels */
 .vu-tag { transition: background-color 0.35s, color 0.35s, border-color 0.35s; }
@@ -635,11 +644,36 @@ html.has-cursor input, html.has-cursor textarea, html.has-cursor select { cursor
 .vu-node:focus-visible .vu-tag-solid { background: var(--auvox-red); color: var(--auvox-peach); }
 .vu-core:focus-visible { outline: 1px solid var(--auvox-red); outline-offset: 6px; }
 
+/* wide screens: the sheet is solid (the copy and the record don't show through), a warm cream→peach light */
+@media (min-width: 768px) {
+  .vu-sheet-bg {
+    background:
+      radial-gradient(70% 80% at var(--ox, 70%) var(--oy, 50%), #fdf2e3 0%, rgba(253, 242, 227, 0) 70%),
+      linear-gradient(160deg, #fdf2e3 0%, #fae3c5 55%, #f3d3a8 100%);
+  }
+}
+/* the record's grooves, rippling out from where the sheet opened */
+.vu-sheet-grooves {
+  background: repeating-radial-gradient(circle at var(--ox, 70%) var(--oy, 50%), rgba(30, 30, 30, 0) 0 14px, rgba(30, 30, 30, 0.035) 14px 15px);
+  -webkit-mask-image: radial-gradient(circle at var(--ox, 70%) var(--oy, 50%), #000 0%, rgba(0, 0, 0, 0.5) 35%, transparent 70%);
+  mask-image: radial-gradient(circle at var(--ox, 70%) var(--oy, 50%), #000 0%, rgba(0, 0, 0, 0.5) 35%, transparent 70%);
+  transform-origin: var(--ox, 70%) var(--oy, 50%);
+}
+/* the label on the spine keeps turning */
+.vu-spin { animation: vu-spin 9s linear infinite; }
+@keyframes vu-spin { to { transform: rotate(360deg); } }
+/* tracklist rows: the dot turns red and the leader darkens on hover */
+.vu-track-dot { transition: background-color 0.3s, transform 0.4s cubic-bezier(0.2, 0.9, 0.2, 1); }
+.vu-track:hover .vu-track-dot { background: var(--auvox-red); transform: scale(1.5); }
+.vu-leader { transition: border-color 0.3s; }
+.vu-track:hover .vu-leader { border-color: rgba(30, 30, 30, 0.55); }
+@media (prefers-reduced-motion: reduce) { .vu-spin { animation: none; } }
+
 /* the sheet's low-opacity gradient, tinted by what it shows */
 .vu-sheet-tint {
   background:
-    radial-gradient(60% 70% at 72% 40%, rgba(222, 184, 134, 0.5), transparent 70%),
-    linear-gradient(135deg, rgba(250, 227, 197, 0.65), rgba(253, 242, 227, 0) 60%);
+    radial-gradient(45% 55% at 92% 8%, rgba(133, 9, 9, 0.07), transparent 70%),
+    radial-gradient(50% 60% at 6% 96%, rgba(222, 184, 134, 0.4), transparent 70%);
 }
 .vu-sheet[data-tone="guitar"] .vu-sheet-tint {
   background:
@@ -653,7 +687,7 @@ html.has-cursor input, html.has-cursor textarea, html.has-cursor select { cursor
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vu-sheen { animation: none; }
+  .vu-hint-arrow, .vu-now { animation: none; }
 }
 
-/* end of file */
+/* end */

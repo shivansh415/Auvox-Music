@@ -33,6 +33,46 @@ export default function Header() {
   const menu = useRef<HTMLDivElement>(null);
   const home = pathname === "/";
 
+  // home page: the header stays out of the studio and drops in once the hero has covered the screen;
+  // elsewhere it simply arrives with the page
+  useGSAP(
+    () => {
+      const el = root.current;
+      if (!el) return;
+      const q = gsap.utils.selector(el);
+      const parts = q(".hdr-logo, .nav-link, .hdr-right");
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let shown = false;
+      const show = () => {
+        if (shown) return;
+        shown = true;
+        gsap.killTweensOf([el, ...parts]);
+        gsap
+          .timeline({ defaults: { ease: "expo.out" } })
+          .to(el, { autoAlpha: 1, yPercent: 0, duration: reduce ? 0.3 : 0.9 }, 0)
+          .fromTo(parts, { y: reduce ? 0 : -18, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.8, stagger: 0.05 }, 0.12);
+      };
+      const hide = () => {
+        if (!shown) return;
+        shown = false;
+        gsap.killTweensOf([el, ...parts]);
+        gsap.to(el, { autoAlpha: 0, yPercent: -100, duration: 0.45, ease: "power3.in" });
+      };
+      const heroEl = home ? document.querySelector<HTMLElement>(".hero") : null;
+      if (!heroEl) {
+        gsap.set(el, { autoAlpha: 0, yPercent: -100 });
+        show();
+        return;
+      }
+      gsap.set(el, { autoAlpha: 0, yPercent: -100 });
+      // refreshPriority -1: compute after the splash/hero pins have added their scroll distance
+      const st = ScrollTrigger.create({ trigger: heroEl, start: "top top", onEnter: show, onLeaveBack: hide, refreshPriority: -1 });
+      if (st.progress > 0 || window.scrollY >= heroEl.getBoundingClientRect().top + window.scrollY - 1) show();
+      return () => st.kill();
+    },
+    { dependencies: [pathname, home] },
+  );
+
   // which theme is under the header right now
   useGSAP(
     () => {
@@ -43,6 +83,7 @@ export default function Header() {
           trigger: el,
           start: "top 48px",
           end: "bottom 48px",
+          refreshPriority: -1,
           onToggle: (self) => {
             under += self.isActive ? 1 : -1;
             setDark(under > 0);
@@ -91,28 +132,28 @@ export default function Header() {
       <header
         ref={root}
         className={clsx(
-          "pointer-events-none fixed inset-x-0 top-0 z-[120] flex items-center justify-between px-6 py-5 transition-colors duration-500 md:px-12",
+          "pointer-events-none invisible fixed inset-x-0 top-0 z-[120] flex items-center justify-between px-6 py-5 transition-colors duration-500 md:px-12",
           dark && !open ? "text-peach" : "text-ink",
         )}
       >
-        <TransitionLink href="/" className="pointer-events-auto" aria-label="AUVOX Music — home">
-          <Image src="/svg/auvox-primary-logo.svg" alt="AUVOX Music" width={96} height={33} unoptimized className={clsx("h-8 w-auto transition-[filter] duration-500", dark && !open && "brightness-0 invert-[0.92] sepia-[0.3]")} />
+        <TransitionLink href="/" className="hdr-logo pointer-events-auto" aria-label="AUVOX Music — home">
+          <Image src="/svg/auvox-primary-logo.svg" alt="AUVOX Music" width={130} height={45} unoptimized className={clsx("h-10 w-auto md:h-12 transition-[filter] duration-500", dark && !open && "brightness-0 invert-[0.92] sepia-[0.3]")} />
         </TransitionLink>
 
-        <nav className="pointer-events-auto hidden items-center gap-8 lg:flex" aria-label="Primary">
+        <nav className="pointer-events-auto hidden items-center gap-9 lg:flex" aria-label="Primary">
           {NAV.map((n) => {
             const active = n.href === pathname;
             return (
-              <TransitionLink key={n.href} href={n.href} className={clsx("nav-link relative text-[0.8rem] tracking-[0.02em]", active && "is-active")}>
+              <TransitionLink key={n.href} href={n.href} className={clsx("nav-link relative text-[0.95rem] font-medium tracking-[0.01em]", active && "is-active")}>
                 {n.label}
               </TransitionLink>
             );
           })}
         </nav>
 
-        <div className="pointer-events-auto flex items-center gap-3">
+        <div className="hdr-right pointer-events-auto flex items-center gap-3">
           {/* the hero docks its button here on the home page; elsewhere the header brings its own */}
-          <div id="header-cta-slot" className="flex min-h-10 items-center">
+          <div id="header-cta-slot" className="flex min-h-10 items-center justify-end lg:min-w-[13rem]">
             {!home && (
               <div className="hidden md:block">
                 <Button href="/reserve" size="sm">
@@ -137,7 +178,7 @@ export default function Header() {
 
       {/* full-screen menu */}
       <div ref={menu} className="fixed inset-0 z-[110] hidden flex-col bg-ink text-peach" style={{ clipPath: "inset(0 0 100% 0)" }} data-lenis-prevent>
-        <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.06] mix-blend-screen" />
+        <div className="grain pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-screen" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_60%_at_80%_90%,rgba(133,9,9,0.45),transparent_70%)]" />
         <nav className="relative flex flex-1 flex-col justify-center px-6 pt-24 md:px-12" aria-label="Menu">
           {[...NAV, { label: "Reserve your spot", href: "/reserve" }].map((n, i) => (

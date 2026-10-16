@@ -12,11 +12,13 @@ const Studio = dynamic(() => import("./PhotoStudio"), { ssr: false });
 
 /**
  * Section 2 — "The Session". Lights come up on the studio, the guitar is playable,
- * tapping the phone opens the conversation beside him. Scrolling simply moves on to the next section.
+ * tapping the phone opens the conversation beside him. On scroll the studio holds still (pinned) and
+ * the hero slides up over it like a sheet, while the studio recedes and darkens underneath.
  */
 export default function Session() {
   const root = useRef<HTMLElement>(null);
-  const scrollHint = useRef<HTMLDivElement>(null);
+  const stage = useRef<HTMLDivElement>(null);
+  const shade = useRef<HTMLDivElement>(null);
   const tapHint = useRef<HTMLDivElement>(null);
   const phoneHint = useRef<HTMLButtonElement>(null);
   const held = useRef<{ x: number; y: number } | null>(null);
@@ -26,15 +28,27 @@ export default function Session() {
 
   useGSAP(
     () => {
-      // No pin: progress only tracks how far the section has scrolled away (used to fade the hints).
+      // The studio stays put while the hero slides over it (pinSpacing off, so the hero overlaps it);
+      // progress still tracks the hand-over and drives the hints and the reverse portal.
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const st = ScrollTrigger.create({
         trigger: root.current,
         start: "top top",
         end: "bottom top",
+        pin: true,
+        pinSpacing: false,
         onUpdate: (self) => {
           session.progress = self.progress;
+          // fully under the hero: stop compositing it (it is still in the viewport behind the sheet)
+          const el = root.current;
+          if (el) el.style.visibility = self.progress >= 0.999 ? "hidden" : "";
         },
       });
+      // underneath the incoming sheet the studio recedes a little and dims
+      const recede = gsap
+        .timeline({ scrollTrigger: { trigger: root.current, start: "top top", end: "bottom top", scrub: true } })
+        .fromTo(stage.current, { scale: 1, yPercent: 0 }, { scale: reduce ? 1 : 0.92, yPercent: reduce ? 0 : -3, ease: "none" }, 0)
+        .fromTo(shade.current, { opacity: 0 }, { opacity: 0.7, ease: "none" }, 0);
       const onMove = (e: PointerEvent) => {
         session.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
         session.mouse.y = -((e.clientY / window.innerHeight) * 2 - 1);
@@ -75,18 +89,18 @@ export default function Session() {
           // step aside while the conversation is open — it sits behind the bubbles
           tapHint.current.style.opacity = String(h.opacity * (1 - session.focus));
         }
-        if (scrollHint.current) {
-          const gone = gsap.utils.clamp(0, 1, session.progress / 0.06);
-          const painted = gsap.utils.clamp(0, 1, (session.reveal - 0.85) / 0.15);
-          scrollHint.current.style.opacity = String(painted * (1 - gone) * (1 - session.focus));
-        }
       };
-      gsap.ticker.add(tick);
+      const gated = () => {
+        if (session.progress < 1) tick();
+      };
+      gsap.ticker.add(gated);
       return () => {
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("resize", onResize);
         window.clearTimeout(resizeTimer);
-        gsap.ticker.remove(tick);
+        gsap.ticker.remove(gated);
+        recede.scrollTrigger?.kill();
+        recede.kill();
         st.kill();
       };
     },
@@ -124,7 +138,8 @@ export default function Session() {
   };
 
   return (
-    <section ref={root} data-theme="dark" className="relative h-screen w-full overflow-clip bg-black text-pearl">
+    <section ref={root} data-theme="dark" className="session relative z-0 h-screen w-full overflow-clip bg-black text-pearl">
+      <div ref={stage} className="absolute inset-0 origin-[50%_35%] will-change-transform">
       <Studio />
 
       <div
@@ -147,15 +162,6 @@ export default function Session() {
         </span>
       </button>
 
-      <div
-        ref={scrollHint}
-        className="pointer-events-none absolute bottom-8 left-1/2 flex -translate-x-1/2 flex-col items-center gap-3"
-        style={{ opacity: 0 }}
-      >
-        <span className="text-[0.65rem] tracking-[0.4em] uppercase text-tan/70">Scroll</span>
-        <span className="scroll-line block h-10 w-px bg-tan/70" />
-      </div>
-
       <button
         onClick={toggleSound}
         className="absolute right-8 bottom-8 z-30 flex items-center gap-2 text-[0.65rem] tracking-[0.35em] uppercase text-tan/70 transition hover:text-tan"
@@ -165,6 +171,9 @@ export default function Session() {
       </button>
 
       <ChatOverlay />
+      </div>
+      {/* dims the studio as the hero sheet covers it */}
+      <div ref={shade} className="pointer-events-none absolute inset-0 z-40 bg-black opacity-0" />
     </section>
   );
 }

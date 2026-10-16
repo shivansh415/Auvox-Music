@@ -1,21 +1,50 @@
 "use client";
 
-// Section 4 — The Verse Universe. The client's T/L/S copy beside THE MUSIC DISC: a vinyl record that
-// keeps slowly turning (scroll adds a little more), the AUVOX logomark on its centre label, and the
-// verses riding its orbit — Guitar and Piano (live, with their 3D instruments) plus Drum and
-// Production (still to come, dashed). Hover/tap the logo for what AUVOX is; click a verse to read its
-// intro and enter it.
+// Section 4 — The Verse Universe. The client's T/L/S copy beside THE MUSIC DISC, built as a turntable
+// you can play:
+//   · scrolling in, the record rises from low and far to face-on with the guitar and keyboard already
+//     on it; the grooves are cut outward from the label; the tonearm swings over and drops the needle
+//     (thump, crackle) and the platter spins up
+//   · grab it (mouse or a sideways swipe) and spin it — it has inertia, it scratches, it eases back
+//   · whichever verse passes under the needle is "now spinning": you hear it (a guitar arpeggio, a
+//     piano chord) and its wave runs out through the grooves
+//   · hover / tap the logo for what AUVOX is; click a verse and the arm lifts, the record winds down,
+//     the camera dives toward it and the intro opens over a low-opacity gradient (client brief)
 
 import dynamic from "next/dynamic";
-import Image from "next/image";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap";
 import SectionHead from "@/components/ui/SectionHead";
-import { playChord, playRiff, unlockAudio } from "@/components/sections/Session/audio";
 import type { Verse } from "@/content/packages";
+import { isMuted, onMuteChange, playChord, pluck, setMuted, unlockAudio } from "@/components/sections/Session/audio";
 import Sheet, { type SheetContent } from "./Sheet";
-import { DEG, NODES, ORBIT, SCRUB_DEGREES, SPIN_SPEED, TAG_OFFSET, disc, discAngle, setHover, type NodeKey } from "./state";
+import { armLift, needleDrop, setCrackle, setScratch } from "./sound";
+import {
+  DEG,
+  NEEDLE_DEG,
+  NODES,
+  NODE_BY_KEY,
+  ORBIT,
+  PLATE_R,
+  SCRUB_DEGREES,
+  SPIN_SPEED,
+  TAG_OFFSET,
+  TONE,
+  disc,
+  discAngle,
+  emitNowSpinning,
+  nodePoint,
+  onNowSpinning,
+  ripple,
+  resetDisc,
+  setDragging,
+  setFocus,
+  setHover,
+  stylusPoint,
+  turnBy,
+  type NodeKey,
+} from "./state";
 
 const DiscWorld = dynamic(() => import("./DiscWorld"), { ssr: false });
 
@@ -27,36 +56,104 @@ const COPY = {
   body: ["The Verse Universe is a growing world of music where every voice is trained, shaped, and set free.", "One world. Many instruments. One standard of mastery."],
 } as const;
 
-/** beads and notes that drift along the orbit: angle on the ring, and size in px */
-const BEADS: { at: number; glyph?: string; size: number }[] = [
-  { at: 4, size: 5 },
-  { at: 47, glyph: "♪", size: 10 },
-  { at: 82, size: 4 },
-  { at: 131, size: 6 },
-  { at: 161, glyph: "♫", size: 9 },
-  { at: 213, size: 4 },
-  { at: 246, size: 5 },
-  { at: 290, glyph: "♪", size: 10 },
-  { at: 327, size: 4 },
-];
+/** -180..180 */
+const wrap = (d: number) => ((((d + 180) % 360) + 360) % 360) - 180;
 
-/** the plate is inset 2% in the box, so box fractions become plate percentages like this */
-const PLATE = 0.96;
-const ORBIT_PCT = (ORBIT / PLATE) * 100;
-const LABEL_PCT = (0.125 / PLATE) * 100;
-const RING_PCT = (0.157 / PLATE) * 100;
-const RING_LEN = 2 * Math.PI * RING_PCT;
+// ---- each verse's voice when it passes under the needle (or the pointer finds it)
+const PIANO_ROOTS = [261.63, 233.08, 293.66];
+const lastVoice: Partial<Record<NodeKey, number>> = {};
+function voice(key: NodeKey, velocity = 1) {
+  const now = performance.now();
+  if (now - (lastVoice[key] ?? 0) < 900) return;
+  lastVoice[key] = now;
+  if (key === "guitar") [0, 2, 3, 4, 5].forEach((s, i) => window.setTimeout(() => pluck(s, velocity * (0.9 - i * 0.08)), i * 65));
+  else if (key === "piano") playChord(PIANO_ROOTS[(Math.random() * PIANO_ROOTS.length) | 0], velocity * 0.9);
+}
+
+/** a verse reaches the needle: say so, sound it, send its wave through the grooves */
+function passed(key: NodeKey) {
+  emitNowSpinning(key);
+  const p = nodePoint(key);
+  const n = NODE_BY_KEY[key];
+  ripple(p.x, p.y, TONE[key], n.active ? 1 : 0.45);
+  if (n.active) voice(key, disc.dragging ? 0.7 : 1);
+}
+
+// ---- the tonearm
+function landed() {
+  disc.needleDown = true;
+  needleDrop();
+  const s = stylusPoint();
+  ripple(s.x, s.y, TONE.needle, 1.6);
+  gsap.to(disc, { motor: 1, duration: 2.2, ease: "power2.inOut", overwrite: "auto" });
+  // whatever sits nearest the needle is what's playing
+  let best: NodeKey = NODES[0].key;
+  let bestD = 999;
+  for (const n of NODES) {
+    const d = Math.abs(wrap(discAngle() + n.angle - NEEDLE_DEG));
+    if (d < bestD) {
+      bestD = d;
+      best = n.key;
+    }
+  }
+  emitNowSpinning(best);
+  document.getElementById("verse-universe")?.setAttribute("data-hint", "1");
+}
+function lowerNeedle(delay = 0) {
+  if (disc.still) {
+    disc.arm.swing = 1;
+    disc.arm.lift = 0;
+    landed();
+    return;
+  }
+  gsap
+    .timeline({ delay })
+    .to(disc.arm, { swing: 1, duration: disc.arm.swing > 0.99 ? 0.01 : 1.4, ease: "power3.inOut", overwrite: "auto" })
+    .to(disc.arm, { lift: 0, duration: 0.55, ease: "power2.in", overwrite: "auto", onComplete: landed });
+}
+function raiseNeedle() {
+  if (disc.needleDown) armLift();
+  disc.needleDown = false;
+  gsap.to(disc.arm, { lift: 1, duration: 0.45, ease: "power2.out", overwrite: "auto" });
+  gsap.to(disc, { motor: 0, duration: 1.8, ease: "power2.out", overwrite: "auto" });
+}
 
 export default function VerseUniverse() {
   const root = useRef<HTMLElement>(null);
   const box = useRef<HTMLDivElement>(null);
+  const stage = useRef<HTMLDivElement>(null);
   const origin = useRef({ x: 0, y: 0 });
   const viaHover = useRef(false);
+  const isOpen = useRef<SheetContent["kind"] | null>(null);
+  /** the needle was lifted for a verse sheet, so closing it drops the needle again */
+  const lifted = useRef(false);
   /** true for a moment after a sheet closes, so the mouse still sitting on the logo doesn't reopen it */
   const cooling = useRef(false);
+  /** true for a moment after a drag, so letting go over a verse doesn't open it */
+  const dragged = useRef(false);
+  const drag = useRef({ id: -1, active: false, x: 0, y: 0, last: 0, t: 0 });
   const [ready, setReady] = useState(false);
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState<SheetContent | null>(null);
+  const [now, setNow] = useState<NodeKey | null>(null);
+  const [muted, setMutedState] = useState(false);
+
+  useEffect(() => onNowSpinning(setNow), []);
+  useEffect(() => onMuteChange(setMutedState), []);
+
+  // ---- the dive: the stage zooms toward what was opened while the sheet grows over it
+  const dive = (el: HTMLElement, depth: number) => {
+    const st = stage.current;
+    if (!st || disc.still) return;
+    const sr = st.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    const ox = ((r.left + r.width / 2 - sr.left) / sr.width) * 100;
+    const oy = ((r.top + r.height / 2 - sr.top) / sr.height) * 100;
+    gsap.to(st, { scale: depth, transformOrigin: `${ox}% ${oy}%`, duration: 1.4, ease: "expo.inOut", overwrite: "auto" });
+  };
+  const undive = () => {
+    if (stage.current) gsap.to(stage.current, { scale: 1, duration: 1.1, ease: "expo.inOut", overwrite: "auto" });
+  };
 
   /** remember where a sheet should grow from: the centre of `el`, in section pixels */
   const place = (el: HTMLElement) => {
@@ -66,37 +163,140 @@ export default function VerseUniverse() {
     origin.current = { x: r.left + r.width / 2 - s.left, y: r.top + r.height / 2 - s.top };
   };
   const close = () => {
+    if (!isOpen.current) return;
+    isOpen.current = null;
     cooling.current = true;
     window.setTimeout(() => {
       cooling.current = false;
     }, 700);
     setOpen(false);
+    setFocus(null);
+    undive();
+    if (lifted.current) {
+      lifted.current = false;
+      lowerNeedle(0.35);
+    } else if (disc.needleDown) {
+      gsap.to(disc, { motor: 1, duration: 1.6, ease: "power2.inOut", overwrite: "auto" });
+    }
   };
   const openAbout = (el: HTMLElement, hover: boolean) => {
     // a sheet that just closed shouldn't pop straight back open because the mouse is still on the logo
     if (hover && cooling.current) return;
+    if (dragged.current || isOpen.current) return;
     place(el);
     viaHover.current = hover;
+    isOpen.current = "about";
     setContent({ kind: "about" });
     setOpen(true);
+    ripple(0, 0, TONE.piano, 1.2);
+    dive(el, 1.12);
+    // the record slows to a crawl while you read
+    gsap.to(disc, { motor: 0.25, duration: 1.4, ease: "power2.out", overwrite: "auto" });
   };
   const openVerse = (verse: Verse, el: HTMLElement) => {
-    unlockAudio();
+    if (dragged.current) return;
     place(el);
     viaHover.current = false;
     setHover(null);
+    setFocus(verse);
+    isOpen.current = "verse";
     setContent({ kind: "verse", verse });
     setOpen(true);
+    voice(verse, 1);
+    const p = nodePoint(verse);
+    ripple(p.x, p.y, TONE[verse], 1.4);
+    // the arm lifts, the record winds down, and we lean in toward the verse
+    if (disc.needleDown) {
+      lifted.current = true;
+      raiseNeedle();
+    }
+    dive(el, 1.45);
   };
 
   const over = (key: NodeKey) => {
-    if (disc.hover === key) return;
+    if (disc.hover === key || disc.dragging) return;
     setHover(key);
-    unlockAudio();
-    if (key === "guitar") playRiff();
-    else playChord();
+    if (NODE_BY_KEY[key].active) {
+      voice(key, 0.75);
+      const p = nodePoint(key);
+      ripple(p.x, p.y, TONE[key], 0.8);
+    }
   };
   const out = () => setHover(null);
+
+  const toggleSound = () => {
+    unlockAudio();
+    setMuted(!isMuted());
+  };
+
+  // ---- grab and spin. A press only becomes a drag once it moves, so taps still reach the verses.
+  const centre = () => {
+    const b = box.current;
+    if (!b) return null;
+    const r = b.getBoundingClientRect();
+    const k = r.width / (b.clientWidth || 1);
+    const c = disc.anchors.core;
+    return { x: r.left + (c.on ? c.x : b.clientWidth / 2) * k, y: r.top + (c.on ? c.y : b.clientHeight / 2) * k, w: r.width };
+  };
+  const toRecord = (x: number, y: number) => {
+    const c = centre();
+    if (!c) return { x: 0, y: 0 };
+    const rad = PLATE_R * c.w;
+    return { x: (x - c.x) / rad, y: -(y - c.y) / rad };
+  };
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0 || isOpen.current) return;
+    if ((e.target as HTMLElement).closest(".vu-core")) return;
+    const c = centre();
+    if (!c) return;
+    const dx = e.clientX - c.x;
+    const dy = e.clientY - c.y;
+    if (Math.hypot(dx, dy) > PLATE_R * c.w * 1.04) return;
+    drag.current = { id: e.pointerId, active: false, x: e.clientX, y: e.clientY, last: Math.atan2(dy, dx) / DEG, t: e.timeStamp };
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (d.id !== e.pointerId) return;
+    if (!d.active) {
+      if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6) return;
+      d.active = true;
+      setDragging(true);
+      setHover(null);
+      box.current?.setPointerCapture(e.pointerId);
+      if (root.current) {
+        root.current.dataset.dragging = "1";
+        root.current.dataset.hint = "0";
+      }
+    }
+    const c = centre();
+    if (!c) return;
+    const ang = Math.atan2(e.clientY - c.y, e.clientX - c.x) / DEG;
+    const delta = wrap(ang - d.last);
+    const dt = Math.max(4, e.timeStamp - d.t) / 1000;
+    turnBy(delta, dt);
+    d.last = ang;
+    d.t = e.timeStamp;
+  };
+  const endDrag = (e: React.PointerEvent, tap: boolean) => {
+    const d = drag.current;
+    if (d.id !== e.pointerId) return;
+    d.id = -1;
+    const p = toRecord(e.clientX, e.clientY);
+    if (d.active) {
+      d.active = false;
+      setDragging(false);
+      if (box.current?.hasPointerCapture(e.pointerId)) box.current.releasePointerCapture(e.pointerId);
+      if (root.current) root.current.dataset.dragging = "";
+      dragged.current = true;
+      window.setTimeout(() => {
+        dragged.current = false;
+      }, 60);
+      ripple(p.x, p.y, TONE.needle, Math.min(1.4, 0.5 + Math.abs(disc.vel) / 600));
+    } else if (tap && (e.target as HTMLElement).classList.contains("vu-drag")) {
+      // a touch on bare vinyl: the grooves answer
+      ripple(p.x, p.y, TONE.needle, 0.9);
+    }
+  };
 
   useGSAP(
     () => {
@@ -105,7 +305,8 @@ export default function VerseUniverse() {
       if (!el || !b) return;
       const q = gsap.utils.selector(el);
       const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      disc.still = reduce;
+      // a fresh turntable every time the section mounts (the state outlives route changes)
+      resetDisc(reduce);
 
       // --- near the viewport: mount the canvas, and run the loops only while we are around
       const io = new IntersectionObserver(
@@ -113,57 +314,101 @@ export default function VerseUniverse() {
           disc.inView = entry.isIntersecting;
           if (entry.isIntersecting) setReady(true);
         },
-        { rootMargin: "35% 0px" },
+        { rootMargin: "-2px 0px" },
       );
       io.observe(el);
+      // mount the canvas early, while the browser is idle, so its models and shaders are ready
+      // before the visitor scrolls here (mounting on arrival froze the scroll for ~0.5s)
+      const idle = window.requestIdleCallback
+        ? window.requestIdleCallback(() => setReady(true), { timeout: 4000 })
+        : window.setTimeout(() => setReady(true), 2500);
 
-      // --- entrance: the disc rises and scales in, then the pucks, the instruments and the labels follow
-      gsap
-        .timeline({ scrollTrigger: { trigger: el, start: "top 75%", once: true }, defaults: { ease: "expo.out" } })
-        .fromTo(q(".vu-rise"), { y: reduce ? 0 : 90, scale: reduce ? 1 : 0.82, autoAlpha: 0 }, { y: 0, scale: 1, autoAlpha: 1, duration: 1.6 }, 0)
-        .to(disc, { enter: 1, duration: 1.8 }, 0.5)
-        .fromTo(q(".vu-puck-in"), { scale: 0.4, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 1.1, stagger: 0.09 }, 0.55)
-        .fromTo(q(".vu-core"), { scale: 0.6, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 1.1 }, 0.7)
-        .fromTo(q(".vu-tag"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.9, stagger: 0.09 }, 0.85)
-        .fromTo(q(".vu-bead"), { scale: 0, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 0.8, stagger: 0.04 }, 0.9)
-        .fromTo(q(".vu-foot"), { y: 12, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.8, stagger: 0.1 }, 1.0);
+      // --- the scroll-in: the record rises from low and far to face-on (scrubbed, no pin)
+      const tilt = reduce
+        ? null
+        : gsap.fromTo(disc, { tilt: 0 }, { tilt: 1, ease: "none", scrollTrigger: { trigger: b, start: "top bottom", end: "center 58%", scrub: 0.8 } });
 
-      // --- scroll scrubs extra rotation on top of the idle spin
-      if (!reduce) {
-        gsap.to(disc, { scrub: SCRUB_DEGREES, ease: "none", scrollTrigger: { trigger: el, start: "top bottom", end: "bottom top", scrub: 1 } });
-      }
+      // --- then, once: the grooves are cut, the verses land, the needle drops
+      gsap.set(q(".vu-rise"), { autoAlpha: 0 });
+      gsap.to(q(".vu-rise"), { autoAlpha: 1, duration: 1.2, ease: "power2.out", scrollTrigger: { trigger: b, start: "top 95%", once: true } });
+      const intro = gsap
+        .timeline({ scrollTrigger: { trigger: b, start: "top 62%", once: true }, defaults: { ease: "expo.out" } })
+        .to(disc, { enter: 1, duration: 1.6 }, 0)
+        .to(disc, { reveal: 1, duration: reduce ? 0.01 : 2.4, ease: "expo.inOut" }, 0.1)
+        .fromTo(q(".vu-tag"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.9, stagger: 0.09 }, 0.8)
+        .fromTo(q(".vu-soon"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.9, stagger: 0.09 }, 0.9)
+        .fromTo(q(".vu-foot"), { y: 12, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.8, stagger: 0.1 }, 1.0)
+        .add(() => lowerNeedle(), reduce ? 0 : 1.1);
+
+      // --- scroll turns the record a little further on top of the motor
+      const scrub = reduce
+        ? null
+        : gsap.to(disc, { scrub: SCRUB_DEGREES, ease: "none", scrollTrigger: { trigger: el, start: "top bottom", end: "bottom top", scrub: 1 } });
       // scrolling clean past the section closes whatever is open
       const leave = ScrollTrigger.create({ trigger: el, start: "top bottom", end: "bottom top", onLeave: close, onLeaveBack: close });
 
-      // --- the ticker: turns the plate, drifts the beads, and glues pucks + labels to the orbit points
-      // that the 3D layer projects (falling back to the same maths until the canvas is up)
+      // --- the pointer leans the record and steers the light (mouse only)
+      const onMove = (e: PointerEvent) => {
+        if (e.pointerType !== "mouse") return;
+        const r = b.getBoundingClientRect();
+        const s = el.getBoundingClientRect();
+        disc.pointer.x = (e.clientX - (r.left + r.width / 2)) / r.width;
+        disc.pointer.y = (e.clientY - (r.top + r.height / 2)) / r.height;
+        disc.pointer.on = e.clientY >= s.top && e.clientY <= s.bottom && !isOpen.current;
+      };
+      window.addEventListener("pointermove", onMove, { passive: true });
+
+      // --- the ticker: the platter's physics, the needle, the sounds, and the DOM glued to the 3D
       let size = b.clientWidth;
       const ro = new ResizeObserver(() => {
         size = b.clientWidth;
       });
       ro.observe(b);
-      const plate = q<HTMLElement>(".vu-plate")[0];
-      const ring = q<HTMLElement>(".vu-ring")[0];
-      const glyphs = q<HTMLElement>(".vu-bead-glyph");
+      const eq = q<HTMLElement>(".vu-eq-bar");
+      const core = q<HTMLElement>(".vu-core")[0];
       const nodes = NODES.map((n) => ({
         n,
         el: q<HTMLElement>(`.vu-node[data-node="${n.key}"]`)[0],
         tag: q<HTMLElement>(`.vu-tag[data-node="${n.key}"]`)[0],
-        puck: q<HTMLElement>(`.vu-puck[data-node="${n.key}"]`)[0],
         hovered: "",
+        prev: NaN,
       }));
-      const tick = (_t: number, dtMs: number) => {
-        if (!disc.inView || !size) return;
-        if (!disc.still) disc.spin += (Math.min(dtMs, 50) / 1000) * SPIN_SPEED;
+      let gl = false;
+      const tick = (time: number, dtMs: number) => {
+        if (!disc.inView || !size) {
+          setCrackle(false);
+          setScratch(0);
+          return;
+        }
+        const dt = Math.min(dtMs, 50) / 1000;
+        if (!gl && disc.gl) {
+          gl = true;
+          el.dataset.gl = "1";
+        }
+
+        // platter: a motor with inertia; while held, the hand sets the speed (and a still hand stops it)
+        const target = disc.still ? 0 : disc.motor * SPIN_SPEED;
+        if (disc.dragging) disc.vel *= Math.exp(-dt * 7);
+        else {
+          disc.vel += (target - disc.vel) * (1 - Math.exp(-dt * 1.5));
+          disc.spin += disc.vel * dt;
+        }
+        setScratch(disc.needleDown ? Math.abs(disc.vel - (disc.dragging ? 0 : target)) : 0);
+        setCrackle(disc.needleDown && isOpen.current !== "verse");
+
+        // forget waves that have run out
+        const nowS = performance.now() / 1000;
+        while (disc.ripples.length && nowS - disc.ripples[0].t0 > 3.2) disc.ripples.shift();
+
         const a = discAngle();
-        plate.style.transform = `rotate(${a}deg)`;
-        // the beads turn slower than the disc, so they appear to slide back along the groove
-        const drift = a * 0.72;
-        ring.style.transform = `rotate(${drift}deg)`;
-        for (const g of glyphs) g.style.transform = `rotate(${-drift}deg)`;
         const half = size / 2;
         for (const node of nodes) {
-          const { n, el: nodeEl, tag, puck } = node;
+          const { n, el: nodeEl, tag } = node;
+          // the needle: a verse crossing its angle, either way round
+          const d = wrap(a + n.angle - NEEDLE_DEG);
+          if (disc.needleDown && !Number.isNaN(node.prev) && Math.abs(d - node.prev) < 90 && ((node.prev < 0 && d >= 0) || (node.prev > 0 && d <= 0))) passed(n.key);
+          node.prev = d;
+
           const p = disc.anchors[n.key];
           let x: number;
           let y: number;
@@ -175,12 +420,11 @@ export default function VerseUniverse() {
             x = half + Math.cos(t) * ORBIT * size;
             y = half + Math.sin(t) * ORBIT * size;
           }
-          const tf = `translate(${x}px, ${y}px)`;
-          nodeEl.style.transform = tf;
-          puck.style.transform = tf;
+          nodeEl.style.transform = `translate(${x}px, ${y}px)`;
           // the label sits just outside its node, on the side away from the centre
-          const dx = x - half;
-          const dy = y - half;
+          const c = disc.anchors.core;
+          const dx = x - (c.on ? c.x : half);
+          const dy = y - (c.on ? c.y : half);
           const len = Math.hypot(dx, dy) || 1;
           const off = size * TAG_OFFSET;
           tag.style.transform = `translate(${(dx / len) * off}px, ${(dy / len) * off}px) translate(-50%, -50%)`;
@@ -188,26 +432,44 @@ export default function VerseUniverse() {
           if (node.hovered !== h) {
             node.hovered = h;
             nodeEl.dataset.hover = h;
-            puck.dataset.hover = h;
           }
+        }
+        const c = disc.anchors.core;
+        core.style.transform = `translate(${c.on ? c.x : half}px, ${c.on ? c.y : half}px) translate(-50%, -50%)`;
+
+        // the little equaliser beside "now spinning": the real audio level, or the motor when silent
+        for (let i = 0; i < eq.length; i++) {
+          const wob = Math.abs(Math.sin(time * (3.1 + i * 1.7) + i * 1.3));
+          const v = 0.18 + Math.min(1, disc.level * 2.2) * 0.8 * wob + disc.motor * (disc.needleDown ? 0.22 : 0) * wob;
+          eq[i].style.transform = `scaleY(${Math.min(1, v).toFixed(3)})`;
         }
       };
       gsap.ticker.add(tick);
 
       return () => {
         io.disconnect();
+        if (window.cancelIdleCallback) window.cancelIdleCallback(idle);
+        else window.clearTimeout(idle);
         ro.disconnect();
         gsap.ticker.remove(tick);
+        window.removeEventListener("pointermove", onMove);
+        tilt?.scrollTrigger?.kill();
+        scrub?.scrollTrigger?.kill();
+        intro.scrollTrigger?.kill();
         leave.kill();
+        setCrackle(false);
+        setScratch(0);
         disc.inView = false;
       };
     },
     { scope: root },
   );
 
+  const nowNode = now ? NODE_BY_KEY[now] : null;
+
   return (
-    <section ref={root} id="verse-universe" className="relative overflow-clip bg-cream text-ink">
-      <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.04] mix-blend-multiply" />
+    <section ref={root} id="verse-universe" data-gl="0" data-hint="0" className="vu relative overflow-clip bg-cream text-ink">
+      <div className="grain pointer-events-none absolute inset-0 opacity-[0.04] mix-blend-multiply" />
       {/* a soft pool of peach behind the disc, a whisper of tan at the foot */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(55%_55%_at_72%_50%,rgba(250,227,197,0.95),transparent_72%),linear-gradient(180deg,transparent_60%,rgba(231,180,126,0.18))]" />
 
@@ -218,126 +480,121 @@ export default function VerseUniverse() {
 
           {/* THE MUSIC DISC */}
           <div>
-            <div ref={box} className="@container relative mx-auto aspect-square w-full min-w-[320px] max-w-[700px]">
-              <div className="vu-rise absolute inset-0 opacity-0">
-                {/* the record: grooves, the orbit the verses ride, the label with its ring of type — this turns */}
-                <div className="vu-plate absolute inset-[2%] overflow-hidden rounded-full bg-ink shadow-[0_50px_100px_-30px_rgba(30,30,30,0.55)]">
-                  <div className="vu-grooves absolute inset-0 rounded-full" />
-                  <div className="vu-tracks absolute inset-0 rounded-full" />
-                  <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full" aria-hidden>
-                    <defs>
-                      <radialGradient id="vu-label-fill" cx="40%" cy="36%" r="72%">
-                        <stop offset="0" stopColor="#fae3c5" />
-                        <stop offset="0.65" stopColor="#e7b47e" />
-                        <stop offset="1" stopColor="#deb886" />
-                      </radialGradient>
-                      <path id="vu-ring-path" d={`M50 50 m-${RING_PCT} 0 a${RING_PCT} ${RING_PCT} 0 1 1 ${RING_PCT * 2} 0 a${RING_PCT} ${RING_PCT} 0 1 1 -${RING_PCT * 2} 0`} />
-                    </defs>
-                    <circle cx="50" cy="50" r={ORBIT_PCT} fill="none" stroke="#e7b47e" strokeOpacity="0.4" strokeWidth="0.22" strokeDasharray="0.5 1.5" />
-                    <circle cx="50" cy="50" r={ORBIT_PCT + 4.2} fill="none" stroke="#fdf2e3" strokeOpacity="0.08" strokeWidth="0.2" />
-                    <circle cx="50" cy="50" r={ORBIT_PCT - 4.2} fill="none" stroke="#fdf2e3" strokeOpacity="0.08" strokeWidth="0.2" />
-                    <circle cx="50" cy="50" r={LABEL_PCT} fill="url(#vu-label-fill)" />
-                    <circle cx="50" cy="50" r={LABEL_PCT} fill="none" stroke="#1e1e1e" strokeOpacity="0.3" strokeWidth="0.3" />
-                    <circle cx="50" cy="50" r={LABEL_PCT - 0.9} fill="none" stroke="#850909" strokeOpacity="0.35" strokeWidth="0.18" />
-                    <text fontSize="2.05" letterSpacing="0.5" fill="#fdf2e3" fillOpacity="0.55" fontWeight="600" textLength={RING_LEN} lengthAdjust="spacingAndGlyphs">
-                      <textPath href="#vu-ring-path">AUVOX MUSIC · THE VERSE UNIVERSE · ONE STANDARD OF MASTERY ·</textPath>
-                    </text>
-                  </svg>
-                </div>
-                {/* light on the vinyl: this does not turn, so the sheen slides over the grooves */}
-                <div className="vu-sheen pointer-events-none absolute inset-[2%] rounded-full" />
-                <div className="pointer-events-none absolute inset-[2%] rounded-full bg-[radial-gradient(40%_40%_at_32%_28%,rgba(253,242,227,0.14),transparent_70%)]" />
+            <div
+              ref={box}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={(e) => endDrag(e, true)}
+              onPointerCancel={(e) => endDrag(e, false)}
+              className="vu-box @container relative mx-auto aspect-square w-full min-w-[300px] max-w-[720px]"
+            >
+              <div ref={stage} className="vu-stage absolute inset-0">
+                <div className="vu-rise absolute inset-0">
+                  {/* stand-in record: shows until the 3D record has drawn (and stays if it never can) */}
+                  <div className="vu-standin pointer-events-none absolute inset-[2%] overflow-hidden rounded-full bg-ink shadow-[0_50px_100px_-30px_rgba(30,30,30,0.55)]" aria-hidden>
+                    <div className="vu-grooves absolute inset-0 rounded-full" />
+                    <div className="vu-tracks absolute inset-0 rounded-full" />
+                    <div className="absolute inset-[37%] rounded-full bg-[radial-gradient(circle_at_40%_36%,#fae3c5,#e7b47e_65%,#deb886)]" />
+                  </div>
 
-                {/* beads and notes drifting along the groove */}
-                <div className="vu-ring pointer-events-none absolute inset-0 z-[4]" aria-hidden>
-                  {BEADS.map((bead, i) => (
-                    <span key={i} className="absolute top-1/2 left-1/2" style={{ transform: `rotate(${bead.at}deg) translate(${ORBIT * 100}cqw) rotate(${-bead.at}deg)` }}>
-                      <span className="vu-bead block -translate-x-1/2 -translate-y-1/2">
-                        {bead.glyph ? (
-                          <span className="vu-bead-glyph font-display block leading-none text-tan" style={{ fontSize: bead.size * 1.7 }}>
-                            {bead.glyph}
+                  {ready && <DiscWorld />}
+
+                  {/* the vinyl you can grab */}
+                  <div className="vu-drag absolute inset-[2%] z-[15] rounded-full" aria-hidden />
+
+                  {/* the nodes: hit areas and labels (over the instruments) */}
+                  <div className="pointer-events-none absolute inset-0 z-20">
+                    {NODES.map((n) =>
+                      n.active ? (
+                        <button
+                          key={n.key}
+                          type="button"
+                          data-node={n.key}
+                          aria-label={`Open ${n.label}`}
+                          aria-haspopup="dialog"
+                          onPointerEnter={() => over(n.key)}
+                          onPointerLeave={out}
+                          onFocus={() => setHover(n.key)}
+                          onBlur={out}
+                          onClick={(e) => openVerse(n.key, e.currentTarget)}
+                          className="vu-node pointer-events-auto absolute top-0 left-0 -mt-[10.5%] -ml-[10.5%] h-[21%] w-[21%] rounded-full"
+                        >
+                          <span data-node={n.key} className="vu-tag vu-tag-solid absolute top-1/2 left-1/2 rounded-full bg-peach px-3.5 py-1.5 text-[0.58rem] font-semibold tracking-[0.28em] whitespace-nowrap text-ink uppercase shadow-[0_6px_20px_rgba(30,30,30,0.35)]">
+                            {n.label}
                           </span>
-                        ) : (
-                          <span className="block rounded-full bg-tan shadow-[0_0_8px_rgba(231,180,126,0.6)]" style={{ width: bead.size, height: bead.size }} />
-                        )}
+                        </button>
+                      ) : (
+                        <span key={n.key} data-node={n.key} className="vu-node absolute top-0 left-0 -mt-[10.5%] -ml-[10.5%] h-[21%] w-[21%] rounded-full">
+                          <span className="vu-soon absolute inset-0 flex items-center justify-center text-[0.5rem] font-semibold tracking-[0.32em] text-peach/55 uppercase">Soon</span>
+                          <span data-node={n.key} className="vu-tag vu-tag-ghost absolute top-1/2 left-1/2 rounded-full border border-dashed border-peach/45 bg-ink/40 px-3.5 py-1.5 text-[0.58rem] font-semibold tracking-[0.28em] whitespace-nowrap text-peach/70 uppercase backdrop-blur-[2px]">
+                            {n.label}
+                          </span>
+                        </span>
+                      ),
+                    )}
+                  </div>
+
+                  {/* the logomark on the label (drawn in 3D): hover (mouse) or tap for what AUVOX is */}
+                  <button
+                    type="button"
+                    aria-label="What is AUVOX"
+                    aria-haspopup="dialog"
+                    onPointerEnter={(e) => {
+                      if (e.pointerType !== "mouse") return;
+                      setHover("core");
+                      openAbout(e.currentTarget, true);
+                    }}
+                    onPointerLeave={() => {
+                      if (disc.hover === "core") setHover(null);
+                    }}
+                    onFocus={() => setHover("core")}
+                    onBlur={() => {
+                      if (disc.hover === "core") setHover(null);
+                    }}
+                    onClick={(e) => openAbout(e.currentTarget, false)}
+                    className="vu-core absolute top-0 left-0 z-30 flex h-[24%] w-[24%] items-center justify-center rounded-full"
+                  >
+                    <span className="pointer-events-none absolute -top-1 -right-2 hidden text-ink pointer-coarse:flex" aria-hidden>
+                      <span className="tap-ring relative flex h-11 w-11 items-center justify-center rounded-full border border-current bg-cream/90">
+                        <span className="text-[9px] font-semibold tracking-[0.3em]">TAP</span>
                       </span>
                     </span>
-                  ))}
+                  </button>
+
+                  {/* once the needle is down: you can play it */}
+                  <div className="vu-hint pointer-events-none absolute bottom-[-1%] left-1/2 z-20 flex -translate-x-1/2 items-center gap-2.5 text-[0.56rem] font-semibold tracking-[0.32em] whitespace-nowrap text-ink/60 uppercase" aria-hidden>
+                    <svg viewBox="0 0 24 24" className="vu-hint-arrow h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.4">
+                      <path d="M4 12a8 8 0 0 1 14.5-4.7" strokeLinecap="round" />
+                      <path d="M19 3v4.5h-4.5" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M20 12a8 8 0 0 1-14.5 4.7" strokeLinecap="round" />
+                      <path d="M5 21v-4.5h4.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <span className="pointer-coarse:hidden">Grab the record</span>
+                    <span className="hidden pointer-coarse:inline">Swipe the record</span>
+                  </div>
                 </div>
-
-                {/* the pucks each verse sits on (under the instruments) */}
-                <div className="pointer-events-none absolute inset-0 z-[5]" aria-hidden>
-                  {NODES.map((n) => (
-                    <div key={n.key} data-node={n.key} className="vu-puck absolute top-0 left-0 -mt-[8.5%] -ml-[8.5%] h-[17%] w-[17%]">
-                      <div className={clsx("vu-puck-in relative h-full w-full rounded-full", n.active ? "vu-puck-solid" : "vu-puck-ghost")}>
-                        {!n.active && <span className="absolute inset-0 flex items-center justify-center text-[0.5rem] font-semibold tracking-[0.32em] text-peach/55 uppercase">Soon</span>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* the live guitar and keyboard */}
-                {ready && <DiscWorld />}
-
-                {/* the nodes: hit areas and labels (over the instruments) */}
-                <div className="absolute inset-0 z-20">
-                  {NODES.map((n) =>
-                    n.active ? (
-                      <button
-                        key={n.key}
-                        type="button"
-                        data-node={n.key}
-                        data-cursor="Open"
-                        aria-label={`Open ${n.label}`}
-                        aria-haspopup="dialog"
-                        onPointerEnter={() => over(n.key)}
-                        onPointerLeave={out}
-                        onClick={(e) => openVerse(n.key, e.currentTarget)}
-                        className="vu-node absolute top-0 left-0 -mt-[10.5%] -ml-[10.5%] h-[21%] w-[21%] rounded-full"
-                      >
-                        <span data-node={n.key} className="vu-tag vu-tag-solid absolute top-1/2 left-1/2 rounded-full bg-peach px-3.5 py-1.5 text-[0.58rem] font-semibold tracking-[0.28em] whitespace-nowrap text-ink uppercase shadow-[0_6px_20px_rgba(30,30,30,0.35)]">
-                          {n.label}
-                        </span>
-                      </button>
-                    ) : (
-                      <span key={n.key} data-node={n.key} data-cursor="Soon" className="vu-node absolute top-0 left-0 -mt-[10.5%] -ml-[10.5%] h-[21%] w-[21%] rounded-full">
-                        <span data-node={n.key} className="vu-tag vu-tag-ghost absolute top-1/2 left-1/2 rounded-full border border-dashed border-peach/45 px-3.5 py-1.5 text-[0.58rem] font-semibold tracking-[0.28em] whitespace-nowrap text-peach/60 uppercase">
-                          {n.label}
-                        </span>
-                      </span>
-                    ),
-                  )}
-                </div>
-
-                {/* the logomark on the label: hover (mouse) or tap for what AUVOX is */}
-                <button
-                  type="button"
-                  data-cursor="About"
-                  aria-label="What is AUVOX"
-                  aria-haspopup="dialog"
-                  onPointerEnter={(e) => {
-                    if (e.pointerType === "mouse") openAbout(e.currentTarget, true);
-                  }}
-                  onClick={(e) => openAbout(e.currentTarget, false)}
-                  className="vu-core group absolute top-1/2 left-1/2 z-30 flex h-[24%] w-[24%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full"
-                >
-                  <Image src="/svg/auvox-logomark.svg" alt="" width={87} height={78} unoptimized draggable={false} className="h-[40%] w-auto drop-shadow-[0_6px_14px_rgba(133,9,9,0.25)] transition-transform duration-500 ease-out group-hover:scale-110" />
-                  <span className="pointer-events-none absolute -top-1 -right-2 hidden text-ink pointer-coarse:flex" aria-hidden>
-                    <span className="tap-ring relative flex h-11 w-11 items-center justify-center rounded-full border border-current bg-cream/90">
-                      <span className="text-[9px] font-semibold tracking-[0.3em]">TAP</span>
-                    </span>
-                  </span>
-                </button>
               </div>
             </div>
 
-            {/* legend */}
-            <div className="vu-foot mt-7 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 text-[0.6rem] font-semibold tracking-[0.3em] text-ink/65 uppercase">
-              <span className="flex items-center gap-3">
-                <span className="block h-px w-8 bg-ink/40" aria-hidden />
-                Choose your verse
+            {/* now spinning · legend · sound */}
+            <div className="vu-foot mt-9 flex flex-wrap items-center justify-between gap-x-6 gap-y-4 text-[0.6rem] font-semibold tracking-[0.3em] text-ink/65 uppercase">
+              <span className="flex min-h-5 items-center gap-3.5">
+                <span className="flex h-4 items-end gap-[3px]" aria-hidden>
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <span key={i} className="vu-eq-bar block h-full w-[2px] origin-bottom rounded-full bg-red" style={{ transform: "scaleY(0.18)" }} />
+                  ))}
+                </span>
+                {nowNode ? (
+                  <span key={nowNode.key} className="vu-now flex items-center gap-2.5">
+                    <span className="text-ink/45">Now spinning</span>
+                    <span className={clsx(nowNode.active ? "text-ink" : "text-ink/55")}>{nowNode.label}</span>
+                    {!nowNode.active && <span className="text-ink/40">· Soon</span>}
+                  </span>
+                ) : (
+                  <span>Choose your verse</span>
+                )}
               </span>
-              <span className="flex items-center gap-5">
+              <span className="flex flex-wrap items-center gap-5">
                 <span className="flex items-center gap-2">
                   <span className="block h-2 w-2 rounded-full bg-ink" aria-hidden />
                   Active Verse
@@ -346,21 +603,22 @@ export default function VerseUniverse() {
                   <span className="block h-2 w-2 rounded-full border border-dashed border-ink/60" aria-hidden />
                   Future Verse
                 </span>
+                <button
+                  type="button"
+                  onClick={toggleSound}
+                  aria-pressed={!muted}
+                  className="flex items-center gap-2 rounded-full border border-ink/20 px-3 py-1.5 transition-colors duration-300 hover:border-ink hover:text-ink"
+                >
+                  <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden>
+                    <path d="M2 6h2.5L8 3v10L4.5 10H2z" strokeLinejoin="round" />
+                    {muted ? <path d="M11 6l3.5 4M14.5 6L11 10" strokeLinecap="round" /> : <path d="M10.8 5.5a3.5 3.5 0 0 1 0 5M12.6 3.8a6 6 0 0 1 0 8.4" strokeLinecap="round" />}
+                  </svg>
+                  Sound {muted ? "off" : "on"}
+                </button>
               </span>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* section index, continuing the hero's */}
-      <div className="vu-foot pointer-events-none absolute bottom-8 left-6 flex items-center gap-4 md:left-12">
-        <span className="font-display text-2xl text-ink/40">02</span>
-        <span className="flex gap-2">
-          <span className="block h-[2px] w-9 bg-ink/15" />
-          <span className="block h-[2px] w-9 bg-red" />
-          <span className="block h-[2px] w-9 bg-ink/15" />
-          <span className="block h-[2px] w-9 bg-ink/15" />
-        </span>
       </div>
 
       <Sheet open={open} content={content} origin={origin} viaHover={viaHover} onClose={close} />

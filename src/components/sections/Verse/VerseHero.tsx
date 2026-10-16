@@ -51,8 +51,7 @@ export default function VerseHero({ verse, enter, ready }: { verse: Verse; enter
         .timeline({ defaults: { ease: "expo.out" } })
         .fromTo(q(".verse-point-rule"), { scaleX: 0 }, { scaleX: 1, duration: 0.9, stagger: 0.1, transformOrigin: "left" }, 0.7)
         .fromTo(q(".verse-point"), { y: 14, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9, stagger: 0.1 }, 0.75)
-        .fromTo(q(".verse-cta"), { y: 18, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9 }, 1.05)
-        .fromTo(q(".verse-index"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.8 }, 1.3);
+        .fromTo(q(".verse-cta"), { y: 18, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9 }, 1.05);
     },
     { scope: root, dependencies: [ready] },
   );
@@ -61,7 +60,7 @@ export default function VerseHero({ verse, enter, ready }: { verse: Verse; enter
     <section ref={root} className="verse-hero relative -mt-[100svh] min-h-[100svh] overflow-clip bg-peach text-ink">
       {/* the low-opacity red→peach wash the client describes, plus grain */}
       <div className="verse-wash pointer-events-none absolute inset-0 opacity-0" />
-      <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.04] mix-blend-multiply" />
+      <div className="grain pointer-events-none absolute inset-0 opacity-[0.04] mix-blend-multiply" />
 
       {/* the ghost word sits where the instrument floats: top band on phones, right half on wide screens */}
       <div className="pointer-events-none absolute inset-x-0 top-0 flex h-[55svh] items-center justify-center overflow-hidden lg:inset-y-0 lg:left-auto lg:right-0 lg:h-auto lg:w-1/2 lg:justify-end">
@@ -91,16 +90,6 @@ export default function VerseHero({ verse, enter, ready }: { verse: Verse; enter
         </div>
       </div>
 
-      {/* section index */}
-      <div className="verse-index pointer-events-none absolute bottom-8 left-6 z-10 flex items-center gap-4 opacity-0 md:left-12">
-        <span className="font-display text-2xl text-ink/40">01</span>
-        <span className="flex gap-2">
-          <span className="block h-[2px] w-9 bg-red" />
-          <span className="block h-[2px] w-9 bg-ink/15" />
-          <span className="block h-[2px] w-9 bg-ink/15" />
-          <span className="block h-[2px] w-9 bg-ink/15" />
-        </span>
-      </div>
     </section>
   );
 }

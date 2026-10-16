@@ -114,6 +114,13 @@ const STEPS = {
     refs: [ref("ref-hero-client.png")],
     prompt: `Edit this image into an empty background photograph. Remove completely: the guitar, the keyboard/piano, the thin orbit lines, the small floating rocks and the orange beads, and every piece of text and interface — the logo, the menu, the headline, the paragraph, the button, the avatars, the labels, the numbers, the scroll icon. Fill those areas with the room behind them so nothing is left over. Keep: the warm sunlit cream room, the soft diagonal sunlight and leaf shadows on the wall, the tall arches and pillars on the right, the sheer cream fabric, the blurred green plants in the corners, the light floor and the wide rough pale stone plinth at the bottom centre-right (keep it exactly, empty on top). The left half is calm empty wall with soft light, nothing on it. Real architectural photograph, natural colours, warm cream and pearl tones, soft film grain, sharp focus. No text, no logos, no objects floating in the air, no watermark.`,
   },
+  // ---- The Muse: the marble bust that the instruments come to rest beside ----
+  muse: {
+    final: "30-muse.png",
+    size: "1024x1536",
+    refs: [],
+    prompt: `Studio product photograph of a classical Greek marble bust of a young god in the style of Apollo: thick curly hair, calm face, eyes gently lowered, head turned slightly to his left (toward the right of the frame), bare shoulders cut cleanly at the chest like a museum bust. He wears modern over-ear headphones: matte black ear cups with a tan leather headband, resting naturally on the marble hair. White Carrara marble with faint grey veining, realistic chips and texture. Lit by one soft warm key light from the upper left and a gentle fill, soft shadow under the jaw. The bust is centred and fills most of the frame, on a flat, perfectly even, solid light peach background (#FAE3C5), nothing else in the frame — no pedestal, no props, no text, no watermark. Photorealistic, 85mm lens, sharp.`,
+  },
   mobile: {
     final: "08-A-hero-mobile.png",
     size: "1024x1536",

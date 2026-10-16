@@ -1,15 +1,15 @@
 "use client";
 
-// The hero's 3D layer, composited over the room photo: a real acoustic guitar and a keyboard float
-// above the photo's stone plinth, sway slowly, and cast a soft shadow onto it. The whole cluster is
-// placed and scaled from where the plinth lands on screen, so it stays on the stone at any aspect.
-// Hovering an instrument plays it, clicking it opens its verse.
+// The hero's 3D layer, composited over the room photo: the guitar and the keyboard float above the
+// photo's stone plinth and slowly circle it, casting a soft shadow onto it. The whole cluster is placed
+// and scaled from where the plinth lands on screen, so it stays on the stone at any aspect.
+// Hovering an instrument stops the orbit and lifts it; clicking it opens its verse.
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, Environment, Float, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
-import { playChord, playRiff, unlockAudio } from "../Session/audio";
+import PauseOffscreen from "@/lib/r3f/PauseOffscreen";
 import { hero, plinthOnScreen, type Verse } from "./state";
 
 const RED = "#850909";
@@ -33,6 +33,9 @@ function useNormalized(url: string, size: number) {
     obj.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh) return;
+      // pointer hits go to a simple box (see Model) — ray-testing ~150k vertices on every mouse move
+      // was what made the hero stutter while the pointer moved over it
+      mesh.raycast = () => {};
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       const mat = mesh.material as THREE.MeshStandardMaterial;
@@ -50,80 +53,84 @@ function useNormalized(url: string, size: number) {
     });
     const holder = new THREE.Group();
     holder.add(obj);
-    return holder;
+    return { holder, dims: [dims.x * k, dims.y * k, dims.z * k] as [number, number, number] };
   }, [scene, size]);
 }
 
 function Model({ url, size, rotation }: { url: string; size: number; rotation: [number, number, number] }) {
-  const model = useNormalized(url, size);
+  const { holder, dims } = useNormalized(url, size);
   return (
     <group rotation={rotation}>
-      <primitive object={model} />
+      <primitive object={holder} />
+      {/* invisible hit box: raycasts against 12 triangles instead of the whole model */}
+      <mesh visible={false}>
+        <boxGeometry args={dims} />
+      </mesh>
     </group>
   );
 }
 
-function Rock({ position, scale, speed = 1 }: { position: [number, number, number]; scale: number; speed?: number }) {
-  const model = useNormalized("/world/moon_rock_04/moon_rock_04_1k.gltf", 1);
-  const ref = useRef<THREE.Group>(null);
-  useFrame(({ clock }) => {
-    const g = ref.current;
-    if (!g) return;
-    const t = clock.elapsedTime * speed;
-    g.position.y = position[1] + Math.sin(t * 0.7) * 0.08 + (1 - hero.enter) * -0.6;
-    g.rotation.set(Math.sin(t * 0.3) * 0.2, t * 0.15, 0);
-    g.scale.setScalar(scale * hero.enter);
-  });
-  return (
-    <group ref={ref} position={position}>
-      <primitive object={model} />
-    </group>
-  );
-}
 
 const ANCHOR_LOCAL = new THREE.Vector3();
+
+/** The pair circles the plinth on a slow ellipse; hovering either instrument brings it to rest. */
+const ORBIT = { cx: 0.8, cz: 0, rx: 0.55, rz: 0.9, speed: 0.12 };
+const orbit = { angle: 0, speed: ORBIT.speed, time: 0 };
+
+/** Advances the shared orbit (eases to a stop while an instrument is hovered). Runs before the instruments. */
+function Orbiter() {
+  useFrame((_, delta) => {
+    const dt = Math.min(delta, 0.05);
+    const target = hero.hover ? 0 : ORBIT.speed;
+    orbit.speed += (target - orbit.speed) * Math.min(1, dt * 3);
+    orbit.angle += orbit.speed * dt * hero.enter;
+    // our own clock: R3F's resets whenever the canvas pauses off-screen, which made the pair jump
+    orbit.time += dt;
+  });
+  return null;
+}
 
 function Instrument({
   kind,
   children,
-  position,
+  theta,
+  height,
   sway,
   phase,
   tilt,
   anchor,
-  hover,
-  setHover,
 }: {
   kind: Verse;
   children: React.ReactNode;
-  position: [number, number, number];
+  /** where on the orbit this instrument starts (radians) */
+  theta: number;
+  height: number;
   sway: number;
   phase: number;
   tilt: [number, number, number];
   /** local point the callout line points at */
   anchor: [number, number, number];
-  hover: Verse | null;
-  setHover: (h: Verse | null) => void;
 }) {
   const group = useRef<THREE.Group>(null);
   const lift = useRef(0);
-  const hovered = hover === kind;
 
-  useFrame(({ clock, camera, size }, dt) => {
+  useFrame(({ camera, size }, delta) => {
     const g = group.current;
     if (!g) return;
-    const t = clock.elapsedTime;
+    const dt = Math.min(delta, 0.05);
+    const t = orbit.time;
     const e = hero.enter;
-    lift.current += ((hovered ? 1 : 0) - lift.current) * Math.min(1, dt * 5);
-    // rises off the plinth on entrance, then floats and sways
+    const th = theta + orbit.angle;
+    lift.current += ((hero.hover === kind ? 1 : 0) - lift.current) * Math.min(1, dt * 5);
+    // rises off the plinth on entrance, then circles it with a slow float
     g.position.set(
-      position[0] + Math.sin(t * 0.21 + phase) * 0.06,
-      position[1] + Math.sin(t * 0.6 + phase) * 0.07 + lift.current * 0.12 - (1 - e) * 1.2,
-      position[2],
+      ORBIT.cx + Math.cos(th) * ORBIT.rx,
+      height + Math.sin(t * 0.6 + phase) * 0.07 + lift.current * 0.12 - (1 - e) * 1.2,
+      ORBIT.cz + Math.sin(th) * ORBIT.rz,
     );
     g.rotation.set(
       tilt[0] + Math.sin(t * 0.37 + phase) * 0.04,
-      tilt[1] + Math.sin(t * 0.16 + phase) * sway + (1 - e) * 1.4 + lift.current * 0.12,
+      tilt[1] + Math.sin(t * 0.16 + phase) * sway + Math.sin(th) * 0.22 + (1 - e) * 1.4 + lift.current * 0.12,
       tilt[2] + Math.sin(t * 0.29 + phase) * 0.03,
     );
     g.scale.setScalar((0.55 + 0.45 * e) * (1 + lift.current * 0.04));
@@ -136,19 +143,14 @@ function Instrument({
     a.on = e > 0.6;
   });
 
-  const over = (e: { stopPropagation: () => void }) => {
-    e.stopPropagation();
-    if (hover === kind) return;
-    setHover(kind);
+  const over = (ev: { stopPropagation: () => void }) => {
+    ev.stopPropagation();
+    if (hero.hover === kind) return;
     hero.hover = kind;
     document.body.style.cursor = "pointer";
-    unlockAudio();
-    if (kind === "guitar") playRiff();
-    else playChord();
   };
   const out = () => {
-    setHover(null);
-    hero.hover = null;
+    if (hero.hover === kind) hero.hover = null;
     document.body.style.cursor = "";
   };
 
@@ -163,14 +165,14 @@ function Rings() {
   const a = useRef<THREE.Mesh>(null);
   const b = useRef<THREE.Mesh>(null);
   const root = useRef<THREE.Group>(null);
-  useFrame(({ clock }) => {
-    const t = clock.elapsedTime;
+  useFrame(() => {
+    const t = orbit.time;
     if (a.current) a.current.rotation.set(1.2 + Math.sin(t * 0.2) * 0.06, 0.35, t * 0.04);
     if (b.current) b.current.rotation.set(1.42 + Math.cos(t * 0.17) * 0.06, -0.3, -t * 0.03);
     root.current?.scale.setScalar(Math.max(0.001, hero.enter));
   });
   return (
-    <group ref={root} position={[-0.2, 1.9, 0]}>
+    <group ref={root} position={[0.55, 1.75, 0]}>
       <mesh ref={a}>
         <torusGeometry args={[1.75, 0.0045, 6, 200]} />
         <meshBasicMaterial color={RED} transparent opacity={0.4} />
@@ -209,6 +211,16 @@ function Pointer() {
   return null;
 }
 
+/** dev only: expose the renderer + scene for profiling from the console */
+function DebugHandle() {
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") (window as unknown as { __heroGL: unknown }).__heroGL = { gl, scene };
+  }, [gl, scene]);
+  return null;
+}
+
 function Rig() {
   const { camera } = useThree();
   const target = useRef(new THREE.Vector3());
@@ -238,45 +250,42 @@ function useOnPlinth() {
 }
 
 function Scene() {
-  const [hover, setHover] = useState<Verse | null>(null);
   const place = useOnPlinth();
   return (
     <>
       <Rig />
       <Pointer />
+      <PauseOffscreen name="hero" />
+      <DebugHandle />
+      <Orbiter />
       <group position={place.position} scale={place.scale}>
         <Suspense fallback={null}>
           <Environment files="/world/studio_1k.hdr" environmentIntensity={0.5} />
           <Instrument
             kind="guitar"
-            position={[0.3, 1.95, 0.3]}
-            sway={0.4}
+            theta={2.6}
+            height={1.95}
+            sway={0.3}
             phase={0}
             tilt={[0, 0, 0.62]}
             anchor={[0.75, 0.05, 0]}
-            hover={hover}
-            setHover={setHover}
           >
             <Model url="/models/guitar-red.glb" size={3.0} rotation={[-Math.PI / 2, 0, Math.PI]} />
           </Instrument>
           <Instrument
             kind="keyboard"
-            position={[1.35, 1.0, -0.3]}
-            sway={0.2}
+            theta={2.6 + Math.PI}
+            height={1.0}
+            sway={0.16}
             phase={2.1}
             tilt={[0.75, -0.35, 0.38]}
             anchor={[1.0, 0.1, 0]}
-            hover={hover}
-            setHover={setHover}
           >
             <Model url="/models/casio.glb" size={2.5} rotation={[0, 0, 0]} />
           </Instrument>
-          <Rock position={[-1.75, 0.9, 0.8]} scale={0.32} />
-          <Rock position={[-1.05, 0.45, 1.2]} scale={0.14} speed={1.3} />
-          <Rock position={[1.9, 0.35, 0.6]} scale={0.2} speed={0.8} />
-          <Rock position={[0.7, 0.55, 1.1]} scale={0.12} speed={1.1} />
-          {/* soft shadow on the stone; fades as things rise */}
-          <ContactShadows position={[0, 0.01, 0]} scale={[3.6, 1.6]} opacity={0.5} blur={2.6} far={3.5} resolution={512} color="#4a3626" />
+          {/* soft shadow on the stone; follows the pair round the orbit and fades as they rise */}
+          {/* soft shadow on the stone; follows the pair round the orbit and fades as they rise */}
+          <ContactShadows position={[0.3, 0.01, 0]} scale={[4.2, 2.4]} opacity={0.5} blur={2.6} far={3.5} resolution={256} color="#4a3626" />
         </Suspense>
         <Rings />
       </group>
@@ -293,7 +302,7 @@ export default function World() {
     <Canvas
       className="absolute inset-0"
       style={{ pointerEvents: "none" }}
-      dpr={[1, 2]}
+      dpr={[1, 1.5]}
       camera={{ fov: FOV, near: 0.1, far: 60, position: [0, 0, CAM_Z] }}
       gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.95 }}
       eventSource={typeof document !== "undefined" ? document.body : undefined}
@@ -306,4 +315,3 @@ export default function World() {
 
 useGLTF.preload("/models/guitar-red.glb");
 useGLTF.preload("/models/casio.glb");
-useGLTF.preload("/world/moon_rock_04/moon_rock_04_1k.gltf");

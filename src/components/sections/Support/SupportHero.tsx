@@ -76,7 +76,7 @@ export default function SupportHero({ onQuery }: Props) {
   return (
     <section ref={root} className="support-hero relative isolate overflow-hidden bg-peach pt-36 pb-20 md:pt-48 md:pb-28" aria-label="Support">
       <div className="support-hero-glow pointer-events-none absolute inset-0 -z-10" aria-hidden="true" />
-      <div className="grain pointer-events-none absolute inset-[-50%] -z-10 opacity-[0.04] mix-blend-multiply" aria-hidden="true" />
+      <div className="grain pointer-events-none absolute inset-0 -z-10 opacity-[0.04] mix-blend-multiply" aria-hidden="true" />
       <Waveform energy={energy} />
 
       <div className="relative mx-auto max-w-[1440px] px-6 md:px-12">

@@ -29,7 +29,7 @@ export default function ClosingBand({ verse }: { verse: Verse }) {
     <section ref={root} data-theme="dark" className="verse-close relative overflow-clip bg-red text-peach">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_80%_at_50%_120%,rgba(30,30,30,0.55),transparent_70%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(40%_40%_at_10%_0%,rgba(231,180,126,0.18),transparent_70%)]" />
-      <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.06] mix-blend-screen" />
+      <div className="grain pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-screen" />
       <div className="relative mx-auto max-w-[1440px] px-6 pt-24 pb-16 md:px-12 md:pt-36 md:pb-24">
         <SectionHead tone="dark" align="center" size="xl" kicker="Begin" title="Your first song is closer than you think." accent="think." />
         <div className="verse-close-cta mt-12 flex flex-wrap items-center justify-center gap-x-8 gap-y-4 opacity-0">

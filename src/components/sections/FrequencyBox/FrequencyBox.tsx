@@ -54,7 +54,7 @@ export default function FrequencyBox() {
 
   return (
     <section ref={root} id="frequency-box" className="relative overflow-hidden bg-peach py-24 md:py-36">
-      <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.04] mix-blend-multiply" />
+      <div className="grain pointer-events-none absolute inset-0 opacity-[0.04] mix-blend-multiply" />
       <div className="relative mx-auto max-w-[1440px] px-6 md:px-12">
         <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-12 lg:gap-8">
           {/* the box */}

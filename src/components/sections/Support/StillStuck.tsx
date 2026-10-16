@@ -17,7 +17,7 @@ export default function StillStuck({ question }: Props) {
   return (
     <section ref={root} data-theme="dark" className="relative isolate overflow-hidden bg-ink py-24 text-peach md:py-36" aria-label="Still stuck?">
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(70%_80%_at_85%_20%,rgba(133,9,9,0.55),rgba(30,30,30,0)_70%)]" aria-hidden="true" />
-      <div className="grain pointer-events-none absolute inset-[-50%] -z-10 opacity-[0.06] mix-blend-screen" aria-hidden="true" />
+      <div className="grain pointer-events-none absolute inset-0 -z-10 opacity-[0.06] mix-blend-screen" aria-hidden="true" />
 
       <div className="mx-auto max-w-[1440px] px-6 md:px-12">
         <div className="grid gap-12 md:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] md:items-end md:gap-16">

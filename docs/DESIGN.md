@@ -29,7 +29,7 @@ same type scale, same motion language, same palette, same grain.
 - Sections enter on ScrollTrigger `start: "top 75%"`, `once: true`. Pinned scenes use `pin: true, scrub: 1`.
 - Pointer parallax: write to a shared state object in `useFrame`/ticker, never setState per frame.
 - Lenis is the scroller. For scripted scroll use `window.__lenis.scrollTo()` (dev only).
-- Hover: magnetic buttons (`<Button>`), cursor label via `data-cursor="View"` (handled by `<Cursor>`).
+- Hover: magnetic buttons (`<Button>`). No custom cursor (removed at the user's request) — `data-cursor` attributes are inert.
 - Reduced motion: respect `prefers-reduced-motion` — skip pins/parallax, keep fades.
 - Every tappable thing on touch gets a visible TAP affordance (client rule).
 

@@ -28,7 +28,7 @@ export default function PackageCard({ pkg, tone = "light", compact, className }:
 
   return (
     <article className={clsx("pkg relative flex flex-col overflow-hidden rounded-[1.6rem] p-7 md:p-9", surface, className)} data-best={best ? "1" : "0"}>
-      <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.05] mix-blend-multiply" />
+      <div className="grain pointer-events-none absolute inset-0 opacity-[0.05] mix-blend-multiply" />
       {best && (
         <span className="absolute top-6 right-6 rounded-full bg-tan px-3 py-1.5 text-[0.55rem] font-semibold tracking-[0.3em] text-ink uppercase">Best value</span>
       )}

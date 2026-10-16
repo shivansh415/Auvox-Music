@@ -98,7 +98,7 @@ export default function Begin() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_55%_at_50%_112%,rgba(222,184,134,0.5),transparent_70%)]" />
       <div className="begin-wash begin-wash-guitar pointer-events-none absolute inset-0 bg-[radial-gradient(55%_95%_at_10%_50%,rgba(133,9,9,0.28),transparent_72%)]" />
       <div className="begin-wash begin-wash-piano pointer-events-none absolute inset-0 bg-[radial-gradient(55%_95%_at_90%_50%,rgba(231,180,126,0.85),transparent_72%)]" />
-      <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.04] mix-blend-multiply" />
+      <div className="grain pointer-events-none absolute inset-0 opacity-[0.04] mix-blend-multiply" />
 
       {/* the two choice zones */}
       <div className="begin-zones" aria-label="Choose your verse">

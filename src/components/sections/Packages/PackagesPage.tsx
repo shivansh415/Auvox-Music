@@ -40,7 +40,7 @@ export default function PackagesPage() {
     <section ref={root} data-theme="dark" className="pkgs relative min-h-[100svh] overflow-clip bg-ink text-peach">
       <div className="pkgs-glow pointer-events-none absolute top-[38%] left-1/2 h-[70vw] max-h-[900px] w-[70vw] max-w-[900px] rounded-full bg-[radial-gradient(circle,rgba(133,9,9,0.55),transparent_62%)] blur-3xl" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_40%_at_50%_0%,rgba(231,180,126,0.08),transparent_70%)]" />
-      <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.06] mix-blend-screen" />
+      <div className="grain pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-screen" />
 
       <div className="relative mx-auto max-w-[1440px] px-6 pt-32 pb-24 md:px-12 md:pt-40 md:pb-32">
         <SectionHead as="h1" kicker="Packages" title="Four ways to begin." accent="begin." body="Core for the essentials, Complete for the full AUVOX experience — on guitar or piano." tone="dark" align="center" immediate />
@@ -55,7 +55,7 @@ export default function PackagesPage() {
         <div className="pkgs-foot mt-10 grid gap-5 lg:grid-cols-12">
           {/* optional add-ons */}
           <div className="pkgs-in relative overflow-hidden rounded-[1.6rem] p-7 ring-1 ring-peach/15 md:p-9 lg:col-span-7">
-            <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.05] mix-blend-screen" />
+            <div className="grain pointer-events-none absolute inset-0 opacity-[0.05] mix-blend-screen" />
             <span className="text-[0.6rem] tracking-[0.35em] text-peach/60 uppercase">Optional add-ons</span>
             <ul className="mt-5 divide-y divide-peach/15">
               {ADD_ONS.map((a) => (

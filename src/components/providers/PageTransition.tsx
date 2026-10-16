@@ -87,7 +87,7 @@ export default function PageTransition() {
 
   return (
     <div ref={panel} className="fixed inset-0 z-[190] hidden overflow-hidden bg-peach" aria-hidden>
-      <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.05] mix-blend-multiply" />
+      <div className="grain pointer-events-none absolute inset-0 opacity-[0.05] mix-blend-multiply" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_60%_at_50%_100%,rgba(222,184,134,0.55),transparent_70%)]" />
       <div ref={mark} className="absolute inset-0 flex items-center justify-center opacity-0">
         <Image src="/svg/auvox-logomark.svg" alt="" width={72} height={64} unoptimized className="h-14 w-auto" />

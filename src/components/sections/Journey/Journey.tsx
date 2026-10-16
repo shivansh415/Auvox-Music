@@ -6,16 +6,28 @@ import { gsap, ScrollTrigger, SplitText, useGSAP } from "@/lib/gsap";
 import { JOURNEY } from "@/content/packages";
 import SectionHead from "@/components/ui/SectionHead";
 import Button from "@/components/ui/Button";
-import { MOTIFS } from "./motifs";
+import InkReveal, { type InkState } from "./InkReveal";
 import { wavePath, waveX, type WaveState } from "./wave";
 
 const NUMERALS = ["i", "ii", "iii", "iv", "v"] as const;
+/** each step's illustration, and where its red sun rises (uv centre + radius as a share of the height) */
+const ART: { sun: [number, number, number]; alt: string }[] = [
+  { sun: [0.8, 0.22, 0.17], alt: "A guitar leaning on a keyboard stand beside a small amplifier" },
+  { sun: [0.2, 0.2, 0.16], alt: "A desk with a laptop on a video call with a music instructor" },
+  { sun: [0.42, 0.2, 0.14], alt: "Two pedestals: the Frequency Box alone, and the box with a guitar case" },
+  { sun: [0.78, 0.22, 0.17], alt: "A front door with the Frequency Box and a guitar case on the step" },
+  { sun: [0.24, 0.24, 0.2], alt: "A student playing guitar in a home studio, an instructor on the laptop" },
+];
+/** scroll progress per illustration — written by the ScrollTriggers, read by each canvas (render-free) */
+const INKS: InkState[] = JOURNEY.steps.map(() => ({ p: 0, dirty: true }));
 const pad = (n: number) => String(n).padStart(2, "0");
 const TOTAL = pad(JOURNEY.steps.length);
 
 /**
  * Section 6 — Journey. A sound-wave line draws itself down the page as you scroll and keeps undulating;
- * the five steps reveal one by one beside it (Apple product-page style) while the heading stays pinned.
+ * the five steps reveal one by one beside it while the heading stays pinned. Each step carries a
+ * picture that starts as a pen drawing and is inked into a black-and-white render as it scrolls up,
+ * with a brand-red sun blooming through it (InkReveal); the pointer paints ink over it too.
  */
 export default function Journey() {
   const root = useRef<HTMLElement>(null);
@@ -68,7 +80,9 @@ export default function Journey() {
       };
 
       const mm = gsap.matchMedia();
-      mm.add({ reduce: "(prefers-reduced-motion: reduce)", desktop: "(min-width: 1024px)", fine: "(pointer: fine)" }, (ctx) => {
+      // `all` always matches: with condition syntax the callback only runs when at least one query is
+      // true, and on a phone (no reduced motion, not desktop, coarse pointer) none of the others are
+      mm.add({ all: "all", reduce: "(prefers-reduced-motion: reduce)", desktop: "(min-width: 1024px)", fine: "(pointer: fine)" }, (ctx) => {
         const c = ctx.conditions ?? {};
         const reduce = !!c.reduce;
         const desktop = !!c.desktop;
@@ -142,8 +156,27 @@ export default function Journey() {
         // --- steps
         steps.forEach((step, i) => {
           const sq = gsap.utils.selector(step);
-          const strokes = sq<SVGElement>(".jr-stroke");
           const tl = gsap.timeline({ paused: true, defaults: { ease: "expo.out" } });
+
+          // the illustration: drawn, inked and lit by the scroll (scrubbed, so it reverses on the way up)
+          const ink = INKS[i];
+          if (reduce) {
+            ink.p = 1;
+            ink.dirty = true;
+          } else {
+            gsap.fromTo(
+              ink,
+              { p: 0 },
+              {
+                p: 1,
+                ease: "none",
+                onUpdate: () => {
+                  ink.dirty = true;
+                },
+                scrollTrigger: { trigger: sq(".jr-art")[0], start: "top 88%", end: "center 42%", scrub: 0.6 },
+              },
+            );
+          }
 
           if (reduce) {
             gsap.set(step, { autoAlpha: 0 });
@@ -152,30 +185,25 @@ export default function Journey() {
             const title = new SplitText(sq(".jr-title"), { type: "lines", linesClass: "jr-line" });
             const body = new SplitText(sq(".jr-body"), { type: "lines", linesClass: "jr-line" });
             splits.push(title, body);
-            gsap.set(strokes, { drawSVG: "0%" });
-            tl.fromTo(sq(".jr-ghost"), { scale: 0.9, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 1.5 }, 0)
-              .fromTo(sq(".jr-num"), { yPercent: 36, autoAlpha: 0 }, { yPercent: 0, autoAlpha: 1, duration: 1.2 }, 0.05)
-              .fromTo(sq(".jr-motif"), { y: 14, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9 }, 0.15)
+            tl.fromTo(sq(".jr-art"), { y: 30, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 1.2 }, 0)
+              .fromTo(sq(".jr-num"), { y: 10, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9 }, 0.1)
               .from(title.lines, { yPercent: 110, duration: 1.1, stagger: 0.06 }, 0.2)
               .from(body.lines, { yPercent: 110, duration: 1, stagger: 0.045 }, 0.35)
-              .fromTo(sq(".jr-index"), { y: 8, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.8 }, 0.6)
+              .fromTo(sq(".jr-ghost"), { y: 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 1.6 }, 0.05)
               .add(() => {
                 title.revert();
                 body.revert();
               });
 
-            // depth: the numerals travel slower than the copy
+            // depth: the picture drifts a little slower than the copy
             if (desktop) {
-              const st = { trigger: step, start: "top bottom", end: "bottom top", scrub: true } as const;
-              gsap.fromTo(sq(".jr-ghost"), { y: -70 }, { y: 70, ease: "none", scrollTrigger: st });
-              gsap.fromTo(sq(".jr-num"), { y: -28 }, { y: 28, ease: "none", scrollTrigger: st });
+              gsap.fromTo(sq(".jr-art"), { y: 36 }, { y: -36, ease: "none", scrollTrigger: { trigger: step, start: "top bottom", end: "bottom top", scrub: true } });
             }
           }
 
-          ScrollTrigger.create({ trigger: step, start: "top 78%", once: true, onEnter: () => tl.play() });
+          ScrollTrigger.create({ trigger: step, start: "top 82%", once: true, onEnter: () => tl.play() });
 
           // active window: contiguous, exactly one step lit at a time
-          let drawn = false;
           ScrollTrigger.create({
             trigger: step,
             start: "top 62%",
@@ -185,11 +213,6 @@ export default function Journey() {
               if (!self.isActive) return;
               count.textContent = pad(i + 1);
               if (!pinned) gsap.to(fill, { scaleY: (i + 1) / steps.length, duration: 0.8, ease: "expo.out" });
-              if (!drawn) {
-                drawn = true;
-                if (reduce) gsap.set(strokes, { drawSVG: "100%" });
-                else gsap.fromTo(strokes, { drawSVG: "0%" }, { drawSVG: "100%", duration: 1.6, ease: "expo.out", stagger: 0.05 });
-              }
             },
           });
         });
@@ -216,10 +239,10 @@ export default function Journey() {
   return (
     <section ref={root} id="journey" className="relative overflow-hidden bg-peach py-24 md:py-36">
       <div className="jr-glow pointer-events-none absolute inset-0" />
-      <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.04] mix-blend-multiply" />
+      <div className="grain pointer-events-none absolute inset-0 opacity-[0.04] mix-blend-multiply" />
 
       <div className="relative mx-auto max-w-[1440px] px-6 md:px-12">
-        <div className="lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-x-16 xl:gap-x-24">
+        <div className="lg:grid lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] lg:gap-x-12 xl:gap-x-16">
           {/* heading — pinned on desktop */}
           <div className="lg:self-start">
             <div className="jr-sticky">
@@ -245,13 +268,12 @@ export default function Journey() {
             </svg>
 
             {JOURNEY.steps.map((s, i) => {
-              const Motif = MOTIFS[i];
               const right = i % 2 === 1;
               return (
                 <article
                   key={s.title}
                   data-active="0"
-                  className={clsx("jr-step relative py-10 pl-12 lg:flex lg:min-h-[62vh] lg:items-center lg:py-14 lg:pl-0", right ? "lg:pl-[calc(50%+4rem)]" : "lg:pr-[calc(50%+4rem)]")}
+                  className="jr-step relative py-10 pl-12 lg:grid lg:min-h-[78vh] lg:grid-cols-2 lg:items-center lg:gap-x-36 lg:py-14 lg:pl-0"
                 >
                   <span className="jr-node-wrap absolute top-[5.15rem] left-5 block h-0 w-0 lg:top-1/2 lg:left-1/2">
                     <span className="jr-node absolute top-0 left-0 block h-[14px] w-[14px]">
@@ -260,24 +282,41 @@ export default function Journey() {
                     </span>
                   </span>
 
-                  <div className={clsx("jr-content relative w-full lg:max-w-[30rem]", !right && "lg:ml-auto lg:text-right")}>
-                    <span
-                      aria-hidden
-                      className={clsx("jr-ghost pointer-events-none absolute -top-14 hidden select-none font-display text-[clamp(10rem,16vw,16rem)] leading-none text-tan/60 lg:block", right ? "-left-8" : "-right-8")}
-                    >
-                      {NUMERALS[i]}
-                    </span>
-                    <div className={clsx("relative flex items-end gap-6 lg:gap-10", !right && "lg:flex-row-reverse")}>
-                      <span className="jr-num block font-display text-[1.7rem] leading-none text-red lg:text-[clamp(4.5rem,7vw,6.5rem)] lg:text-ink">{NUMERALS[i]}</span>
-                      <span className="jr-motif block h-14 w-14 text-ink lg:h-24 lg:w-24">
-                        <Motif className="h-full w-full" />
-                      </span>
+                  {/* the picture on one side of the line: pen drawing → inked render → red sun; the pointer paints too */}
+                  <div className={clsx("jr-content relative w-full lg:row-start-1 lg:max-w-[30rem]", right ? "lg:col-start-2 lg:justify-self-start" : "lg:col-start-1 lg:justify-self-end")}>
+                    <div className="jr-art relative">
+                      <InkReveal
+                        lines={`/journey/0${i + 1}-lines.webp`}
+                        render={`/journey/0${i + 1}-render.webp`}
+                        sun={ART[i].sun}
+                        alt={ART[i].alt}
+                        state={INKS[i]}
+                        seed={i + 1}
+                      />
                     </div>
-                    <h3 className="jr-title font-display mt-6 text-[clamp(1.7rem,2.6vw,2.5rem)] leading-[1.05] tracking-[-0.01em] text-ink lg:mt-8">{s.title}</h3>
-                    <p className={clsx("jr-body mt-4 max-w-[28rem] text-[1.02rem] leading-relaxed text-ink/75", !right && "lg:ml-auto")}>{s.body}</p>
-                    <span className="jr-index mt-6 block text-[0.62rem] font-semibold tracking-[0.3em] text-ink/50 uppercase">
-                      Step {pad(i + 1)} / {TOTAL}
+                  </div>
+
+                  {/* the words on the other, facing the line */}
+                  <div
+                    className={clsx(
+                      "jr-content relative mt-8 w-full lg:row-start-1 lg:mt-0 lg:max-w-[24rem]",
+                      right ? "lg:col-start-1 lg:justify-self-end lg:text-right" : "lg:col-start-2 lg:justify-self-start",
+                    )}
+                  >
+                    {/* a big outlined numeral heads the copy */}
+                    <span className="jr-ghost font-display pointer-events-none mb-5 hidden text-[7.5rem] leading-[0.78] tracking-[-0.02em] select-none lg:block" aria-hidden>
+                      {pad(i + 1)}
                     </span>
+                    <span className={clsx("jr-num flex items-center gap-3 text-[0.62rem] font-semibold tracking-[0.32em] text-ink/55 uppercase", right && "lg:flex-row-reverse")}>
+                      <span className="jr-mark block h-2 w-2 bg-red" aria-hidden />
+                      <span className="font-display text-[1.35rem] leading-none tracking-normal text-red normal-case">{NUMERALS[i]}</span>
+                      <span className="block h-px w-8 bg-ink/25" aria-hidden />
+                      <span>
+                        Step {pad(i + 1)} <span className="text-ink/35">/ {TOTAL}</span>
+                      </span>
+                    </span>
+                    <h3 className="jr-title font-display mt-5 text-[clamp(1.9rem,2.9vw,2.9rem)] leading-[1.02] tracking-[-0.015em] text-balance text-ink">{s.title}</h3>
+                    <p className={clsx("jr-body mt-5 max-w-[24rem] text-[1.04rem] leading-relaxed text-pretty text-ink/72", right && "lg:ml-auto")}>{s.body}</p>
                   </div>
                 </article>
               );

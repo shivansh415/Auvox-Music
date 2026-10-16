@@ -299,11 +299,11 @@ export default function Preloader() {
   return (
     <div
       ref={root}
-      className="fixed inset-0 z-100 overflow-clip bg-black text-tan select-none"
+      className="fixed inset-0 z-[150] overflow-clip bg-black text-tan select-none"
       style={{ backgroundColor: BLACK }}
     >
       {/* film grain */}
-      <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.07] mix-blend-overlay" />
+      <div className="grain grain-live pointer-events-none absolute inset-[-50%] opacity-[0.07] mix-blend-overlay" />
 
       {/* letterbox bars */}
       <div className="bar absolute inset-x-0 top-0 h-[11vh] origin-top bg-black" />

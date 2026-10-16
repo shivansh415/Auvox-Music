@@ -8,8 +8,8 @@ import { Suspense, useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Environment, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
+import PauseOffscreen from "@/lib/r3f/PauseOffscreen";
 import type { Verse } from "@/content/packages";
-import { playChord, playRiff, unlockAudio } from "../Session/audio";
 import { verseState } from "./state";
 
 const FOV = 30;
@@ -106,9 +106,6 @@ function Instrument({ verse }: { verse: Verse }) {
     e.stopPropagation();
     if (verseState.hovered) return;
     verseState.hovered = true;
-    unlockAudio();
-    if (verse === "guitar") playRiff();
-    else playChord();
   };
   const out = () => {
     verseState.hovered = false;
@@ -154,7 +151,7 @@ export default function InstrumentWorld({ verse }: { verse: Verse }) {
     <Canvas
       className="absolute inset-0"
       style={{ pointerEvents: "none" }}
-      dpr={[1, 2]}
+      dpr={[1, 1.5]}
       camera={{ fov: FOV, near: 0.1, far: 60, position: [0, 0, CAM_Z] }}
       gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.95 }}
       eventSource={typeof document !== "undefined" ? document.body : undefined}
@@ -162,6 +159,7 @@ export default function InstrumentWorld({ verse }: { verse: Verse }) {
     >
       <Rig />
       <Pointer />
+      <PauseOffscreen name="verse" />
       <Suspense fallback={null}>
         <Environment files="/world/studio_1k.hdr" environmentIntensity={0.5} />
         <Instrument verse={verse} />

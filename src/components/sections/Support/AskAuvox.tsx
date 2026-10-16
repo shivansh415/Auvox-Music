@@ -93,7 +93,7 @@ export default function AskAuvox({ onAsk }: Props) {
           />
 
           <div className="support-chat relative overflow-hidden rounded-[1.75rem] bg-cream opacity-0">
-            <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.04] mix-blend-multiply" aria-hidden="true" />
+            <div className="grain pointer-events-none absolute inset-0 opacity-[0.04] mix-blend-multiply" aria-hidden="true" />
             <div className="relative flex items-center justify-between border-b border-ink/10 px-5 py-4 md:px-7">
               <span className="text-[0.65rem] font-medium tracking-[0.38em] text-ink/70 uppercase">Ask AUVOX</span>
               <span className="flex items-center gap-2 text-[0.62rem] tracking-[0.25em] text-ink/55 uppercase">

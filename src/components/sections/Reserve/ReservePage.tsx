@@ -200,7 +200,7 @@ export default function ReservePage() {
   return (
     <section ref={root} data-theme="dark" className="rsv relative min-h-[100svh] overflow-clip bg-red text-peach">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_60%_at_15%_30%,rgba(231,180,126,0.22),transparent_70%),linear-gradient(180deg,rgba(30,30,30,0)_40%,rgba(30,30,30,0.45)_100%)]" />
-      <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.06] mix-blend-screen" />
+      <div className="grain pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-screen" />
 
       <div className="relative mx-auto grid max-w-[1440px] gap-14 px-6 pt-32 pb-24 md:px-12 md:pt-40 md:pb-32 lg:grid-cols-12 lg:gap-10">
         {/* left: ghost instrument + copy (on phones the instrument sits faintly behind the copy) */}

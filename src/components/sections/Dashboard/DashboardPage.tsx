@@ -17,7 +17,7 @@ export default function DashboardPage() {
   const enrollment = parseEnrollment(snap?.raw);
   return (
     <main className="relative overflow-hidden bg-peach text-ink">
-      <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.04] mix-blend-multiply" />
+      <div className="grain pointer-events-none absolute inset-0 opacity-[0.04] mix-blend-multiply" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_40%_at_100%_0%,rgba(231,180,126,0.4),transparent_70%)]" />
       <DashboardBody key={snap ? "client" : "server"} enrollment={enrollment} now={snap?.now ?? 0} />
     </main>
@@ -238,7 +238,7 @@ function Card({ id, kicker, badge, tone = "cream", className, children }: { id?:
   const ink = tone === "ink";
   return (
     <section id={id} className={clsx("dash-card relative overflow-hidden rounded-[1.6rem] p-6 md:p-8", ink ? "bg-ink text-peach" : "bg-cream text-ink ring-1 ring-ink/10", className)}>
-      <div className={clsx("grain pointer-events-none absolute inset-[-50%]", ink ? "opacity-[0.06] mix-blend-screen" : "opacity-[0.05] mix-blend-multiply")} />
+      <div className={clsx("grain pointer-events-none absolute inset-0", ink ? "opacity-[0.06] mix-blend-screen" : "opacity-[0.05] mix-blend-multiply")} />
       {ink && <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_80%_at_100%_0%,rgba(133,9,9,0.5),transparent_70%)]" />}
       <div className="relative">
         <div className="flex items-center justify-between gap-4">
@@ -337,7 +337,7 @@ function RenewalCard({ left, tiers }: { left: number; tiers: { name: string; tie
   );
   return (
     <section ref={root} className="dash-card relative overflow-hidden rounded-[1.6rem] bg-red p-6 text-peach md:p-8">
-      <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.07] mix-blend-screen" />
+      <div className="grain pointer-events-none absolute inset-0 opacity-[0.07] mix-blend-screen" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_70%_at_100%_100%,rgba(30,30,30,0.55),transparent_70%)]" />
       <div className="relative">
         <div className="flex items-center justify-between gap-4">

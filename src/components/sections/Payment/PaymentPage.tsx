@@ -18,7 +18,7 @@ export default function PaymentPage() {
   const saved = parseEnrollment(snap?.raw);
   return (
     <main className="relative overflow-hidden bg-peach text-ink">
-      <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.04] mix-blend-multiply" />
+      <div className="grain pointer-events-none absolute inset-0 opacity-[0.04] mix-blend-multiply" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_0%_100%,rgba(222,184,134,0.5),transparent_70%)]" />
       <div className="relative mx-auto max-w-[1440px] px-6 pt-32 pb-24 md:px-12 md:pt-44 md:pb-36">
         <SectionHead as="h1" immediate kicker="Payment" title="Almost there." accent="there." body="Check your order, add your card and your AUVOX journey begins." />
@@ -165,7 +165,7 @@ function PaymentBody({ enrollment, now }: { enrollment: Enrollment | null; now: 
       {/* ---------- left: order summary ---------- */}
       <aside className="lg:sticky lg:top-28 lg:self-start">
         <div className="pay-summary relative overflow-hidden rounded-[1.6rem] bg-cream p-7 ring-1 ring-ink/10 md:p-9">
-          <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.05] mix-blend-multiply" />
+          <div className="grain pointer-events-none absolute inset-0 opacity-[0.05] mix-blend-multiply" />
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_60%_at_0%_100%,rgba(231,180,126,0.35),transparent_70%)]" />
           <div className="relative">
             <div className="flex items-center justify-between gap-4">
@@ -328,7 +328,7 @@ function CardPreview({ number, name, expiry, cvc, brand, flipped }: { number: st
         <div className={clsx("pay-card-inner", flipped && "is-flipped")}>
           {/* front */}
           <div className="pay-face pay-front" aria-hidden>
-            <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.07] mix-blend-screen" />
+            <div className="grain pointer-events-none absolute inset-0 opacity-[0.07] mix-blend-screen" />
             <div className="pay-sheen" />
             <div className="relative flex h-full flex-col justify-between">
               <div className="flex items-start justify-between">
@@ -356,7 +356,7 @@ function CardPreview({ number, name, expiry, cvc, brand, flipped }: { number: st
           </div>
           {/* back */}
           <div className="pay-face pay-back" aria-hidden>
-            <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.07] mix-blend-screen" />
+            <div className="grain pointer-events-none absolute inset-0 opacity-[0.07] mix-blend-screen" />
             <div className="pay-stripe" />
             <div className="pay-sign">
               <span className="pay-cvc">{cvc || "•••"}</span>
@@ -430,7 +430,7 @@ function SwipeOverlay({ onDone }: { onDone: () => void }) {
 
   return (
     <div ref={root} className="sw-overlay fixed inset-0 z-[150] flex items-center justify-center overflow-hidden bg-peach text-ink opacity-0" role="status" aria-live="polite" data-lenis-prevent>
-      <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.05] mix-blend-multiply" />
+      <div className="grain pointer-events-none absolute inset-0 opacity-[0.05] mix-blend-multiply" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_60%_at_50%_100%,rgba(222,184,134,0.55),transparent_70%)]" />
       <div className="relative flex flex-col items-center">
         <div className="sw-scene">

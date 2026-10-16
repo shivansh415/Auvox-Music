@@ -73,6 +73,14 @@ export function unlockAudio() {
   void loadSamples();
 }
 
+/**
+ * The running context and master bus, so other sections can voice their own sounds through the same
+ * mute, warmth filter and analyser. Null until the browser has let audio run.
+ */
+export function audioBus() {
+  return ctx && master && running() ? { ctx, master } : null;
+}
+
 export function isMuted() {
   return muted;
 }

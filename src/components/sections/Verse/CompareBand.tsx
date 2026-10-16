@@ -30,7 +30,7 @@ export default function CompareBand({ verse }: { verse: Verse }) {
   return (
     <section ref={root} className="verse-compare relative overflow-clip bg-peach text-ink">
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(253,242,227,1),rgba(250,227,197,0)_30%)]" />
-      <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.04] mix-blend-multiply" />
+      <div className="grain pointer-events-none absolute inset-0 opacity-[0.04] mix-blend-multiply" />
       <div className="relative mx-auto max-w-[1440px] px-6 py-24 md:px-12 md:py-36">
         <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:gap-16">
           <SectionHead kicker="Compare" title="Core or Complete?" accent="Complete?" body="Everything in both packages, side by side. Add-ons can be added to Core on the enrollment form." />

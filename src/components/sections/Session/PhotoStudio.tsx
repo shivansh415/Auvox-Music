@@ -8,6 +8,7 @@ import { Suspense, useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Line, useTexture } from "@react-three/drei";
 import * as THREE from "three";
+import PauseOffscreen from "@/lib/r3f/PauseOffscreen";
 import type { Line2, LineSegments2 } from "three-stdlib";
 import { onPluck, playRiff, pluck, sampleAudio, unlockAudio } from "./audio";
 import {
@@ -221,7 +222,9 @@ const FRAG = /* glsl */ `
     // noise whose amplitude scales with the radius). The outer front turns the etching into a dark
     // galaxy — a dense field of bokeh dots following the photo — and its edge is a white-hot splash
     // while the blot is small. The inner front, a beat behind, paints the photo in over the galaxy.
-    if (uSketch > 0.5) {
+    // Once the reveal has finished the portal resolves to the plain photo, so skip it entirely
+    // (a uniform branch: every pixel takes the same path, the GPU really skips the noise).
+    if (uSketch > 0.5 && uReveal < 0.999) {
       vec2 scr = vUv * ASPECT;
       vec2 c = uPhone * ASPECT;
       vec2 rel = scr - c;
@@ -465,6 +468,7 @@ const STRING_DEPTH = PAN_DEPTH;
 const STRING_PARALLAX = PAN;
 
 function Strings() {
+  const hits = useRef(0);
   const { w, h, shift } = useCover(HERO_CENTER_X);
   const group = useRef<THREE.Group>(null);
   const lines = useRef<(Line2 | LineSegments2 | null)[]>([]);
@@ -554,7 +558,10 @@ function Strings() {
   });
 
   const strike = (i: number) => {
-    dismissGuitarHint();
+    // a cursor crossing a string or two on its way somewhere isn't "playing" — keep the TAP hint
+    // until the guitar has really been played (a few strings, or a strum click)
+    hits.current += 1;
+    if (hits.current >= 4) dismissGuitarHint();
     pluck(i, 1);
   };
   const strum = (e: { stopPropagation: () => void }) => {
@@ -660,6 +667,10 @@ function Dust() {
 // ---------------------------------------------------------------------------
 // Drives the shared frame values from scroll, pointer, lights and audio
 // ---------------------------------------------------------------------------
+/** Once the hero sheet has fully covered the studio, nothing of it can be seen (it is still in the
+ *  viewport, sliding up behind the hero, because the pin is released without spacing). */
+const splashCovered = () => session.progress >= 0.999;
+
 function Driver() {
   const smoothMouse = useRef(new THREE.Vector2());
   useFrame(({ clock, size }, dt) => {
@@ -676,8 +687,10 @@ function Driver() {
     frame.parallax.copy(smoothMouse.current);
     frame.heroZoom = OVERSCAN + 0.12 * session.focus;
     frame.shift = 0.045 * session.focus;
-    // the wipe paints the room in, and un-paints it again as the section leaves the screen
-    frame.reveal = session.reveal * (1 - smooth(session.progress, 0.02, 0.6));
+    // the wipe paints the room in once. On the way out the hero sheet covers the studio while it
+    // recedes and dims (Session.tsx) — no un-painting, which kept the heavy portal shader running
+    // at full resolution under the incoming hero
+    frame.reveal = session.reveal;
     frame.pointer.set(session.mouse.x * 0.5 + 0.5, session.mouse.y * 0.5 + 0.5);
     frame.time = clock.elapsedTime;
     session.phonePulse *= Math.exp(-dt * 4);
@@ -721,6 +734,7 @@ export default function PhotoStudio() {
       gl={{ antialias: false, powerPreference: "high-performance", toneMapping: THREE.NoToneMapping }}
       onPointerDown={unlockAudio}
     >
+      <PauseOffscreen name="splash" coveredWhen={splashCovered} />
       <color attach="background" args={["#070606"]} />
       <Suspense fallback={null}>
         <Studio />

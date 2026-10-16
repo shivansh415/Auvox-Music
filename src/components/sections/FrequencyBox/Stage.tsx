@@ -59,7 +59,7 @@ function Driver() {
         on = entry.isIntersecting;
         if (on) invalidate();
       },
-      { rootMargin: "12%" },
+      { rootMargin: "-2px" },
     );
     io.observe(gl.domElement);
     const tick = () => {
@@ -284,7 +284,7 @@ export default function Stage() {
       onLostPointerCapture={up}
     >
       <Canvas
-        dpr={[1, 2]}
+        dpr={[1, 1.5]}
         frameloop="demand"
         camera={{ fov: FOV, near: 0.1, far: 40, position: [CAM.x, CAM.y, CAM.z] }}
         gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.95 }}

@@ -32,7 +32,7 @@ export default function LearnBand({ verse }: { verse: Verse }) {
   return (
     <section ref={root} className="verse-learn relative overflow-clip bg-peach text-ink">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_0%_100%,rgba(222,184,134,0.45),transparent_70%)]" />
-      <div className="grain pointer-events-none absolute inset-[-50%] opacity-[0.04] mix-blend-multiply" />
+      <div className="grain pointer-events-none absolute inset-0 opacity-[0.04] mix-blend-multiply" />
       <div className="relative mx-auto max-w-[1440px] px-6 py-24 md:px-12 md:py-36">
         <SectionHead kicker="What you'll learn" title={`Your ${VERSE_NAME[verse]} Verse, step by step.`} accent="step." />
         <div className="verse-cols mt-16 grid gap-10 md:mt-24 md:grid-cols-3 md:gap-8">
