@@ -9,13 +9,15 @@ import { useTransition } from "@/store/transition";
 import Button from "./Button";
 import Marquee from "./Marquee";
 import TransitionLink from "./TransitionLink";
+import { SHOWCASE } from "@/lib/showcase";
 
 export const NAV = [
   { label: "The Verse Universe", href: "/#verse-universe" },
   { label: "Guitar Verse", href: "/guitar-verse" },
   { label: "Piano Verse", href: "/piano-verse" },
   { label: "Journey", href: "/#journey" },
-  { label: "The Frequency Box", href: "/#frequency-box" },
+  // the preview build hides the Frequency Box section, so its link goes to the coming-soon page
+  { label: "The Frequency Box", href: SHOWCASE ? "/coming-soon" : "/#frequency-box" },
   { label: "Support", href: "/support" },
 ];
 

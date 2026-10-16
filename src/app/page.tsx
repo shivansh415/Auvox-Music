@@ -4,6 +4,7 @@ import VerseUniverse from "@/components/sections/VerseUniverse/VerseUniverse";
 import Journey from "@/components/sections/Journey/Journey";
 import FrequencyBox from "@/components/sections/FrequencyBox/FrequencyBox";
 import Begin from "@/components/sections/Begin/Begin";
+import { SHOWCASE } from "@/lib/showcase";
 
 export default function Home() {
   return (
@@ -12,8 +13,8 @@ export default function Home() {
       <Hero />
       <VerseUniverse />
       <Journey />
-      <FrequencyBox />
-      <Begin />
+      {!SHOWCASE && <FrequencyBox />}
+      {!SHOWCASE && <Begin />}
     </main>
   );
 }
