@@ -1,0 +1,10 @@
+# upload only what the build needs (keeps .env.local, .venv and screen recordings off Vercel)
+/*
+!src
+!public
+!package.json
+!package-lock.json
+!next.config.ts
+!next-env.d.ts
+!tsconfig.json
+!eslint.config.mjs
