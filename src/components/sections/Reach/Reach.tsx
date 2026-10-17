@@ -1,18 +1,19 @@
 "use client";
 
-// The Reach — after the Frequency Box. A pinned, scrubbed scene in the clouds:
-//   · we rise out of a cloud bank into a warm golden sky
-//   · the AUVOX hand — a lacquered brand-red sculpture of Michelangelo's reaching hand — comes out of
-//     the cloud, guitar picks drifting round it: "Every musician / was once / a beginner."
-//   · the clouds part, the light comes through, and a real hand — the student's — rises to meet it:
+// The Reach — after the Frequency Box. A pinned, scrubbed scene:
+//   · we start in light: a bright, slowly moving fog, a glow somewhere below
+//   · the AUVOX hand — a lacquered brand-red sculpture of Michelangelo's reaching hand — comes down
+//     out of the light toward the glow, guitar picks gathering round it: "Every musician / was once /
+//     a beginner."
+//   · the fog clears into a golden sky — the sun, its rays, clouds at every depth, red petals in the
+//     air — as the hand turns to reach across, and a real hand, the student's, rises to meet it:
 //     "No one learns / music / alone."
 //   · a ring appears in the gap: tap & hold (or keep scrolling) and the fingertips close; a chord
-//     swells; at the touch the guitar and the keys strike together, the picks burst outward and a
-//     red wave runs out from the fingertips until the whole sky is AUVOX red: "You reach. We reach back."
+//     swells; at the touch the guitar and the keys strike together, the picks burst, and a crimson
+//     wave runs out from the fingertips until the whole sky is AUVOX red: "You reach. We reach back."
 // Then the red carries on into the promise (the client's "why AUVOX" points) and the way in.
 
 import dynamic from "next/dynamic";
-import Image from "next/image";
 import { useRef, useState } from "react";
 import clsx from "clsx";
 import { gsap, ScrollTrigger, SplitText, useGSAP } from "@/lib/gsap";
@@ -24,25 +25,26 @@ import { HOLD_SECONDS, reach, resetReach, setHolding, setPointer, together } fro
 
 const ReachWorld = dynamic(() => import("./ReachWorld"), { ssr: false });
 
-/** the student's photo (public/reach/hand.webp): its size and where its fingertip is, in its pixels */
-const HAND = { w: 1024, h: 1536, tipX: 154, tipY: 405, rotate: -22 };
 /** direction from the AUVOX fingertip to the student's, on screen (y down) */
 const DIR = (() => {
   const l = Math.hypot(0.82, 0.42);
   return { x: 0.82 / l, y: 0.42 / l };
 })();
 const ease = (t: number) => t * t * (3 - 2 * t);
+const clamp01 = (t: number) => Math.min(1, Math.max(0, t));
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 const PROMISE = ABOUT.what.body[1];
 
 /** a line of display type whose words rise out of a mask */
 function Phrase({ children, className, accent }: { children: string; className?: string; accent?: boolean }) {
+  const words = children.split(" ");
   return (
-    <span className={clsx("rch-phrase pointer-events-none absolute block font-display leading-[0.95] tracking-[-0.02em]", accent ? "text-red italic" : "text-ink", className)}>
-      {children.split(" ").map((w, i) => (
-        <span key={i} className="rch-mask -mb-[0.22em] inline-block overflow-hidden pb-[0.22em] align-bottom">
-          <span className="rch-word inline-block">{w}</span>
-          {i < children.split(" ").length - 1 && <span>&nbsp;</span>}
+    <span className={clsx("rch-phrase pointer-events-none absolute block font-display leading-[0.92] tracking-[-0.025em]", accent ? "text-red italic" : "text-ink", className)}>
+      {words.map((w, i) => (
+        <span key={i} className="rch-mask -mb-[0.24em] inline-block overflow-hidden pb-[0.24em] align-bottom">
+          <span className="rch-word inline-block will-change-transform">{w}</span>
+          {i < words.length - 1 && <span>&nbsp;</span>}
         </span>
       ))}
     </span>
@@ -83,32 +85,26 @@ export default function Reach() {
           reach.inView = entry.isIntersecting;
           if (entry.isIntersecting) setReady(true);
         },
-        { rootMargin: "200px 0px" },
+        { rootMargin: "300px 0px" },
       );
       io.observe(st);
-      const idle = window.requestIdleCallback ? window.requestIdleCallback(() => setReady(true), { timeout: 5000 }) : window.setTimeout(() => setReady(true), 3000);
+      const idle = window.requestIdleCallback ? window.requestIdleCallback(() => setReady(true), { timeout: 6000 }) : window.setTimeout(() => setReady(true), 4000);
 
-      const sky = q(".rch-sky")[0];
-      const far = q(".rch-far")[0];
-      const near = q(".rch-near")[0];
-      const veil = q(".rch-veil")[0];
-      const student = q<HTMLElement>(".rch-student")[0];
       const ring = q<HTMLElement>(".rch-ring")[0];
       const arc = q<SVGCircleElement>(".rch-arc")[0];
-      const flood = q<HTMLElement>(".rch-flood")[0];
-      const crest = q<HTMLElement>(".rch-crest")[0];
       const head = q<HTMLElement>(".rch-head")[0];
       const phraseA = q(".rch-a .rch-word");
       const phraseB = q(".rch-b .rch-word");
+      const kickers = q(".rch-kicker");
       const ARC = 2 * Math.PI * 46;
 
       // --- the promise headline (it reveals at the touch)
       const split = new SplitText(q(".rch-head-title"), { type: "lines,words", linesClass: "rch-head-line" });
-      gsap.set(split.lines, { overflow: "hidden", paddingBottom: "0.1em", marginBottom: "-0.1em" });
+      gsap.set(split.lines, { overflow: "hidden", paddingBottom: "0.12em", marginBottom: "-0.12em" });
       gsap.set(split.words, { yPercent: 110 });
       gsap.set([head, ring], { autoAlpha: 0 });
-      gsap.set(phraseA, { yPercent: 110 });
-      gsap.set(phraseB, { yPercent: 110 });
+      gsap.set([phraseA, phraseB], { yPercent: 112 });
+      gsap.set(kickers, { autoAlpha: 0 });
 
       // --- the touch, and (if they scroll back up) undoing it
       let headTl: gsap.core.Timeline | null = null;
@@ -119,75 +115,79 @@ export default function Reach() {
         el.dataset.connected = "1";
         touchSound();
         setSwell(0);
-        gsap.killTweensOf(reach, "touch,flood,burst");
-        gsap.timeline().to(reach, { touch: 1, duration: 0.18, ease: "power2.out" }).to(reach, { touch: 0.35, duration: 1.6, ease: "power2.out" });
-        gsap.fromTo(reach, { flood: 0 }, { flood: 2.6, duration: reduce ? 0.6 : 2.4, ease: "power2.inOut" });
-        gsap.fromTo(reach, { burst: 0.001 }, { burst: 1, duration: 2.4, ease: "power2.out" });
-        gsap.to(ring, { autoAlpha: 0, scale: 1.6, duration: 0.6, ease: "expo.out" });
-        gsap.to(near, { autoAlpha: 0, duration: 1.2, ease: "power2.out", overwrite: "auto" });
-        gsap.to(q(".rch-a, .rch-b"), { autoAlpha: 0, y: -20, duration: 0.5, ease: "power2.in" });
+        gsap.killTweensOf(reach, "touch,flood,burst,red");
+        gsap.timeline().to(reach, { touch: 1, duration: 0.16, ease: "power2.out" }).to(reach, { touch: 0.3, duration: 1.8, ease: "power2.out" });
+        gsap.fromTo(reach, { flood: 0 }, { flood: 2.8, duration: reduce ? 0.6 : 2.6, ease: "power2.inOut" });
+        gsap.fromTo(reach, { red: 0 }, { red: 1, duration: 0.4, ease: "power1.out" });
+        gsap.fromTo(reach, { burst: 0.001 }, { burst: 1, duration: 2.6, ease: "power2.out" });
+        gsap.to(ring, { autoAlpha: 0, scale: 1.7, duration: 0.6, ease: "expo.out" });
+        gsap.to(q(".rch-a, .rch-b"), { autoAlpha: 0, y: -24, duration: 0.5, ease: "power2.in" });
         headTl?.kill();
         headTl = gsap
-          .timeline({ delay: reduce ? 0.2 : 0.9 })
+          .timeline({ delay: reduce ? 0.2 : 1.1 })
           .set(head, { autoAlpha: 1 })
-          .to(split.words, { yPercent: 0, duration: 1.3, stagger: 0.05, ease: "expo.out" })
-          .fromTo(q(".rch-head-sub"), { y: 14, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9, ease: "expo.out" }, "-=0.8");
+          .to(split.words, { yPercent: 0, duration: 1.4, stagger: 0.06, ease: "expo.out" })
+          .fromTo(q(".rch-head-sub"), { y: 14, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9, ease: "expo.out" }, "-=0.9");
       };
       const disconnect = () => {
         if (!reach.connected) return;
         reach.connected = false;
         reach.hold = 0;
         el.dataset.connected = "";
-        gsap.killTweensOf(reach, "touch,flood,burst");
-        gsap.to(reach, { flood: 0, touch: 0, duration: 0.7, ease: "power2.inOut" });
+        gsap.killTweensOf(reach, "touch,flood,burst,red");
+        gsap.to(reach, { flood: 0, touch: 0, red: 0, duration: 0.7, ease: "power2.inOut" });
         reach.burst = 0;
         headTl?.kill();
         gsap.to(head, { autoAlpha: 0, duration: 0.4 });
         gsap.set(split.words, { yPercent: 110 });
-        gsap.to(near, { autoAlpha: 1, duration: 0.6, overwrite: "auto" });
         gsap.to(q(".rch-a, .rch-b"), { autoAlpha: 1, y: 0, duration: 0.5 });
       };
 
       // --- the scene, scrubbed by the scroll while the stage is pinned
       const tl = gsap.timeline({ defaults: { ease: "none" }, paused: reduce });
-      tl.fromTo(sky, { scale: 1.28, yPercent: -3 }, { scale: 1.04, yPercent: 0, duration: 1 }, 0)
-        // rising out of the bank
-        .fromTo(veil, { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.12 }, 0)
-        .fromTo(near, { yPercent: -18, scale: 2.4 }, { yPercent: 46, scale: 1.25, duration: 0.24, ease: "power1.inOut" }, 0)
-        // the AUVOX hand and its picks
-        .fromTo(reach, { guideIn: 0 }, { guideIn: 1, duration: 0.3, ease: "power2.out" }, 0.06)
-        .fromTo(reach, { tokens: 0 }, { tokens: 1, duration: 0.28, ease: "power2.out" }, 0.1)
-        .to(phraseA, { yPercent: 0, duration: 0.09, stagger: 0.03, ease: "power3.out" }, 0.17)
-        .to(phraseA, { yPercent: -110, duration: 0.06, stagger: 0.012, ease: "power2.in" }, 0.4)
-        // the clouds part; the student rises to meet it
-        .fromTo(reach, { open: 0 }, { open: 1, duration: 0.3, ease: "power1.inOut" }, 0.42)
-        .fromTo(far, { scale: 1, autoAlpha: 0.95 }, { scale: 1.45, autoAlpha: 0.55, duration: 0.3, ease: "power1.inOut" }, 0.42)
-        .to(near, { yPercent: 70, scale: 1.1, duration: 0.3, ease: "power1.inOut" }, 0.42)
-        .fromTo(reach, { studentIn: 0 }, { studentIn: 1, duration: 0.28, ease: "power2.out" }, 0.46)
-        .to(phraseB, { yPercent: 0, duration: 0.09, stagger: 0.03, ease: "power3.out" }, 0.56)
-        .to(phraseB, { yPercent: -110, duration: 0.06, stagger: 0.012, ease: "power2.in" }, 0.8)
+      tl
+        // out of the light: the hand comes down, the picks gather
+        .fromTo(reach, { descend: 0 }, { descend: 1, duration: 0.3, ease: "power2.out" }, 0.02)
+        .fromTo(reach, { tokens: 0 }, { tokens: 1, duration: 0.26, ease: "power2.out" }, 0.1)
+        .to(phraseA, { yPercent: 0, duration: 0.1, stagger: 0.035, ease: "power3.out" }, 0.15)
+        .to(kickers[0], { autoAlpha: 1, duration: 0.05 }, 0.17)
+        .to(phraseA, { yPercent: -112, duration: 0.07, stagger: 0.014, ease: "power2.in" }, 0.37)
+        .to(kickers[0], { autoAlpha: 0, duration: 0.04 }, 0.37)
+        // the fog clears; the hand turns to reach across; the sky, the rays, the petals
+        .fromTo(reach, { light: 1 }, { light: 0, duration: 0.2, ease: "power1.inOut" }, 0.32)
+        .fromTo(reach, { fog: 1 }, { fog: 0, duration: 0.3, ease: "power1.inOut" }, 0.3)
+        .fromTo(reach, { turn: 0 }, { turn: 1, duration: 0.28, ease: "power2.inOut" }, 0.33)
+        .fromTo(reach, { open: 0 }, { open: 1, duration: 0.3, ease: "power1.inOut" }, 0.35)
+        // the student rises to meet it
+        .fromTo(reach, { studentIn: 0 }, { studentIn: 1, duration: 0.26, ease: "power2.out" }, 0.5)
+        .to(phraseB, { yPercent: 0, duration: 0.1, stagger: 0.035, ease: "power3.out" }, 0.58)
+        .to(kickers[1], { autoAlpha: 1, duration: 0.05 }, 0.6)
+        .to(phraseB, { yPercent: -112, duration: 0.07, stagger: 0.014, ease: "power2.in" }, 0.83)
+        .to(kickers[1], { autoAlpha: 0, duration: 0.04 }, 0.83)
         // the ring; scrolling on closes the gap too
-        .fromTo(ring, { autoAlpha: 0, scale: 0.6 }, { autoAlpha: 1, scale: 1, duration: 0.05, ease: "power2.out" }, 0.77)
-        .fromTo(reach, { assist: 0 }, { assist: 1, duration: 0.12, ease: "power1.in" }, 0.84)
-        .to({}, { duration: 0.06 }, 0.94);
+        .fromTo(ring, { autoAlpha: 0, scale: 0.6 }, { autoAlpha: 1, scale: 1, duration: 0.05, ease: "power2.out" }, 0.78)
+        .fromTo(reach, { assist: 0 }, { assist: 1, duration: 0.12, ease: "power1.in" }, 0.86)
+        .to({}, { duration: 0.02 }, 0.98);
 
       let trigger: ScrollTrigger | null = null;
       if (reduce) {
-        tl.progress(0.78);
         reach.assist = 0;
         reach.armed = true;
+        gsap.set(ring, { autoAlpha: 1 });
+        gsap.set(phraseB, { yPercent: 0 });
+        gsap.set(kickers[1], { autoAlpha: 1 });
       } else {
         trigger = ScrollTrigger.create({
           trigger: st,
           start: "top top",
-          end: () => `+=${window.innerHeight * (window.innerWidth < 768 ? 3.4 : 4.2)}`,
+          end: () => `+=${window.innerHeight * (window.innerWidth < 768 ? 3.8 : 5)}`,
           pin: true,
-          scrub: 0.9,
+          scrub: 0.8,
           anticipatePin: 1,
           invalidateOnRefresh: true,
           animation: tl,
           onUpdate: (self) => {
-            reach.armed = self.progress > 0.76;
+            reach.armed = self.progress > 0.77;
             if (reach.connected && self.progress < 0.72) disconnect();
           },
         });
@@ -200,7 +200,7 @@ export default function Reach() {
       };
       window.addEventListener("pointermove", onMove, { passive: true });
 
-      // --- the ticker: layout (where the fingertips go), the hold, the ring, the flood, the student
+      // --- the ticker: layout (where the fingertips go), the hold, the ring
       let W = st.clientWidth;
       let H = st.clientHeight;
       const ro = new ResizeObserver(() => {
@@ -228,47 +228,38 @@ export default function Reach() {
 
         // layout: the gap sits a little above centre; the fingertips close along DIR
         const wide = W / H > 1;
-        const handLen = wide ? 0.3 : Math.min(0.3, (0.44 * W) / H);
+        const handLen = wide ? Math.min(0.37, (0.26 * W) / H) : Math.min(0.34, (0.5 * W) / H);
         reach.handLen = handLen;
+        reach.aspect = W / H;
         const gx = 0.5 * W;
         const gy = (wide ? 0.47 : 0.44) * H;
         const tg = together();
-        const open = handLen * H * 0.62;
-        const d = reach.connected ? handLen * H * 0.06 : open - (open - handLen * H * 0.07) * ease(tg);
-        const px = reach.still ? 0 : reach.pointer.x * W * 0.008;
-        const py = reach.still ? 0 : reach.pointer.y * H * 0.008;
-        const ax = gx - (DIR.x * d) / 2;
-        const ay = gy - (DIR.y * d) / 2;
-        reach.tip.x = ax / W;
-        reach.tip.y = ay / H;
+        const open = handLen * H * 0.6;
+        const d = reach.connected ? handLen * H * 0.015 : open - (open - handLen * H * 0.06) * ease(tg);
+        const px = reach.still ? 0 : reach.pointer.x * W * 0.006;
+        const py = reach.still ? 0 : reach.pointer.y * H * 0.006;
+
+        // the AUVOX fingertip: in the fog it comes down the middle toward the light; then it reaches across
+        const tipAx = (wide ? 0.56 : 0.52) * W + px;
+        const tipAy = lerp(-0.42 * H, (wide ? 0.5 : 0.46) * H, ease(clamp01(reach.descend))) + py;
+        const tipBx = gx - (DIR.x * d) / 2;
+        const tipBy = gy - (DIR.y * d) / 2;
+        const turn = ease(clamp01(reach.turn));
+        reach.tip.x = lerp(tipAx, tipBx, turn) / W;
+        reach.tip.y = lerp(tipAy, tipBy, turn) / H;
         reach.gap.x = gx / W;
         reach.gap.y = gy / H;
 
-        // the student's hand: its fingertip on the other side of the gap, rising in from below-right
-        const hh = handLen * H * 2.55;
-        const scale = hh / HAND.h;
-        const sIn = ease(Math.min(1, Math.max(0, reach.studentIn)));
-        const sx = gx + (DIR.x * d) / 2 + (1 - sIn) * H * 0.35 - px;
-        const sy = gy + (DIR.y * d) / 2 + (1 - sIn) * H * 0.55 - py;
-        student.style.height = `${hh}px`;
-        student.style.width = `${hh * (HAND.w / HAND.h)}px`;
-        student.style.transformOrigin = `${HAND.tipX * scale}px ${HAND.tipY * scale}px`;
-        student.style.transform = `translate(${sx - HAND.tipX * scale}px, ${sy - HAND.tipY * scale}px) rotate(${HAND.rotate + (1 - sIn) * 10}deg)`;
-        student.style.opacity = String(Math.min(1, sIn * 1.6));
+        // the student's fingertip: the other side of the gap, rising in from below-right
+        const sIn = ease(clamp01(reach.studentIn));
+        reach.studentTip.x = (gx + (DIR.x * d) / 2 + (1 - sIn) * H * 0.32 - px) / W;
+        reach.studentTip.y = (gy + (DIR.y * d) / 2 + (1 - sIn) * H * 0.6 - py) / H;
 
         // the ring between the fingertips
         ring.style.left = `${gx}px`;
         ring.style.top = `${gy}px`;
         arc.style.strokeDashoffset = String(ARC * (1 - tg));
         ring.dataset.holding = reach.holding ? "1" : "";
-
-        // the red wave from the fingertips
-        const r = reach.flood * H;
-        const clip = `circle(${r.toFixed(1)}px at ${gx.toFixed(1)}px ${gy.toFixed(1)}px)`;
-        flood.style.clipPath = clip;
-        crest.style.clipPath = `circle(${(r > 0.5 ? r + H * 0.05 * Math.min(1, reach.flood * 4) : 0).toFixed(1)}px at ${gx.toFixed(1)}px ${gy.toFixed(1)}px)`;
-        flood.style.setProperty("--gx", `${gx}px`);
-        flood.style.setProperty("--gy", `${gy}px`);
       };
       gsap.ticker.add(tick);
 
@@ -293,49 +284,23 @@ export default function Reach() {
   return (
     <section ref={root} id="reach" aria-label="The AUVOX promise" className="rch relative bg-red">
       {/* ---------- the scene (pinned) ---------- */}
-      <div ref={stage} className="rch-stage relative h-[100svh] w-full overflow-hidden bg-peach select-none" onContextMenu={(e) => e.preventDefault()}>
-        <div className="rch-sky absolute inset-0 will-change-transform">
-          <Image src="/reach/sky.webp" alt="" fill sizes="100vw" unoptimized priority={false} className="object-cover" draggable={false} />
-        </div>
-        <Image src="/reach/clouds.webp" alt="" width={1536} height={1024} unoptimized draggable={false} className="rch-far pointer-events-none absolute inset-0 h-full w-full object-cover opacity-95 will-change-transform" />
-        <div className="rch-glow pointer-events-none absolute inset-0" />
-
-        {/* the red, under the hands: it runs out from the fingertips */}
-        <div className="rch-crest pointer-events-none absolute inset-0 z-[2]" style={{ clipPath: "circle(0px at 50% 50%)" }} />
-        <div className="rch-flood pointer-events-none absolute inset-0 z-[2]" style={{ clipPath: "circle(0px at 50% 50%)" }}>
-          <div className="grain absolute inset-0 opacity-[0.07] mix-blend-screen" />
-        </div>
-
+      <div ref={stage} className="rch-stage relative h-[100svh] w-full overflow-hidden bg-cream select-none" onContextMenu={(e) => e.preventDefault()}>
         {ready && <ReachWorld />}
-
-        {/* the student's hand — a real one */}
-        <Image
-          src="/reach/hand.webp"
-          width={HAND.w}
-          height={HAND.h}
-          unoptimized
-          alt="A student's hand reaching up toward the AUVOX hand"
-          draggable={false}
-          className="rch-student pointer-events-none absolute top-0 left-0 z-[4] max-w-none opacity-0 will-change-transform"
-          style={{ width: 0, height: 0 }}
-        />
-
-        {/* the bank we rise out of, in front of everything */}
-        <Image src="/reach/clouds-near.webp" alt="" width={1536} height={1024} unoptimized draggable={false} className="rch-near pointer-events-none absolute inset-0 z-[5] h-full w-full origin-top object-cover will-change-transform" />
-        <div className="rch-veil pointer-events-none absolute inset-0 z-[6] bg-peach" />
 
         {/* the words */}
         <div className="rch-a pointer-events-none absolute inset-0 z-[7]" aria-hidden>
-          <Phrase className="top-[14%] left-[6%] text-[clamp(2.6rem,6.4vw,7rem)]">Every musician</Phrase>
-          <Phrase className="right-[6%] bottom-[24%] text-right text-[clamp(1.4rem,2.6vw,2.8rem)] italic">was once</Phrase>
-          <Phrase accent className="right-[6%] bottom-[12%] text-right text-[clamp(2.6rem,6.4vw,7rem)]">
+          <span className="rch-kicker absolute top-[13%] left-[6%] text-[0.6rem] font-semibold tracking-[0.4em] text-ink/60 uppercase md:top-[15%]">The AUVOX promise</span>
+          <Phrase className="top-[16%] left-[6%] text-[clamp(2.8rem,7.2vw,8.2rem)] md:top-[19%]">Every musician</Phrase>
+          <Phrase className="right-[6%] bottom-[25%] text-right text-[clamp(1.5rem,2.8vw,3rem)] italic">was once</Phrase>
+          <Phrase accent className="right-[6%] bottom-[11%] text-right text-[clamp(2.8rem,7.2vw,8.2rem)]">
             a beginner.
           </Phrase>
         </div>
         <div className="rch-b pointer-events-none absolute inset-0 z-[7]" aria-hidden>
-          <Phrase className="top-[14%] left-[6%] text-[clamp(2.6rem,6.4vw,7rem)]">No one learns</Phrase>
-          <Phrase className="right-[6%] bottom-[24%] text-right text-[clamp(1.4rem,2.6vw,2.8rem)] italic">music</Phrase>
-          <Phrase accent className="right-[6%] bottom-[12%] text-right text-[clamp(2.6rem,6.4vw,7rem)]">
+          <span className="rch-kicker absolute top-[13%] left-[6%] text-[0.6rem] font-semibold tracking-[0.4em] text-ink/60 uppercase md:top-[15%]">The AUVOX promise</span>
+          <Phrase className="top-[16%] left-[6%] text-[clamp(2.8rem,7.2vw,8.2rem)] md:top-[19%]">No one learns</Phrase>
+          <Phrase className="right-[6%] bottom-[25%] text-right text-[clamp(1.5rem,2.8vw,3rem)] italic">music</Phrase>
+          <Phrase accent className="right-[6%] bottom-[11%] text-right text-[clamp(2.8rem,7.2vw,8.2rem)]">
             alone.
           </Phrase>
         </div>
@@ -352,20 +317,20 @@ export default function Reach() {
           onKeyDown={(e) => key(e, true)}
           onKeyUp={(e) => key(e, false)}
           onBlur={up}
-          className="rch-ring absolute z-[8] -mt-[60px] -ml-[60px] flex h-[120px] w-[120px] items-center justify-center rounded-full"
+          className="rch-ring absolute z-[8] -mt-[56px] -ml-[56px] flex h-[112px] w-[112px] items-center justify-center rounded-full"
           style={{ left: "50%", top: "50%", touchAction: "none", WebkitTouchCallout: "none" }}
         >
           <svg viewBox="0 0 100 100" className="rch-ring-svg absolute inset-0 h-full w-full -rotate-90" aria-hidden>
-            <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" strokeOpacity="0.35" strokeWidth="1.2" />
-            <circle className="rch-arc" cx="50" cy="50" r="46" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeDasharray={2 * Math.PI * 46} strokeDashoffset={2 * Math.PI * 46} />
+            <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" strokeOpacity="0.4" strokeWidth="1.1" />
+            <circle className="rch-arc" cx="50" cy="50" r="46" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeDasharray={2 * Math.PI * 46} strokeDashoffset={2 * Math.PI * 46} />
           </svg>
           <span className="rch-ring-pulse absolute inset-[18%] rounded-full border border-current" aria-hidden />
           <span className="rch-ring-dot block h-2 w-2 rounded-full bg-current" aria-hidden />
-          <span className="rch-ring-label pointer-events-none absolute top-1/2 left-[calc(100%+0.6rem)] -translate-y-1/2 text-left text-[0.58rem] leading-[1.5] font-semibold tracking-[0.34em] whitespace-nowrap uppercase">
-            <span className="pointer-coarse:hidden">Click &amp; hold</span>
-            <span className="hidden pointer-coarse:inline">Tap &amp; hold</span>
+          <span className="rch-ring-label pointer-events-none absolute top-1/2 left-[calc(100%+0.7rem)] -translate-y-1/2 text-left text-[0.6rem] leading-[1.5] font-semibold tracking-[0.36em] whitespace-nowrap uppercase">
+            <span className="pointer-coarse:hidden">Click</span>
+            <span className="hidden pointer-coarse:inline">Tap</span>
             <br />
-            <span className="opacity-60">Reach back</span>
+            <span>Hold</span>
           </span>
         </button>
 
@@ -377,7 +342,7 @@ export default function Reach() {
           <p className="rch-head-sub mt-5 text-[0.62rem] font-semibold tracking-[0.38em] text-peach/70 uppercase">The AUVOX promise</p>
         </div>
 
-        <div className="grain pointer-events-none absolute inset-0 z-[9] opacity-[0.05] mix-blend-multiply" />
+        <div className="grain pointer-events-none absolute inset-0 z-[9] opacity-[0.045] mix-blend-multiply" />
       </div>
 
       {/* ---------- the promise, in the red ---------- */}
