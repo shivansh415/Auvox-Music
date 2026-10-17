@@ -26,8 +26,8 @@ import { reach, together } from "./state";
 const FOV = 30;
 const CAM_Z = 9;
 const VIEW_H = 2 * CAM_Z * Math.tan(((FOV / 2) * Math.PI) / 180);
-/** the model's wrist-to-fingertip length, in its own units */
-const MODEL_LEN = 0.17;
+/** the model's wrist-to-index-fingertip length, in its own units (scripts/reach-hand.py) */
+const MODEL_LEN = 0.164;
 /** screen direction from the AUVOX fingertip toward the student's (right and down), y up for 3D */
 const DIR = new THREE.Vector2(0.82, -0.42).normalize();
 /** the sun in the sky image, as a fraction of it (x right, y down) */
@@ -273,8 +273,8 @@ function Guide() {
   const smooth = useRef({ morph: 0, px: 0, py: 0 });
   const uniforms = useMemo(
     () => ({
-      uFadeA: { value: -0.29 },
-      uFadeB: { value: -0.11 },
+      uFadeA: { value: -0.3 },
+      uFadeB: { value: -0.13 },
       uRim: { value: 0.16 },
       uRimColor: { value: new THREE.Color("#ffd0a4") },
       uSss: { value: 0.3 },
@@ -291,34 +291,8 @@ function Guide() {
     });
     if (!mesh) throw new Error("guide.glb: no morphing mesh");
     const m = mesh as THREE.Mesh;
-    // the fingertip: the furthest point along the fingers (+X), in the rest pose and with "reach" on
-    const geo = m.geometry;
-    const pos = geo.attributes.position as THREE.BufferAttribute;
-    const reachIdx = m.morphTargetDictionary?.reach ?? 0;
-    const morph = geo.morphAttributes.position?.[reachIdx] as THREE.BufferAttribute | undefined;
-    const relative = geo.morphTargetsRelative;
-    const furthest = (withMorph: boolean) => {
-      const best = new THREE.Vector3(-Infinity, 0, 0);
-      for (let i = 0; i < pos.count; i++) {
-        let x = pos.getX(i);
-        let y = pos.getY(i);
-        let z = pos.getZ(i);
-        if (withMorph && morph) {
-          if (relative) {
-            x += morph.getX(i);
-            y += morph.getY(i);
-            z += morph.getZ(i);
-          } else {
-            x = morph.getX(i);
-            y = morph.getY(i);
-            z = morph.getZ(i);
-          }
-        }
-        if (x > best.x) best.set(x, y, z);
-      }
-      return best;
-    };
-    const find = (name: string) => (name === "tip" ? furthest(false) : furthest(true));
+    // the index fingertip in each pose: empties the export writes next to the mesh
+    const find = (name: string) => root.getObjectByName(name)?.position.clone() ?? new THREE.Vector3(MODEL_LEN, 0, 0);
     const mat = new THREE.MeshPhysicalMaterial({
       color: "#a01212",
       roughness: 0.4,
@@ -333,7 +307,7 @@ function Guide() {
       transparent: true,
     });
     mat.onBeforeCompile = (shader) => patchArm(shader, uniforms);
-    mat.customProgramCacheKey = () => "reach-arm-v6";
+    mat.customProgramCacheKey = () => "reach-arm-v7";
     mat.userData.u = uniforms;
     m.material = mat;
     m.position.set(0, 0, 0);
