@@ -28,6 +28,7 @@
   --font-sans: var(--font-afacad-flux);
   /* Tan Pearl is a licensed font — drop the files in public/fonts and wire it in layout.tsx */
   --font-display: var(--font-tan-pearl, var(--font-dm-serif));
+  --font-script: var(--font-pinyon);
 }
 
 html.lenis,
@@ -696,8 +697,17 @@ button:not(:disabled), [role="button"], label[for], select, summary { cursor: po
 .rch-phrase { text-shadow: 0 0 40px rgba(253, 242, 227, 0.55), 0 2px 24px rgba(253, 242, 227, 0.35); }
 .rch-phrase.text-red { text-shadow: 0 0 40px rgba(253, 242, 227, 0.5); }
 
+/* the opening line: a calligraphic capital running into the serif */
+.rch-script { font-family: var(--font-script); font-weight: 400; font-style: normal; letter-spacing: 0; }
+
+/* the picture fades in once the first frames are drawn (a black canvas never shows) */
+.rch-world { opacity: 0; transition: opacity 0.6s ease; }
+.rch-world[data-ready="1"] { opacity: 1; }
+
 /* tap & hold */
 .rch-ring { color: var(--auvox-ink); transition: color 0.6s; }
+.rch[data-connected="1"] .rch-ring { opacity: 0 !important; visibility: hidden !important; transition: opacity 0.4s; }
+.rch-stage[data-armed="1"] { cursor: pointer; }
 .rch-ring-pulse { animation: tap-ring 1.8s ease-out infinite; opacity: 0.55; }
 .rch-ring[data-holding="1"] .rch-ring-pulse { animation-duration: 0.7s; }
 .rch-ring-dot { transition: transform 0.4s cubic-bezier(0.2, 0.9, 0.2, 1); }

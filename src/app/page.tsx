@@ -5,6 +5,7 @@ import Journey from "@/components/sections/Journey/Journey";
 import FrequencyBox from "@/components/sections/FrequencyBox/FrequencyBox";
 import Reach from "@/components/sections/Reach/Reach";
 import Begin from "@/components/sections/Begin/Begin";
+import Seam from "@/components/ui/Seam";
 import { SHOWCASE } from "@/lib/showcase";
 
 export default function Home() {
@@ -12,7 +13,9 @@ export default function Home() {
     <main>
       <Session />
       <Hero />
+      <Seam from="var(--auvox-peach)" to="var(--auvox-cream)" />
       <VerseUniverse />
+      <Seam from="var(--auvox-cream)" to="var(--auvox-peach)" />
       <Journey />
       {!SHOWCASE && <FrequencyBox />}
       {!SHOWCASE && <Reach />}

@@ -74,7 +74,7 @@ POSES = GUIDE if ROLE == "guide" else STUDENT
 
 FOREARM_SEGMENTS = 14
 FOREARM_LENGTH = 3.2  # times the wrist→middle-knuckle distance (the far end disappears into cloud)
-SUBDIV = 1
+SUBDIV = 2
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=SRC)
@@ -249,6 +249,12 @@ def set_pose(spec):
                 M = Matrix.Rotation(math.radians(bends[i - 1]), 4, axis)
                 if i == 1 and spread and finger != "thumb":
                     M = Matrix.Rotation(math.radians(spread) * SPREAD, 4, n) @ M
+                if i == 1:
+                    # longer, slimmer fingers than the generic hand: stretched from the knuckle along
+                    # the finger, narrowed across it (Michelangelo's, not a glove's)
+                    L = 1.12 if finger == "thumb" else 1.22
+                    W = 0.9 if finger == "thumb" else 0.86
+                    M = M @ Matrix.Scale(L, 4, d) @ Matrix.Scale(W, 4, axis) @ Matrix.Scale(W, 4, n)
                 T = T @ Matrix.Translation(h) @ M @ Matrix.Translation(-h)
             arm.pose.bones[name].matrix = T @ bones[name].matrix_local
             tips[name] = T @ head[name]

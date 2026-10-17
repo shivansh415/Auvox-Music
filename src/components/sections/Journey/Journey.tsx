@@ -328,7 +328,7 @@ export default function Journey() {
           <Button href="/reserve" variant="ink">
             Reserve your free demo
           </Button>
-          <Button href="/packages" variant="ghost">
+          <Button href="/packages" variant="outline" className="border-ink/30 text-ink">
             Explore packages
           </Button>
         </div>

@@ -36,7 +36,9 @@ export default function Hero() {
     if (!box || !img) return;
     const fit = () => {
       const f = roomFit(box.clientWidth, box.clientHeight);
-      Object.assign(img.style, { left: `${f.x}px`, top: `${f.y}px`, width: `${f.w}px`, height: `${f.h}px` });
+      // a little bigger than the box on every side: the pointer parallax moves it ±10px
+      const bleed = 18;
+      Object.assign(img.style, { left: `${f.x - bleed}px`, top: `${f.y - bleed}px`, width: `${f.w + bleed * 2}px`, height: `${f.h + bleed * 2}px` });
     };
     fit();
     const ro = new ResizeObserver(fit);

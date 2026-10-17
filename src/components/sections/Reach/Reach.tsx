@@ -85,10 +85,10 @@ export default function Reach() {
           reach.inView = entry.isIntersecting;
           if (entry.isIntersecting) setReady(true);
         },
-        { rootMargin: "300px 0px" },
+        { rootMargin: "120% 0px" },
       );
       io.observe(st);
-      const idle = window.requestIdleCallback ? window.requestIdleCallback(() => setReady(true), { timeout: 6000 }) : window.setTimeout(() => setReady(true), 4000);
+      const idle = window.requestIdleCallback ? window.requestIdleCallback(() => setReady(true), { timeout: 3500 }) : window.setTimeout(() => setReady(true), 2500);
 
       const ring = q<HTMLElement>(".rch-ring")[0];
       const arc = q<SVGCircleElement>(".rch-arc")[0];
@@ -96,6 +96,8 @@ export default function Reach() {
       const phraseA = q(".rch-a .rch-word");
       const phraseB = q(".rch-b .rch-word");
       const kickers = q(".rch-kicker");
+      const opening = q(".rch-o .rch-word");
+      const openingSub = q<HTMLElement>(".rch-o-sub")[0];
       const ARC = 2 * Math.PI * 46;
 
       // --- the promise headline (it reveals at the touch)
@@ -103,7 +105,8 @@ export default function Reach() {
       gsap.set(split.lines, { overflow: "hidden", paddingBottom: "0.12em", marginBottom: "-0.12em" });
       gsap.set(split.words, { yPercent: 110 });
       gsap.set([head, ring], { autoAlpha: 0 });
-      gsap.set([phraseA, phraseB], { yPercent: 112 });
+      gsap.set([phraseA, phraseB], { yPercent: 145 });
+      gsap.set(opening, { yPercent: 0 });
       gsap.set(kickers, { autoAlpha: 0 });
 
       // --- the touch, and (if they scroll back up) undoing it
@@ -146,27 +149,30 @@ export default function Reach() {
       // --- the scene, scrubbed by the scroll while the stage is pinned
       const tl = gsap.timeline({ defaults: { ease: "none" }, paused: reduce });
       tl
+        // the opening line, alone in the light; then it lifts away
+        .to(opening, { yPercent: -145, duration: 0.07, stagger: 0.02, ease: "power2.in" }, 0.07)
+        .to(openingSub, { autoAlpha: 0, y: -10, duration: 0.05 }, 0.07)
         // out of the light: the hand comes down, the picks gather
-        .fromTo(reach, { descend: 0 }, { descend: 1, duration: 0.3, ease: "power2.out" }, 0.02)
-        .fromTo(reach, { tokens: 0 }, { tokens: 1, duration: 0.26, ease: "power2.out" }, 0.1)
-        .to(phraseA, { yPercent: 0, duration: 0.1, stagger: 0.035, ease: "power3.out" }, 0.15)
-        .to(kickers[0], { autoAlpha: 1, duration: 0.05 }, 0.17)
-        .to(phraseA, { yPercent: -112, duration: 0.07, stagger: 0.014, ease: "power2.in" }, 0.37)
-        .to(kickers[0], { autoAlpha: 0, duration: 0.04 }, 0.37)
+        .fromTo(reach, { descend: 0 }, { descend: 1, duration: 0.28, ease: "power2.out" }, 0.1)
+        .fromTo(reach, { tokens: 0 }, { tokens: 1, duration: 0.24, ease: "power2.out" }, 0.16)
+        .to(phraseA, { yPercent: 0, duration: 0.1, stagger: 0.035, ease: "power3.out" }, 0.21)
+        .to(kickers[0], { autoAlpha: 1, duration: 0.05 }, 0.23)
+        .to(phraseA, { yPercent: -145, duration: 0.07, stagger: 0.014, ease: "power2.in" }, 0.4)
+        .to(kickers[0], { autoAlpha: 0, duration: 0.04 }, 0.4)
         // the fog clears; the hand turns to reach across; the sky, the rays, the petals
-        .fromTo(reach, { light: 1 }, { light: 0, duration: 0.2, ease: "power1.inOut" }, 0.32)
-        .fromTo(reach, { fog: 1 }, { fog: 0, duration: 0.3, ease: "power1.inOut" }, 0.3)
-        .fromTo(reach, { turn: 0 }, { turn: 1, duration: 0.28, ease: "power2.inOut" }, 0.33)
-        .fromTo(reach, { open: 0 }, { open: 1, duration: 0.3, ease: "power1.inOut" }, 0.35)
+        .fromTo(reach, { light: 1 }, { light: 0, duration: 0.2, ease: "power1.inOut" }, 0.36)
+        .fromTo(reach, { fog: 1 }, { fog: 0, duration: 0.3, ease: "power1.inOut" }, 0.34)
+        .fromTo(reach, { turn: 0 }, { turn: 1, duration: 0.28, ease: "power2.inOut" }, 0.37)
+        .fromTo(reach, { open: 0 }, { open: 1, duration: 0.3, ease: "power1.inOut" }, 0.39)
         // the student rises to meet it
-        .fromTo(reach, { studentIn: 0 }, { studentIn: 1, duration: 0.26, ease: "power2.out" }, 0.5)
-        .to(phraseB, { yPercent: 0, duration: 0.1, stagger: 0.035, ease: "power3.out" }, 0.58)
-        .to(kickers[1], { autoAlpha: 1, duration: 0.05 }, 0.6)
-        .to(phraseB, { yPercent: -112, duration: 0.07, stagger: 0.014, ease: "power2.in" }, 0.83)
-        .to(kickers[1], { autoAlpha: 0, duration: 0.04 }, 0.83)
+        .fromTo(reach, { studentIn: 0 }, { studentIn: 1, duration: 0.26, ease: "power2.out" }, 0.53)
+        .to(phraseB, { yPercent: 0, duration: 0.1, stagger: 0.035, ease: "power3.out" }, 0.61)
+        .to(kickers[1], { autoAlpha: 1, duration: 0.05 }, 0.63)
+        .to(phraseB, { yPercent: -145, duration: 0.07, stagger: 0.014, ease: "power2.in" }, 0.84)
+        .to(kickers[1], { autoAlpha: 0, duration: 0.04 }, 0.84)
         // the ring; scrolling on closes the gap too
-        .fromTo(ring, { autoAlpha: 0, scale: 0.6 }, { autoAlpha: 1, scale: 1, duration: 0.05, ease: "power2.out" }, 0.78)
-        .fromTo(reach, { assist: 0 }, { assist: 1, duration: 0.12, ease: "power1.in" }, 0.86)
+        .fromTo(ring, { autoAlpha: 0, scale: 0.6 }, { autoAlpha: 1, scale: 1, duration: 0.05, ease: "power2.out" }, 0.79)
+        .fromTo(reach, { assist: 0 }, { assist: 1, duration: 0.11, ease: "power1.in" }, 0.87)
         .to({}, { duration: 0.02 }, 0.98);
 
       let trigger: ScrollTrigger | null = null;
@@ -174,20 +180,24 @@ export default function Reach() {
         reach.assist = 0;
         reach.armed = true;
         gsap.set(ring, { autoAlpha: 1 });
+        gsap.set(opening, { yPercent: -145 });
+        gsap.set(openingSub, { autoAlpha: 0 });
         gsap.set(phraseB, { yPercent: 0 });
         gsap.set(kickers[1], { autoAlpha: 1 });
       } else {
         trigger = ScrollTrigger.create({
           trigger: st,
           start: "top top",
-          end: () => `+=${window.innerHeight * (window.innerWidth < 768 ? 3.8 : 5)}`,
+          end: () => `+=${window.innerHeight * (window.innerWidth < 768 ? 4.2 : 5.6)}`,
           pin: true,
-          scrub: 0.8,
+          scrub: 0.5,
           anticipatePin: 1,
           invalidateOnRefresh: true,
           animation: tl,
           onUpdate: (self) => {
-            reach.armed = self.progress > 0.77;
+            if (self.isActive) reach.inView = true;
+            reach.armed = self.progress > 0.78;
+            st.dataset.armed = reach.armed && !reach.connected ? "1" : "";
             if (reach.connected && self.progress < 0.72) disconnect();
           },
         });
@@ -199,6 +209,17 @@ export default function Reach() {
         setPointer((e.clientX / window.innerWidth) * 2 - 1, (e.clientY / window.innerHeight) * 2 - 1);
       };
       window.addEventListener("pointermove", onMove, { passive: true });
+      const onStageDown = (e: PointerEvent) => {
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        if (!reach.armed || reach.connected) return;
+        unlockAudio();
+        setHolding(true);
+      };
+      const onAnyUp = () => setHolding(false);
+      st.addEventListener("pointerdown", onStageDown);
+      window.addEventListener("pointerup", onAnyUp);
+      window.addEventListener("pointercancel", onAnyUp);
+      window.addEventListener("blur", onAnyUp);
 
       // --- the ticker: layout (where the fingertips go), the hold, the ring
       let W = st.clientWidth;
@@ -234,7 +255,7 @@ export default function Reach() {
         const gx = 0.5 * W;
         const gy = (wide ? 0.47 : 0.44) * H;
         const tg = together();
-        const open = handLen * H * 0.6;
+        const open = handLen * H * 0.5;
         const d = reach.connected ? handLen * H * 0.015 : open - (open - handLen * H * 0.06) * ease(tg);
         const px = reach.still ? 0 : reach.pointer.x * W * 0.006;
         const py = reach.still ? 0 : reach.pointer.y * H * 0.006;
@@ -270,6 +291,10 @@ export default function Reach() {
         ro.disconnect();
         gsap.ticker.remove(tick);
         window.removeEventListener("pointermove", onMove);
+        st.removeEventListener("pointerdown", onStageDown);
+        window.removeEventListener("pointerup", onAnyUp);
+        window.removeEventListener("pointercancel", onAnyUp);
+        window.removeEventListener("blur", onAnyUp);
         trigger?.kill();
         tl.kill();
         headTl?.kill();
@@ -286,6 +311,21 @@ export default function Reach() {
       {/* ---------- the scene (pinned) ---------- */}
       <div ref={stage} className="rch-stage relative h-[100svh] w-full overflow-hidden bg-cream select-none" onContextMenu={(e) => e.preventDefault()}>
         {ready && <ReachWorld />}
+
+        {/* the opening line, alone in the light */}
+        <div className="rch-o pointer-events-none absolute inset-0 z-[7] flex flex-col items-center justify-center" aria-hidden>
+          <span className="rch-phrase rch-opening relative block text-center font-display text-[clamp(4.4rem,13vw,14rem)] leading-[0.9] tracking-[-0.02em] text-ink">
+            <span className="rch-mask -mb-[0.3em] inline-block overflow-hidden pb-[0.3em] align-bottom">
+              <span className="rch-word inline-block will-change-transform">
+                <span className="rch-script relative -mr-[0.1em] text-[1.3em] leading-none text-red">Y</span><span className="text-ink">ou</span>
+              </span>
+            </span>
+            <span className="rch-mask -mb-[0.3em] ml-[0.2em] inline-block overflow-hidden pb-[0.3em] align-bottom">
+              <span className="rch-word inline-block italic text-red will-change-transform">felt&nbsp;it.</span>
+            </span>
+          </span>
+          <span className="rch-o-sub mt-8 text-[0.62rem] font-semibold tracking-[0.42em] text-ink/55 uppercase">The AUVOX promise</span>
+        </div>
 
         {/* the words */}
         <div className="rch-a pointer-events-none absolute inset-0 z-[7]" aria-hidden>
@@ -304,7 +344,7 @@ export default function Reach() {
             alone.
           </Phrase>
         </div>
-        <p className="sr-only">Every musician was once a beginner. No one learns music alone.</p>
+        <p className="sr-only">You felt it. Every musician was once a beginner. No one learns music alone.</p>
 
         {/* tap & hold */}
         <button

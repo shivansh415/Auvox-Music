@@ -14,7 +14,7 @@ const NOISE = /* glsl */ `
     float v = 0.0;
     float a = 0.5;
     mat2 m = mat2(1.6, 1.2, -1.2, 1.6);
-    for (int i = 0; i < 5; i++) { v += a * vnoise(p); p = m * p; a *= 0.5; }
+    for (int i = 0; i < 4; i++) { v += a * vnoise(p); p = m * p; a *= 0.5; }
     return v;
   }
 `;
@@ -196,7 +196,9 @@ export function patchArm(shader: Shader, uniforms: Record<string, unknown>) {
       uniform float uFadeA;
       uniform float uFadeB;
       uniform float uRim;
-      uniform vec3 uRimColor;`,
+      uniform vec3 uRimColor;
+      uniform float uSss;
+      uniform vec3 uSssColor;`,
     )
     .replace(
       "#include <alphamap_fragment>",
@@ -207,8 +209,19 @@ export function patchArm(shader: Shader, uniforms: Record<string, unknown>) {
       diffuseColor.a *= armFade;`,
     )
     .replace(
+      "#include <roughnessmap_fragment>",
+      /* glsl */ `#include <roughnessmap_fragment>
+      // the surface is not perfectly even: a slow ripple in the gloss, like hand-polished lacquer
+      float rGrain = sin(vArm.x * 95.0 + vArm.z * 40.0) * sin(vArm.y * 120.0 - vArm.x * 30.0) * sin(vArm.z * 110.0 + vArm.y * 50.0);
+      roughnessFactor = clamp(roughnessFactor + rGrain * 0.07, 0.04, 1.0);`,
+    )
+    .replace(
       "#include <opaque_fragment>",
-      /* glsl */ `float rimF = pow(1.0 - abs(dot(normal, normalize(vViewPosition))), 2.6);
+      /* glsl */ `float ndv = 1.0 - abs(dot(normal, normalize(vViewPosition)));
+      float rimF = pow(ndv, 2.6);
+      // light getting into the lacquer: a broad warm glow toward the edges, strongest where the body is thin
+      float sssF = pow(ndv, 1.35);
+      outgoingLight += uSssColor * sssF * uSss * (0.35 + 0.65 * diffuseColor.r);
       outgoingLight += uRimColor * rimF * uRim;
       #include <opaque_fragment>`,
     );

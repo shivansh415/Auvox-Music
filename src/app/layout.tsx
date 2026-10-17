@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Afacad_Flux, DM_Serif_Display } from "next/font/google";
+import { Afacad_Flux, DM_Serif_Display, Pinyon_Script } from "next/font/google";
 import SmoothScroll from "@/components/providers/SmoothScroll";
 import PageTransition from "@/components/providers/PageTransition";
 import Preloader from "@/components/preloader/Preloader";
@@ -21,6 +21,13 @@ const dmSerif = DM_Serif_Display({
   style: ["normal", "italic"],
 });
 
+// a calligraphic swash, for the single capital that opens a line of display type
+const pinyon = Pinyon_Script({
+  variable: "--font-pinyon",
+  subsets: ["latin"],
+  weight: "400",
+});
+
 export const metadata: Metadata = {
   // set NEXT_PUBLIC_SITE_URL on Vercel so share images resolve to the real domain
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://auvoxmusic.com"),
@@ -30,7 +37,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${afacadFlux.variable} ${dmSerif.variable} h-full antialiased`}>
+    <html lang="en" className={`${afacadFlux.variable} ${dmSerif.variable} ${pinyon.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-peach font-sans text-ink">
         <SmoothScroll>
           <Preloader />

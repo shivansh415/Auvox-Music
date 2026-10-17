@@ -49,6 +49,14 @@ const rand = (i: number, n: number) => {
   return x - Math.floor(x);
 };
 
+/** the pixel ratio: a laptop with few cores or little memory gets a lighter one */
+function pickDpr(): [number, number] {
+  if (typeof navigator === "undefined") return [1, 1.5];
+  const nav = navigator as Navigator & { deviceMemory?: number };
+  const low = (nav.hardwareConcurrency ?? 8) <= 8 || (nav.deviceMemory ?? 8) <= 8;
+  return low ? [1, 1.2] : [1, 1.5];
+}
+
 /** what the 3D pieces tell each other, frame to frame */
 const shared = {
   /** the middle of the AUVOX palm, world */
@@ -259,7 +267,7 @@ const FOG_POSE = new THREE.Quaternion()
   .multiply(new THREE.Quaternion().setFromAxisAngle(Z, -Math.PI / 2));
 
 function Guide() {
-  const { scene } = useGLTF("/reach/guide.glb");
+  const { scene } = useGLTF("/reach/guide-hd.glb");
   const group = useRef<THREE.Group>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const smooth = useRef({ morph: 0, px: 0, py: 0 });
@@ -267,8 +275,10 @@ function Guide() {
     () => ({
       uFadeA: { value: -0.29 },
       uFadeB: { value: -0.11 },
-      uRim: { value: 0.2 },
+      uRim: { value: 0.16 },
       uRimColor: { value: new THREE.Color("#ffd0a4") },
+      uSss: { value: 0.3 },
+      uSssColor: { value: new THREE.Color("#ff6d3e") },
     }),
     [],
   );
@@ -310,19 +320,20 @@ function Guide() {
     };
     const find = (name: string) => (name === "tip" ? furthest(false) : furthest(true));
     const mat = new THREE.MeshPhysicalMaterial({
-      color: "#9c0d0d",
-      roughness: 0.22,
+      color: "#a01212",
+      roughness: 0.4,
       metalness: 0,
-      clearcoat: 1,
-      clearcoatRoughness: 0.06,
-      sheen: 0.4,
-      sheenColor: new THREE.Color("#ff9a78"),
-      sheenRoughness: 0.45,
-      envMapIntensity: 1.6,
+      clearcoat: 0.55,
+      clearcoatRoughness: 0.2,
+      sheen: 0.7,
+      sheenColor: new THREE.Color("#ff8d6e"),
+      sheenRoughness: 0.5,
+      specularIntensity: 0.8,
+      envMapIntensity: 0.85,
       transparent: true,
     });
     mat.onBeforeCompile = (shader) => patchArm(shader, uniforms);
-    mat.customProgramCacheKey = () => "reach-arm-v2";
+    mat.customProgramCacheKey = () => "reach-arm-v6";
     mat.userData.u = uniforms;
     m.material = mat;
     m.position.set(0, 0, 0);
@@ -330,6 +341,8 @@ function Guide() {
     m.scale.set(1, 1, 1);
     m.frustumCulled = false;
     m.renderOrder = 4;
+    m.castShadow = true;
+    m.receiveShadow = true;
     return { mesh: m, tip: find("tip"), tipReach: find("tipReach") };
   }, [scene, uniforms]);
 
@@ -388,7 +401,8 @@ function Guide() {
     shared.palmUv.set(PROJ.x * 0.5 + 0.5, PROJ.y * 0.5 + 0.5);
 
     // the rim warms when the red comes
-    u.uRim.value = 0.2 + reach.touch * 0.8 + reach.red * 0.5;
+    u.uRim.value = 0.16 + reach.touch * 0.8 + reach.red * 0.5;
+    u.uSss.value = 0.3 + (1 - turn) * 0.12 + reach.touch * 0.5;
     u.uRimColor.value.set(reach.red > 0.3 ? "#ff8a6a" : "#ffd0a4");
   });
 
@@ -580,7 +594,7 @@ function Picks() {
 // Red petals drifting down through the open sky
 // ---------------------------------------------------------------------------------------------
 
-const PETAL_COUNT = 84;
+const PETAL_COUNT = 64;
 const DUMMY = new THREE.Object3D();
 const PETAL_COLORS = [new THREE.Color("#a3100e"), new THREE.Color("#850909"), new THREE.Color("#c1281c"), new THREE.Color("#e7b47e")];
 
@@ -842,7 +856,7 @@ function Atmosphere() {
   const bp = useRef(new THREE.Vector3());
   useFrame(({ camera }) => {
     if (fog.current) fog.current.density = 0.011 + 0.042 * reach.fog;
-    if (key.current) key.current.intensity = 2.2 + 1.0 * ease(clamp01(reach.open)) + reach.touch * 1.5;
+    if (key.current) key.current.intensity = 3.4 + 0.8 * ease(clamp01(reach.open)) + reach.touch * 1.5;
     if (below.current) {
       onPlane(camera, 0.5, 1.05, bp.current, 3.2);
       below.current.position.copy(bp.current);
@@ -852,9 +866,11 @@ function Atmosphere() {
   return (
     <>
       <fogExp2 ref={fog} attach="fog" args={[CREAM.getHex(), 0.05]} />
-      <directionalLight ref={key} position={[-3, 6.5, 6]} intensity={2.4} color="#ffe6c4" />
-      <directionalLight position={[6, -1, 3]} intensity={0.6} color="#ffd9b3" />
-      <hemisphereLight args={["#fff4e6", "#7a4a35", 0.9]} />
+      <directionalLight ref={key} position={[-3, 6.5, 6]} intensity={2.4} color="#ffe6c4" castShadow shadow-mapSize={[1024, 1024]} shadow-bias={-0.0004} shadow-normalBias={0.02} shadow-camera-left={-7} shadow-camera-right={7} shadow-camera-top={7} shadow-camera-bottom={-7} shadow-camera-near={1} shadow-camera-far={30} />
+      <directionalLight position={[6, -1, 3]} intensity={0.35} color="#ffd9b3" />
+      <directionalLight position={[0, 1, 9]} intensity={0.3} color="#fff0e4" />
+      <directionalLight position={[3, 4, -7]} intensity={3.0} color="#fff1e2" />
+      <hemisphereLight args={["#fff4e6", "#5a3024", 0.4]} />
       <pointLight ref={below} position={[0, -4, 2]} intensity={0} color="#fff1dc" distance={14} decay={2} />
     </>
   );
@@ -896,12 +912,22 @@ function Post() {
   );
 }
 
-/** Keeps the demand loop ticking while the section is on screen; off screen it renders nothing. */
-function Pulse() {
+/**
+ * Keeps the demand loop ticking while the section is on screen; off screen it renders nothing.
+ * The first second after mount always draws, so shaders compile and textures upload before the
+ * section is scrolled to; once a few frames are in, the picture fades up (`onReady`).
+ */
+function Pulse({ onReady }: { onReady: () => void }) {
   const invalidate = useThree((s) => s.invalidate);
+  const frames = useRef(0);
+  useFrame(() => {
+    frames.current++;
+    if (frames.current === 3) onReady();
+  });
   useEffect(() => {
+    const born = performance.now();
     const tick = () => {
-      if (reach.inView) invalidate();
+      if (reach.inView || performance.now() - born < 1200) invalidate();
     };
     gsap.ticker.add(tick);
     return () => gsap.ticker.remove(tick);
@@ -910,20 +936,27 @@ function Pulse() {
 }
 
 export default function ReachWorld() {
+  const wrap = useRef<HTMLDivElement>(null);
+  const dpr = useMemo(() => pickDpr(), []);
   return (
-    <div className="pointer-events-none absolute inset-0 z-[1]" aria-hidden>
+    <div ref={wrap} className="rch-world pointer-events-none absolute inset-0 z-[1]" aria-hidden>
       <Canvas
         style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
-        dpr={[1, 1.5]}
+        dpr={dpr}
         frameloop="demand"
+        shadows="soft"
         camera={{ fov: FOV, near: 0.1, far: 60, position: [0, 0, CAM_Z] }}
         gl={{ antialias: false, alpha: false, powerPreference: "high-performance", toneMapping: THREE.NoToneMapping }}
       >
         <color attach="background" args={["#fdf2e3"]} />
-        <Pulse />
+        <Pulse
+          onReady={() => {
+            if (wrap.current) wrap.current.dataset.ready = "1";
+          }}
+        />
         <Atmosphere />
         <Suspense fallback={null}>
-          <Environment files="/world/studio_1k.hdr" environmentIntensity={0.6} />
+          <Environment files="/world/studio_1k.hdr" environmentIntensity={0.45} />
           <Sky />
           <Clouds />
           <Guide />
@@ -943,5 +976,5 @@ export default function ReachWorld() {
   );
 }
 
-useGLTF.preload("/reach/guide.glb");
+useGLTF.preload("/reach/guide-hd.glb");
 useTexture.preload(["/reach/sky.webp", "/reach/clouds.webp", "/reach/clouds-near.webp", "/reach/hand.webp"]);
