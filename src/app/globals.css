@@ -690,4 +690,35 @@ button:not(:disabled), [role="button"], label[for], select, summary { cursor: po
   .vu-hint-arrow, .vu-now { animation: none; }
 }
 
+/* ---------- the reach ---------- */
+
+/* the sun's warmth over the sky, under the hands */
+.rch-glow {
+  background:
+    radial-gradient(40% 35% at 50% 47%, rgba(255, 244, 222, 0.55), transparent 70%),
+    linear-gradient(180deg, rgba(250, 227, 197, 0) 55%, rgba(250, 227, 197, 0.55) 100%);
+}
+/* the red wave: brightest where the fingertips meet, deep at the edges; a tan crest rides ahead of it */
+.rch-flood {
+  background: radial-gradient(circle at var(--gx, 50%) var(--gy, 50%), #b3170f 0%, #850909 30%, #5a0707 70%, #2e0404 100%);
+}
+.rch-crest { background: radial-gradient(circle at 50% 50%, rgba(231, 180, 126, 0.85), rgba(231, 180, 126, 0.55)); }
+
+
+/* tap & hold */
+.rch-ring { color: var(--auvox-ink); transition: color 0.6s; }
+.rch-ring-pulse { animation: tap-ring 1.8s ease-out infinite; opacity: 0.6; }
+.rch-ring[data-holding="1"] .rch-ring-pulse { animation-duration: 0.7s; }
+.rch-ring-dot { transition: transform 0.4s cubic-bezier(0.2, 0.9, 0.2, 1); }
+.rch-ring[data-holding="1"] .rch-ring-dot { transform: scale(2.4); }
+.rch-ring:focus-visible { outline: 1px solid var(--auvox-red); outline-offset: 4px; }
+.rch-ring-svg { filter: drop-shadow(0 0 10px rgba(255, 244, 222, 0.9)); }
+@media (max-width: 767px) {
+  /* on phones the label sits under the ring */
+  .rch-ring-label { top: calc(100% + 0.4rem); left: 50%; transform: translateX(-50%); text-align: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rch-ring-pulse { animation: none; }
+}
+
 /* end */

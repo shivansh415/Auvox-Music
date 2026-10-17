@@ -121,6 +121,25 @@ const STEPS = {
     refs: [],
     prompt: `Studio product photograph of a classical Greek marble bust of a young god in the style of Apollo: thick curly hair, calm face, eyes gently lowered, head turned slightly to his left (toward the right of the frame), bare shoulders cut cleanly at the chest like a museum bust. He wears modern over-ear headphones: matte black ear cups with a tan leather headband, resting naturally on the marble hair. White Carrara marble with faint grey veining, realistic chips and texture. Lit by one soft warm key light from the upper left and a gentle fill, soft shadow under the jaw. The bust is centred and fills most of the frame, on a flat, perfectly even, solid light peach background (#FAE3C5), nothing else in the frame — no pedestal, no props, no text, no watermark. Photorealistic, 85mm lens, sharp.`,
   },
+  // ---- The Promise (after the Frequency Box): the student's hand, the sky, the cloud banks ----
+  promiseHand: {
+    final: "40-promise-hand.png",
+    size: "1024x1536",
+    refs: [],
+    prompt: `Photograph of one real young adult's bare right hand and forearm entering the frame from the bottom-right corner and reaching up toward the upper-left corner. The palm faces up and slightly toward the camera. The index finger is gently extended, reaching toward the upper left with a small natural bend; the middle, ring and little fingers are softly relaxed and slightly curled; the thumb is relaxed and open. A tender, hopeful, reaching gesture, like a hand about to touch another fingertip. Natural skin with visible texture and fine lines, warm light skin tone, short clean natural nails, no rings, no watch, no sleeve — the forearm is bare and leaves the frame at the bottom-right corner. Soft warm golden-hour light from the upper left, a gentle warm rim light on the edge of the fingers, soft shadows. The hand is isolated on a perfectly flat, even, solid light peach background (#FAE3C5) with nothing else in the frame. Photorealistic, 85mm lens, sharp focus on the fingertip, ultra-detailed. Anatomically correct hand with exactly five fingers. No text, no watermark.`,
+  },
+  promiseSky: {
+    final: "41-promise-sky.png",
+    size: "1536x1024",
+    refs: [],
+    prompt: `A heavenly golden-hour sky seen from high up among the clouds. Soft towering cumulus clouds in warm cream, pale peach and apricot tones with gentle tan shadows, a warm sun glowing softly behind the clouds in the upper middle of the frame, soft crepuscular light rays falling diagonally from it, a light warm haze. The centre of the frame is calm open sky with only a few thin wisps, the big cloud banks rise along the bottom and the left and right edges. Airy, serene, cinematic, photographic with a painterly softness, like a classical ceiling fresco photographed for real. No ground, no horizon line, no buildings, no birds, no people, no text, no watermark. Warm palette only: cream #FDF2E3, peach #FAE3C5, tan #E7B47E — no blue, no pink, no neon.`,
+  },
+  promiseClouds: {
+    final: "42-promise-clouds.png",
+    size: "1536x1024",
+    refs: [],
+    prompt: `Soft white volumetric clouds and fog banks photographed against a pure black background, like a cloud plate for visual effects compositing. Dense billowing cumulus cloud banks along the bottom edge and in the top-left and bottom-right corners, a few thinner drifting wisps toward the middle, the centre of the frame mostly empty black. Natural cloud detail, soft edges, high dynamic range, pure white to grey cloud tones only. Pure black background with no stars, no sky gradient, no text, no watermark.`,
+  },
   mobile: {
     final: "08-A-hero-mobile.png",
     size: "1024x1536",
