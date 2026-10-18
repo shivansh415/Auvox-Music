@@ -29,22 +29,35 @@ export const SHOWCASE_WORDS: Record<Verse, readonly string[]> = {
 };
 
 /**
- * Where the instrument sits in each chapter, on wide screens: offset from the centre (x in vw, y in
- * vh), a small turn (deg) and the box its render fits in (h in vh, w in vw). It alternates sides; the
- * copy takes the other half. Renders: public/verse/<verse>-<chapter>.webp (Blender, transparent).
+ * Where the instrument passes through in each chapter, on wide screens: offset from the centre (x in
+ * vw, y in vh). It alternates sides; the copy takes the other half. Between them it travels on a
+ * smooth curve, never stopping.
  */
-export type Pose = { x: number; y: number; r: number; h: number; w: number };
+export type Pose = { x: number; y: number };
 export const SHOWCASE_POSES: Record<Verse, readonly Pose[]> = {
   guitar: [
-    { x: 21, y: 2, r: 0, h: 86, w: 40 },
-    { x: -22, y: 2, r: -3, h: 88, w: 36 },
-    { x: 21, y: 0, r: 3, h: 72, w: 44 },
-    { x: -20, y: 4, r: -2, h: 32, w: 46 },
+    { x: 21, y: 2 },
+    { x: -22, y: 2 },
+    { x: 21, y: 0 },
+    { x: -20, y: 4 },
   ],
   piano: [
-    { x: 21, y: 4, r: 0, h: 50, w: 44 },
-    { x: -21, y: 2, r: 0, h: 50, w: 44 },
-    { x: 21, y: 0, r: 2, h: 60, w: 40 },
-    { x: -21, y: 4, r: -2, h: 50, w: 44 },
+    { x: 21, y: 4 },
+    { x: -21, y: 2 },
+    { x: 21, y: 0 },
+    { x: -21, y: 4 },
   ],
+};
+
+/**
+ * The turning instrument: a Blender image sequence (public/verse/seq/<verse>/<lg|sm>/NNN.webp,
+ * square, transparent, the model centred). It turns from each chapter's angle to the next in
+ * FRAMES_PER_LEG frames, and one more leg back to the first angle for the landing by the packages.
+ * lg has every frame (1200px); sm every other one (720px). `size` is the square's side on wide
+ * screens, in the smaller of svh and vw (the piano is wider, so its square is smaller).
+ */
+export const SHOWCASE_SEQ = { legs: 4, perLeg: 24, lg: 1200, sm: 720 } as const;
+export const SHOWCASE_SIZE: Record<Verse, { svh: number; vw: number }> = {
+  guitar: { svh: 98, vw: 60 },
+  piano: { svh: 84, vw: 52 },
 };

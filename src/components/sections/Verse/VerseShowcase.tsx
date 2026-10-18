@@ -2,29 +2,60 @@
 
 // The verse page's opening: a product showcase that plays as you scroll. Four full-screen chapters
 // (the verse, then the client's three points) scroll by like ordinary sections, each with its own
-// colour blob, big word, ink marks and copy. The instrument doesn't scroll with them: it stays on
-// screen the whole way down, gliding from one chapter's spot to the next and turning to a new angle
-// as it goes (studio renders of the same model as the home page), so it is always where the chapter
-// you're looking at expects it. Nothing waits or fades in place; everything moves with the scroll.
+// colour blob, big word, ink marks and copy. The instrument doesn't scroll with them: it rides a
+// sticky layer above them and never stops moving. It travels on one smooth curve through every
+// chapter's spot, leaning into the direction it travels, and turns the whole way (a Blender image
+// sequence scrubbed by the scroll, so it is a real render turning in 3D, not a swap between
+// pictures). On wide screens it then carries on into the packages and lands beside their heading.
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap";
 import { useTransition } from "@/store/transition";
 import { VERSE_COPY, type Verse } from "@/content/packages";
 import SectionHead from "@/components/ui/SectionHead";
 import Button from "@/components/ui/Button";
-import { LEARN_COPY, SHOWCASE_POSES, SHOWCASE_WORDS, VERSE_NAME } from "./copy";
+import { LEARN_COPY, SHOWCASE_POSES, SHOWCASE_SEQ, SHOWCASE_SIZE, SHOWCASE_WORDS, VERSE_NAME } from "./copy";
 import { DOODLES, blob } from "./doodles";
-import RENDERS from "./renders.json";
 
 const NUMERALS = ["I", "II", "III"];
 /** the copy sits on the side away from the instrument */
 const sideOf = (x: number) => (x > 0 ? "left" : "right");
 /** on phones the instrument lives in the top part of the screen */
 const PHONE_Y = -0.2;
+/** how much of its square the instrument fills at the landing angle (measured on the renders) */
+const FILL = 0.82;
+
+type P = { x: number; y: number };
+
+/** a Catmull-Rom curve through the points, at t (0 = first point, 1 = second, ...) */
+function curve(pts: P[], t: number): P {
+  const n = pts.length - 1;
+  const i = Math.min(Math.max(Math.floor(t), 0), n - 1);
+  const u = Math.min(Math.max(t - i, 0), 1);
+  const p1 = pts[i];
+  const p2 = pts[i + 1];
+  // past the ends, mirror the neighbour so the curve leaves and arrives smoothly
+  const p0 = pts[i - 1] ?? { x: 2 * p1.x - p2.x, y: 2 * p1.y - p2.y };
+  const p3 = pts[i + 2] ?? { x: 2 * p2.x - p1.x, y: 2 * p2.y - p1.y };
+  const u2 = u * u;
+  const u3 = u2 * u;
+  const f = (a: number, b: number, c: number, d: number) =>
+    0.5 * (2 * b + (-a + c) * u + (2 * a - 5 * b + 4 * c - d) * u2 + (-a + 3 * b - 3 * c + d) * u3);
+  return { x: f(p0.x, p1.x, p2.x, p3.x), y: f(p0.y, p1.y, p2.y, p3.y) };
+}
+
+/** the square the instrument turns in, in px */
+function sideFor(verse: Verse, W: number, H: number) {
+  const s = SHOWCASE_SIZE[verse];
+  return W >= 1024 ? Math.min((s.svh * H) / 100, (s.vw * W) / 100) : Math.min(W * 0.92, H * 0.52);
+}
 
 export default function VerseShowcase({ verse, ready }: { verse: Verse; ready: boolean }) {
   const root = useRef<HTMLElement>(null);
+  const readyRef = useRef(ready);
+  useEffect(() => {
+    readyRef.current = ready;
+  }, [ready]);
   const go = useTransition();
   const copy = VERSE_COPY[verse];
   const poses = SHOWCASE_POSES[verse];
@@ -40,51 +71,151 @@ export default function VerseShowcase({ verse, ready }: { verse: Verse; ready: b
       const q = gsap.utils.selector(el);
       const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const mover = q<HTMLElement>(".vs-move")[0];
-      const imgs = q<HTMLElement>(".vs-img");
+      const cv = q<HTMLCanvasElement>(".vs-cv")[0];
+      const ctx = cv.getContext("2d");
       const chapters = q<HTMLElement>(".vs-ch");
+      const foot = q<HTMLElement>(".vs-foot")[0];
       const count = q<HTMLElement>(".vs-count")[0];
       const bar = q<HTMLElement>(".vs-bar")[0];
+      const { legs, perLeg } = SHOWCASE_SEQ;
 
-      const wide = () => window.innerWidth >= 1024;
-      const px = (k: number) => (wide() ? (poses[k].x * window.innerWidth) / 100 : (k % 2 ? -1 : 1) * window.innerWidth * 0.04);
-      const py = (k: number) => (wide() ? (poses[k].y * window.innerHeight) / 100 : window.innerHeight * PHONE_Y);
+      // ---- the frames: every frame at 1200px for big/dense squares, every other one at 720px for phones
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const small = sideFor(verse, window.innerWidth, window.innerHeight) * dpr <= SHOWCASE_SEQ.sm + 40;
+      const step = small ? 2 : 1;
+      const total = (legs * perLeg) / step + 1;
+      const px = small ? SHOWCASE_SEQ.sm : SHOWCASE_SEQ.lg;
+      const frames: (HTMLImageElement | undefined)[] = new Array(total);
+      const state = { t: 0 };
+      let alive = true;
+      let drawn = -1;
 
-      gsap.set(imgs, { xPercent: -50, yPercent: -50, transformPerspective: 1400 });
-      gsap.set(imgs.slice(1), { autoAlpha: 0 });
-      gsap.set(mover, { x: () => px(0), y: () => py(0), rotation: poses[0].r });
+      // the nearest frame that has arrived
+      const draw = () => {
+        if (!ctx) return;
+        const want = Math.round((state.t * perLeg) / step);
+        let i = -1;
+        for (let d = 0; d < total && i < 0; d++) {
+          if (frames[want - d]) i = want - d;
+          else if (frames[want + d]) i = want + d;
+        }
+        if (i < 0 || i === drawn) return;
+        drawn = i;
+        ctx.clearRect(0, 0, cv.width, cv.height);
+        ctx.drawImage(frames[i]!, 0, 0, cv.width, cv.height);
+      };
 
-      // the instrument's glide: chapter k is centred on screen at exactly k/(N-1) of the way, and the
-      // instrument is exactly at chapter k's spot then; between them it travels and turns, no pauses
-      const tl = gsap.timeline({ defaults: { ease: "none" }, paused: true });
-      for (let k = 0; k < N - 1; k++) {
-        const dir = poses[k + 1].x > poses[k].x ? 1 : -1;
-        tl.to(mover, { x: () => px(k + 1), y: () => py(k + 1), rotation: poses[k + 1].r, duration: 1, ease: "sine.inOut" }, k);
-        // a lift in the middle of the trip, so it reads as being carried, not slid
-        tl.to(mover, { scale: 1.05, duration: 0.5, ease: "sine.out" }, k).to(mover, { scale: 1, duration: 0.5, ease: "sine.in" }, k + 0.5);
-        // the turn: the old angle spins away edge-on as the new one spins in from the other side, so
-        // the two only overlap while both are thin and faint (a spin, not a double exposure)
-        tl.to(imgs[k], { rotationY: 78 * dir, rotation: 6 * dir, autoAlpha: 0, duration: 0.3, ease: "power1.in" }, k + 0.34);
-        tl.fromTo(
-          imgs[k + 1],
-          { rotationY: -78 * dir, rotation: -6 * dir, autoAlpha: 0 },
-          { rotationY: 0, rotation: 0, autoAlpha: 1, duration: 0.3, ease: "power1.out", immediateRender: false },
-          k + 0.56,
-        );
+      // first frame first, then coarse to fine (every 8th, 4th, 2nd, all): the turn works early
+      // and only gets smoother as the rest arrive
+      const order: number[] = [0, total - 1];
+      const seen = new Set(order);
+      for (const s of [8, 4, 2, 1]) {
+        for (let i = 0; i < total; i += s) {
+          if (seen.has(i)) continue;
+          seen.add(i);
+          order.push(i);
+        }
       }
+      const url = (i: number) => `/verse/seq/${verse}/${small ? "sm" : "lg"}/${String(i).padStart(3, "0")}.webp`;
+      let next = 0;
+      const pull = async () => {
+        while (alive && next < order.length) {
+          const i = order[next++];
+          const img = new Image();
+          img.decoding = "async";
+          if (i !== 0) img.fetchPriority = "low";
+          img.src = url(i);
+          try {
+            await img.decode();
+          } catch {
+            continue;
+          }
+          if (!alive) return;
+          frames[i] = img;
+          drawn = -1; // a nearer frame may have arrived
+          draw();
+        }
+      };
+      for (let k = 0; k < 4; k++) void pull();
 
-      const st = ScrollTrigger.create({
-        trigger: el,
-        start: "top top",
-        end: "bottom bottom",
-        scrub: reduce ? true : 0.6,
-        invalidateOnRefresh: true,
-        animation: tl,
-        onUpdate: (self) => {
-          const k = Math.round(self.progress * (N - 1));
-          if (count) count.textContent = String(k + 1).padStart(2, "0");
-          if (bar) bar.style.transform = `scaleX(${self.progress})`;
-        },
+      // ---- the layout, measured again on every refresh (resize, fonts, the page growing)
+      let W = 0;
+      let pts: P[] = [];
+      let land = 1;
+      const measure = () => {
+        W = window.innerWidth;
+        const H = window.innerHeight;
+        const wide = W >= 1024;
+        const side = sideFor(verse, W, H);
+        cv.style.width = cv.style.height = `${side}px`;
+        const back = Math.min(px, Math.round(side * dpr));
+        if (cv.width !== back) {
+          cv.width = cv.height = back;
+          drawn = -1;
+        }
+        pts = poses.map((p, k) => (wide ? { x: (p.x * W) / 100, y: (p.y * H) / 100 } : { x: (k % 2 ? -1 : 1) * W * 0.04, y: H * PHONE_Y }));
+        // the landing, beside the packages heading: where that spot will be on screen when the
+        // stage lets go (the packages' top at the top of the screen)
+        const spot = document.querySelector<HTMLElement>(".vs-land");
+        const pk = document.getElementById("packages");
+        land = 1;
+        if (wide && spot && pk) {
+          const r = spot.getBoundingClientRect();
+          const top = pk.getBoundingClientRect().top;
+          pts.push({ x: r.left + r.width / 2 - W / 2, y: r.top - top + r.height / 2 - H / 2 });
+          land = Math.min(1, r.height / (side * FILL));
+        }
+      };
+
+      const setX = gsap.quickSetter(mover, "x", "px");
+      const setY = gsap.quickSetter(mover, "y", "px");
+      const setS = gsap.quickSetter(mover, "scale");
+      const setR = gsap.quickSetter(mover, "rotation", "deg");
+      const render = () => {
+        const t = Math.min(state.t, pts.length - 1);
+        const p = curve(pts, t);
+        // lean into the travel: a few degrees, from how fast it is moving sideways right now
+        const a = curve(pts, Math.max(0, t - 0.02));
+        const b = curve(pts, Math.min(pts.length - 1, t + 0.02));
+        const lean = reduce ? 0 : gsap.utils.clamp(-6, 6, ((b.x - a.x) / 0.04 / Math.max(W, 1)) * 4);
+        // the landing leg settles it into the spot beside the heading
+        const k = gsap.utils.clamp(0, 1, t - (N - 1));
+        const ease = k * k * (3 - 2 * k);
+        setX(p.x);
+        setY(p.y);
+        setS(1 + (land - 1) * ease);
+        setR(lean * (1 - ease));
+        draw();
+        if (count) count.textContent = String(Math.min(N - 1, Math.round(t)) + 1).padStart(2, "0");
+        if (bar) bar.style.transform = `scaleX(${Math.min(1, t / (N - 1))})`;
+        if (foot && readyRef.current) foot.style.opacity = String(1 - k);
+      };
+
+      measure();
+      render();
+
+      // the whole trip is one scrubbed value: chapter k is centred at exactly t = k; on wide screens
+      // one more screen of scroll after the last chapter is the landing
+      const mm = gsap.matchMedia();
+      mm.add({ wide: "(min-width: 1024px)", narrow: "(max-width: 1023px)" }, (c) => {
+        const isWide = !!c.conditions?.wide;
+        gsap.fromTo(
+          state,
+          { t: 0 },
+          {
+            t: isWide ? N : N - 1,
+            ease: "none",
+            onUpdate: render,
+            scrollTrigger: { trigger: el, start: "top top", end: isWide ? "bottom top" : "bottom bottom", scrub: reduce ? true : 0.6 },
+          },
+        );
       });
+      const onRefresh = () => {
+        measure();
+        drawn = -1;
+        render();
+      };
+      ScrollTrigger.addEventListener("refresh", onRefresh);
 
       // each chapter as it comes up: the blob swells and turns, the word rises, the ink draws on,
       // the copy arrives (all tied to the scroll, so they reverse on the way back up)
@@ -118,9 +249,10 @@ export default function VerseShowcase({ verse, ready }: { verse: Verse; ready: b
       };
       window.addEventListener("pointermove", onMove, { passive: true });
       return () => {
+        alive = false;
         window.removeEventListener("pointermove", onMove);
-        st.kill();
-        tl.kill();
+        ScrollTrigger.removeEventListener("refresh", onRefresh);
+        mm.revert();
       };
     },
     { scope: root, dependencies: [verse] },
@@ -138,7 +270,8 @@ export default function VerseShowcase({ verse, ready }: { verse: Verse; ready: b
         .timeline({ defaults: { ease: "expo.out" } })
         .fromTo(first(".vs-blob"), { scale: 0.4, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: reduce ? 0.6 : 1.8 }, 0)
         .fromTo(first(".vs-word"), { yPercent: 40, autoAlpha: 0 }, { yPercent: 0, autoAlpha: 1, duration: 1.4 }, 0.15)
-        .fromTo(q(".vs-img")[0], { y: 90, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: reduce ? 0.6 : 2 }, 0.25)
+        .fromTo(q(".vs-tilt"), { y: 90 }, { y: 0, duration: reduce ? 0.6 : 2 }, 0.25)
+        .fromTo(q(".vs-float"), { autoAlpha: 0 }, { autoAlpha: 1, duration: reduce ? 0.6 : 1.4, ease: "power2.out" }, 0.25)
         .fromTo(first(".vs-ink"), { drawSVG: "0% 0%" }, { drawSVG: "0% 100%", duration: 1.4, stagger: 0.08, ease: "power2.out" }, 0.9)
         .fromTo(first(".vs-dot"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.6 }, 1.3)
         .fromTo(q(".vs-cta, .vs-foot"), { y: 16, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9, stagger: 0.08 }, 1.0);
@@ -148,40 +281,26 @@ export default function VerseShowcase({ verse, ready }: { verse: Verse; ready: b
 
   return (
     <section ref={root} className="vs relative bg-peach text-ink" data-verse={verse} aria-label={`${VERSE_NAME[verse]} Verse`}>
-      {/* the instrument: one screen-sized layer that stays put while the chapters scroll under it */}
-      <div className="vs-pin pointer-events-none sticky top-0 z-20 -mb-[100svh] h-[100svh] overflow-hidden" aria-hidden>
-        <div className="vs-move absolute top-1/2 left-1/2">
-          <div className="vs-tilt">
-            <div className="vs-float">
-              {poses.map((p, i) => {
-                const r = (RENDERS as Record<string, { w: number; h: number }>)[`${verse}-${i}`];
-                return (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={i}
-                    src={`/verse/${verse}-${i}.webp`}
-                    width={r.w}
-                    height={r.h}
-                    alt=""
-                    decoding="async"
-                    loading="eager"
-                    fetchPriority={i === 0 ? "high" : "low"}
-                    className="vs-img absolute top-0 left-0 max-w-none"
-                    style={{ "--ih": `${p.h}svh`, "--iw": `${p.w}vw`, opacity: 0 } as React.CSSProperties}
-                  />
-                );
-              })}
+      {/* the instrument: a screen-sized stage that stays put while the chapters scroll under it (on
+          wide screens the rail runs one screen past the section, for the landing by the packages) */}
+      <div className="vs-rail pointer-events-none absolute inset-x-0 top-0 z-20" aria-hidden>
+        <div className="vs-stage sticky top-0 h-[100svh] overflow-hidden">
+          <div className="vs-move absolute top-1/2 left-1/2">
+            <div className="vs-tilt">
+              <div className="vs-float opacity-0">
+                <canvas className="vs-cv block" width={1} height={1} />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* where you are in the story (bottom left: the site-wide scroll cue owns the bottom centre) */}
-        <div className="vs-foot absolute bottom-8 left-[max(6vw,calc((100vw-1440px)/2+3rem))] hidden items-center gap-4 text-[0.6rem] font-semibold tracking-[0.34em] text-ink/60 uppercase opacity-0 lg:flex">
-          <span className="vs-count tabular-nums text-ink">01</span>
-          <span className="relative block h-px w-24 overflow-hidden bg-ink/15">
-            <span className="vs-bar absolute inset-0 origin-left bg-red" style={{ transform: "scaleX(0)" }} />
-          </span>
-          <span className="tabular-nums">{String(N).padStart(2, "0")}</span>
+          {/* where you are in the story (bottom left: the site-wide scroll cue owns the bottom centre) */}
+          <div className="vs-foot absolute bottom-8 left-[max(6vw,calc((100vw_-_1440px)/2_+_3rem))] hidden items-center gap-4 text-[0.6rem] font-semibold tracking-[0.34em] text-ink/60 uppercase opacity-0 lg:flex">
+            <span className="vs-count text-ink tabular-nums">01</span>
+            <span className="relative block h-px w-24 overflow-hidden bg-ink/15">
+              <span className="vs-bar absolute inset-0 origin-left bg-red" style={{ transform: "scaleX(0)" }} />
+            </span>
+            <span className="tabular-nums">{String(N).padStart(2, "0")}</span>
+          </div>
         </div>
       </div>
 
@@ -195,7 +314,7 @@ export default function VerseShowcase({ verse, ready }: { verse: Verse; ready: b
             <div className="vs-wash pointer-events-none absolute inset-0" />
             <div className="grain pointer-events-none absolute inset-0 opacity-[0.045] mix-blend-multiply" />
 
-            {/* this chapter's spot: where the instrument will be when the chapter is centred */}
+            {/* this chapter's spot: where the instrument passes while the chapter is centred */}
             <div className="vs-spot pointer-events-none absolute" style={{ "--sx": `${pose.x}vw`, "--sy": `${pose.y}svh` } as React.CSSProperties} aria-hidden>
               <div className="vs-back">
                 <svg className="vs-blob" viewBox="-500 -500 1000 1000">
@@ -204,7 +323,7 @@ export default function VerseShowcase({ verse, ready }: { verse: Verse; ready: b
               </div>
             </div>
 
-            {/* the big word, on the instrument's side, over the blob */}
+            {/* the big word, on the instrument side, over the blob */}
             <span
               className="vs-word font-display pointer-events-none absolute leading-none whitespace-nowrap select-none"
               aria-hidden

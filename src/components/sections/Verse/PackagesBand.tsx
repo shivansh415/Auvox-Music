@@ -1,7 +1,8 @@
 "use client";
 
 // Section 3 — the verse's two packages side by side (Complete is Best Value). The cards rise in
-// with a stagger and tilt a few degrees toward the pointer.
+// with a stagger and tilt a few degrees toward the pointer. Beside the heading is the empty spot
+// where the showcase instrument lands.
 
 import { useRef, type PointerEvent } from "react";
 import { gsap, useGSAP } from "@/lib/gsap";
@@ -50,13 +51,18 @@ export default function PackagesBand({ verse }: { verse: Verse }) {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(55%_45%_at_100%_0%,rgba(250,227,197,0.9),transparent_70%)]" />
       <div className="grain pointer-events-none absolute inset-0 opacity-[0.04] mix-blend-multiply" />
       <div className="relative mx-auto max-w-[1440px] px-6 py-24 md:px-12 md:py-36">
-        <SectionHead
-          kicker="Packages"
-          title={`Choose your ${VERSE_NAME[verse]} Verse`}
-          accent="Verse"
-          body="Core for the essentials, Complete for the full AUVOX experience — with the instrument included."
-        />
-        <div className="verse-cards mt-14 grid gap-6 md:mt-20 md:grid-cols-2 md:gap-8 lg:gap-10">
+        {/* on wide screens the heading row is tall enough for the landed instrument beside it */}
+        <div className="relative lg:flex lg:min-h-[min(64svh,36rem)] lg:items-center">
+          <SectionHead
+            kicker="Packages"
+            title={`Choose your ${VERSE_NAME[verse]} Verse`}
+            accent="Verse"
+            body="Core for the essentials, Complete for the full AUVOX experience — with the instrument included."
+          />
+          {/* where the showcase instrument lands on wide screens (VerseShowcase measures this box) */}
+          <div className="vs-land pointer-events-none absolute inset-y-0 right-0 hidden w-[40%] lg:block" aria-hidden />
+        </div>
+        <div className="verse-cards mt-14 grid gap-6 md:mt-20 lg:mt-10 md:grid-cols-2 md:gap-8 lg:gap-10">
           {packages.map((pkg) => (
             <div key={pkg.id} className="verse-card opacity-0" onPointerMove={tilt} onPointerLeave={rest}>
               <PackageCard pkg={pkg} className="verse-card-inner h-full" />
