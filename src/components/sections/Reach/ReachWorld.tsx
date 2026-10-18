@@ -19,6 +19,7 @@ import { EffectComposer, Bloom, Vignette, ToneMapping } from "@react-three/postp
 import { BlendFunction, Effect, ToneMappingMode } from "postprocessing";
 import * as THREE from "three";
 import { gsap } from "@/lib/gsap";
+import Prewarm from "@/lib/r3f/Prewarm";
 import { sampleAudio } from "@/components/sections/Session/audio";
 import { GRADE_FRAG, MOTE_FRAG, MOTE_VERT, RAYS_FRAG, RAYS_VERT, SCREEN_VERT, SPARK_FRAG, SPARK_VERT, VEIL_FRAG, VEIL_WORLD_VERT, patchArm } from "./shaders";
 import { reach, together } from "./state";
@@ -56,13 +57,6 @@ function pickDpr(): [number, number] {
   const low = (nav.hardwareConcurrency ?? 8) <= 8 || (nav.deviceMemory ?? 8) <= 8;
   return low ? [1, 1.2] : [1, 1.5];
 }
-
-/**
- * Until this time the hidden pieces (picks, petals, the student) are still drawn, at no size, so their
- * shaders compile during the warm-up instead of on the frame they first appear (Pulse sets it).
- */
-let warmUntil = 0;
-const warming = () => performance.now() < warmUntil;
 
 /** what the 3D pieces tell each other, frame to frame */
 const shared = {
@@ -480,21 +474,31 @@ function Picks() {
     uv.needsUpdate = true;
     return g;
   }, []);
+  // every face has a map from the start (a blank one until the logos are drawn), so its shader never
+  // changes: swapping a map in later recompiled it on the frame the picks first appeared
+  const blank = useMemo(() => {
+    const t = new THREE.DataTexture(new Uint8Array([253, 242, 227, 255]), 1, 1);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.needsUpdate = true;
+    return t;
+  }, []);
+  const gl = useThree((st) => st.gl);
   const mats = useMemo(
     () =>
       PICK_FACES.map((f) => [
-        new THREE.MeshPhysicalMaterial({ color: "#ffffff", roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.1, envMapIntensity: 1.1 }),
+        new THREE.MeshPhysicalMaterial({ color: "#ffffff", map: blank, roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.1, envMapIntensity: 1.1 }),
         new THREE.MeshPhysicalMaterial({ color: PICK_SIDES[f], roughness: 0.4, clearcoat: 0.8, clearcoatRoughness: 0.2, envMapIntensity: 0.9 }),
       ]),
-    [],
+    [blank],
   );
   useEffect(() => {
     if (!faces) return;
+    // upload the faces now, so their first frame on screen costs nothing
+    faces.forEach((t) => gl.initTexture(t));
     PICK_FACES.forEach((f, i) => {
       mats[i][0].map = faces[f];
-      mats[i][0].needsUpdate = true;
     });
-  }, [faces, mats]);
+  }, [faces, mats, gl]);
   const seeds = useMemo(
     () =>
       Array.from({ length: PICK_COUNT }, (_, i) => ({
@@ -512,8 +516,9 @@ function Picks() {
     () => () => {
       geo.dispose();
       mats.flat().forEach((m) => m.dispose());
+      blank.dispose();
     },
-    [geo, mats],
+    [geo, mats, blank],
   );
   const gap = useRef(new THREE.Vector3());
 
@@ -550,7 +555,7 @@ function Picks() {
       m.position.set(x, y, z);
       m.rotation.set(s.tilt + Math.sin(t * 0.5 * s.spin + i) * 0.5, t * s.spin * 0.9 + i * 2.1, Math.sin(t * 0.4 + i) * 0.5);
       m.scale.setScalar(Math.max(0.0001, s.size * len * vis));
-      m.visible = vis > 0.01 || warming();
+      m.visible = vis > 0.01;
     });
   });
 
@@ -661,7 +666,7 @@ function Petals() {
       m.setMatrixAt(i, DUMMY.matrix);
     });
     m.instanceMatrix.needsUpdate = true;
-    m.visible = vis > 0.001 || warming();
+    m.visible = vis > 0.001;
   });
   return <instancedMesh ref={mesh} args={[geo, mat, PETAL_COUNT]} frustumCulled={false} renderOrder={6} />;
 }
@@ -690,7 +695,7 @@ function Student() {
     m.position.copy(S).sub(L);
     m.position.z = z;
     (m.material as THREE.MeshBasicMaterial).opacity = Math.min(1, sIn * 1.5);
-    m.visible = sIn > 0.001 || warming();
+    m.visible = sIn > 0.001;
   });
   return (
     <mesh ref={mesh} renderOrder={7} frustumCulled={false}>
@@ -894,9 +899,9 @@ function Post() {
 }
 
 /**
- * Keeps the demand loop ticking while the section is on screen; off screen it renders nothing.
- * The first second after mount always draws, so shaders compile and textures upload before the
- * section is scrolled to; once a few frames are in, the picture fades up (`onReady`).
+ * Keeps the demand loop ticking while the section is on screen; off screen it renders nothing (the
+ * Prewarm compiles and uploads everything ahead of time). Once a few frames are in, the picture fades
+ * up (`onReady`), so the canvas never shows black.
  */
 function Pulse({ onReady }: { onReady: () => void }) {
   const invalidate = useThree((s) => s.invalidate);
@@ -906,10 +911,8 @@ function Pulse({ onReady }: { onReady: () => void }) {
     if (frames.current === 3) onReady();
   });
   useEffect(() => {
-    const born = performance.now();
-    warmUntil = born + 1200;
     const tick = () => {
-      if (reach.inView || performance.now() - born < 1200) invalidate();
+      if (reach.inView) invalidate();
     };
     gsap.ticker.add(tick);
     return () => gsap.ticker.remove(tick);
@@ -944,6 +947,7 @@ export default function ReachWorld() {
           <Guide />
           <Picks />
           <Student />
+          <Prewarm name="reach" />
         </Suspense>
         <Sun />
         <Rays />

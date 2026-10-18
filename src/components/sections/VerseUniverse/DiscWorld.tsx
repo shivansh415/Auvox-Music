@@ -12,6 +12,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Environment, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { gsap } from "@/lib/gsap";
+import Prewarm from "@/lib/r3f/Prewarm";
 import { sampleAudio } from "@/components/sections/Session/audio";
 import { SHADOW_FRAG, VINYL_FRAG, VINYL_VERT } from "./vinyl";
 import {
@@ -505,8 +506,9 @@ function Record() {
       )}
       <Tonearm />
       <Suspense fallback={null}>
-        <Instrument kind="guitar" url="/models/guitar-red.glb" size={0.24} rotation={[-Math.PI / 2, 0, Math.PI]} tilt={[0.12, 0, 0.58]} phase={0} />
-        <Instrument kind="piano" url="/models/casio.glb" size={0.215} rotation={[0, 0, 0]} tilt={[0.72, -0.38, 0.3]} phase={2.1} />
+        <Instrument kind="guitar" url="/models/guitar-red-sm.glb" size={0.24} rotation={[-Math.PI / 2, 0, Math.PI]} tilt={[0.12, 0, 0.58]} phase={0} />
+        <Instrument kind="piano" url="/models/casio-sm.glb" size={0.215} rotation={[0, 0, 0]} tilt={[0.72, -0.38, 0.3]} phase={2.1} />
+        <Prewarm name="disc" />
       </Suspense>
     </group>
   );
@@ -550,5 +552,5 @@ export default function DiscWorld() {
   );
 }
 
-useGLTF.preload("/models/guitar-red.glb");
-useGLTF.preload("/models/casio.glb");
+useGLTF.preload("/models/guitar-red-sm.glb");
+useGLTF.preload("/models/casio-sm.glb");

@@ -10,6 +10,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, Environment, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
 import { gsap } from "@/lib/gsap";
+import Prewarm from "@/lib/r3f/Prewarm";
 import { fbox } from "./state";
 import { makePrintTextures, type PrintTextures } from "./textures";
 
@@ -223,6 +224,7 @@ function Scene() {
         <Suspense fallback={null}>
           <Environment files="/world/studio_1k.hdr" environmentIntensity={0.35} />
           <ContactShadows position={[0, -H / 2 - 0.32, 0]} scale={[5, 2.6]} opacity={0.42} blur={2.4} far={2.8} resolution={512} color="#5a3f26" />
+          <Prewarm name="fbox" />
         </Suspense>
         <Box />
         <Beads />

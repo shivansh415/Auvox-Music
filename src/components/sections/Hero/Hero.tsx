@@ -2,9 +2,10 @@
 
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Flip, gsap, ScrollTrigger, SplitText, useGSAP } from "@/lib/gsap";
 import { useTransitionStore } from "@/store/transition";
+import { afterGate, expectReady } from "@/store/preloader";
 import { hero, roomFit, type Verse } from "./state";
 
 const World = dynamic(() => import("./World"), { ssr: false });
@@ -22,6 +23,13 @@ const CALLOUTS: { kind: Verse; label: [string, string]; dx: number; dy: number }
 export default function Hero() {
   const root = useRef<HTMLElement>(null);
   const stage = useRef<HTMLDivElement>(null);
+  // the instruments' canvas waits for the preloader's gate: parsing the models and uploading their
+  // textures mid-preloader stuttered the strings
+  const [worldOn, setWorldOn] = useState(false);
+  useEffect(() => {
+    expectReady("hero");
+    return afterGate(() => setWorldOn(true));
+  }, []);
   const room = useRef<HTMLDivElement>(null);
   const cta = useRef<HTMLAnchorElement>(null);
   const ctaHome = useRef<HTMLDivElement>(null);
@@ -226,7 +234,7 @@ export default function Hero() {
           <Image src="/hero/room.jpg" alt="" fill priority sizes="100vw" className="object-cover" />
         </div>
         <div className="hero-light pointer-events-none absolute inset-0" />
-        <World />
+        {worldOn && <World />}
         {/* callouts + their leader lines */}
         {CALLOUTS.map((c) => (
           <span

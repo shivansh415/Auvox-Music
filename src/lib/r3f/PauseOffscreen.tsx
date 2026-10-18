@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useThree } from "@react-three/fiber";
 import { gsap } from "@/lib/gsap";
+import { prewarming } from "./Prewarm";
 
 const debug: Record<string, string> = {};
 if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
@@ -37,6 +38,8 @@ export default function PauseOffscreen({
     let warm = true;
     let covered = false;
     const apply = () => {
+      // a Prewarm is holding this canvas's loop; it re-applies when it lets go
+      if (prewarming.has(el)) return;
       const next = (visible || warm) && !covered && !document.hidden ? "always" : "never";
       const state = get();
       debug[name] = next;
@@ -58,6 +61,7 @@ export default function PauseOffscreen({
       apply();
     }, warmMs);
     document.addEventListener("visibilitychange", apply);
+    el.addEventListener("prewarmed", apply);
     // polled on the GSAP ticker (it keeps running while the canvas loop is paused)
     const poll = () => {
       const c = !!coveredWhen?.();
@@ -67,6 +71,7 @@ export default function PauseOffscreen({
     };
     if (coveredWhen) gsap.ticker.add(poll);
     return () => {
+      el.removeEventListener("prewarmed", apply);
       if (coveredWhen) gsap.ticker.remove(poll);
       io.disconnect();
       window.clearTimeout(warmTimer);

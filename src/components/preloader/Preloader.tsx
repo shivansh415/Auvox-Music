@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useLenis } from "lenis/react";
 import { gsap, useGSAP } from "@/lib/gsap";
-import { usePreloaderStore } from "@/store/preloader";
+import { usePreloaderStore, whenReady } from "@/store/preloader";
 import { plateToScreen, session, SIGN_WORDMARK } from "@/components/sections/Session/state";
 import { setMuted, unlockAudio } from "@/components/sections/Session/audio";
 import { MUSIC, WORDMARK } from "./logo-paths";
@@ -69,7 +69,7 @@ export default function Preloader() {
   const counterRef = useRef<HTMLSpanElement>(null);
   const enterGo = useRef<(withSound: boolean) => void>(() => {});
   const lenis = useLenis();
-  const { setProgress, finish } = usePreloaderStore();
+  const { setProgress, finish, openGate } = usePreloaderStore();
 
   useGSAP(
     () => {
@@ -95,6 +95,14 @@ export default function Preloader() {
       const home = window.location.pathname === "/";
       if (ONCE_PER_SESSION) sessionStorage.setItem(SESSION_KEY, "1");
       lenis?.stop();
+
+      // while the strings play, only the network works: fetch the 3D models into the HTTP cache so
+      // parsing them can start the moment the gate opens (fetching doesn't block the main thread)
+      if (home) {
+        for (const url of ["/models/guitar-red.glb", "/models/casio.glb", "/models/guitar-red-sm.glb", "/models/casio-sm.glb", "/world/studio_1k.hdr"]) {
+          void fetch(url, { priority: "low" } as RequestInit).catch(() => {});
+        }
+      }
 
       const q = gsap.utils.selector(overlay);
       const stage = q<SVGSVGElement>(".stage")[0];
@@ -144,7 +152,11 @@ export default function Preloader() {
         .to(state, { progress: 99, duration: 2.3, ease: "power2.inOut" })
         .to({}, { duration: 0.35 });
 
+      // the timeline waits for the first quiet moment on the main thread: the page's scripts and the
+      // studio's canvas set up in the first few hundred ms, and starting the bars and strings on top of
+      // that made their opening stutter. Until then the screen is simply black.
       const tl = gsap.timeline({
+        paused: true,
         defaults: { ease: "power3.out" },
         onComplete: () => {
           gsap.ticker.remove(tick);
@@ -229,14 +241,25 @@ export default function Preloader() {
         .to(counter, { autoAlpha: 0, y: -12, duration: 0.45 }, "flip+=0.3")
         .to(bars, { autoAlpha: 0, duration: 0.6 }, "flip+=0.3")
 
+        // The lockup rests: now the page does its heavy 3D work (every canvas compiles its shaders and
+        // uploads its textures, see lib/r3f/Prewarm) while nothing on screen moves. The Enter button only
+        // comes once that's done (or after 3s), so there is nothing heavy left to do once it's clicked.
+        .add("warm", "flip+=0.9")
+        .add(() => openGate(), "warm")
+        .addPause("warm+=0.01", () => {
+          void whenReady(3000).then(() => {
+            if (!entered) tl.resume();
+          });
+        })
+
         // Gate: the visitor's click is the gesture browsers require before any sound can play.
-        .fromTo(enter, { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 0.6, ease: "expo.out" }, "flip+=0.4")
-        .addLabel("gate", "flip+=1.0")
+        .fromTo(enter, { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 0.6, ease: "expo.out" }, "warm+=0.05")
+        .addLabel("gate", "warm+=0.65")
         .addPause("gate")
 
         // Handoff: the enter gate leaves, the sketched studio shows through, the logo flies onto the wall in red ink.
-        .to(enter, { autoAlpha: 0, y: -8, duration: 0.3, ease: "power2.in" }, "flip+=1.0")
-        .add("exit", "flip+=1.05")
+        .to(enter, { autoAlpha: 0, y: -8, duration: 0.3, ease: "power2.in" }, "gate")
+        .add("exit", "gate+=0.05")
         .to(presents, { autoAlpha: 0, duration: 0.3 }, "exit")
         .to(grain, { autoAlpha: 0, duration: 0.5 }, "exit")
         .to(overlay, { backgroundColor: "rgba(7,6,6,0)", duration: 0.9, ease: "power2.inOut" }, "exit+=0.1")
@@ -284,8 +307,33 @@ export default function Preloader() {
         }, "exit+=1.25")
         .to(stage, { autoAlpha: 0, duration: 0.4, ease: "power1.inOut" }, "exit+=1.3");
 
+      // on the home page, wait until the studio behind has drawn its first frames (its plates upload and
+      // its shaders compile in one heavy burst), then for the next quiet moment; never longer than 1.6s
+      let startHandle = 0;
+      let started = false;
+      const t0 = performance.now();
+      const start = () => {
+        if (started) return;
+        started = true;
+        gsap.ticker.remove(waitStudio);
+        if (!entered) tl.play();
+      };
+      const settle = () => {
+        startHandle = window.requestIdleCallback ? window.requestIdleCallback(start, { timeout: 250 }) : window.setTimeout(start, 80);
+      };
+      const waitStudio = () => {
+        if (session.studioReady || !home || performance.now() - t0 > 1600) {
+          gsap.ticker.remove(waitStudio);
+          settle();
+        }
+      };
+      gsap.ticker.add(waitStudio);
+
       // React StrictMode mounts twice — without this the first ticker keeps overwriting `d` and blocks the morph.
       return () => {
+        gsap.ticker.remove(waitStudio);
+        if (window.cancelIdleCallback) window.cancelIdleCallback(startHandle);
+        else window.clearTimeout(startHandle);
         state.wave = false;
         window.removeEventListener("keydown", onKey);
         gsap.ticker.remove(tick);

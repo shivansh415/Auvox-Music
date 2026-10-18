@@ -1,6 +1,8 @@
 // Mutable, render-free state shared between the DOM layer and the 3D scene.
 // Written by GSAP / ScrollTrigger, read every frame inside useFrame — never put this in React state.
 export const session = {
+  /** the studio has drawn its first frames (its textures are up, its shaders compiled) — the preloader starts on this */
+  studioReady: false,
   /** Scroll progress through the pinned section, 0–1 */
   progress: 0,
   /** Normalised pointer position, -1..1 (y up) */

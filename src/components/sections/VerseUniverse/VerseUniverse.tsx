@@ -14,6 +14,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
+import { afterGate, expectReady } from "@/store/preloader";
 import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap";
 import SectionHead from "@/components/ui/SectionHead";
 import type { Verse } from "@/content/packages";
@@ -319,9 +320,9 @@ export default function VerseUniverse() {
       io.observe(el);
       // mount the canvas early, while the browser is idle, so its models and shaders are ready
       // before the visitor scrolls here (mounting on arrival froze the scroll for ~0.5s)
-      const idle = window.requestIdleCallback
-        ? window.requestIdleCallback(() => setReady(true), { timeout: 4000 })
-        : window.setTimeout(() => setReady(true), 2500);
+      // (once the preloader's lockup is still: it warms there, see Prewarm, before the Enter button shows)
+      expectReady("disc");
+      const cancelIdle = afterGate(() => setReady(true));
 
       // --- the scroll-in: the record rises from low and far to face-on (scrubbed, no pin)
       const tilt = reduce
@@ -448,8 +449,7 @@ export default function VerseUniverse() {
 
       return () => {
         io.disconnect();
-        if (window.cancelIdleCallback) window.cancelIdleCallback(idle);
-        else window.clearTimeout(idle);
+        cancelIdle();
         ro.disconnect();
         gsap.ticker.remove(tick);
         window.removeEventListener("pointermove", onMove);

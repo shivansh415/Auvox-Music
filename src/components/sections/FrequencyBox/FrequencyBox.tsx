@@ -5,17 +5,33 @@
 // It never opens. Copy on the right is the client's T/L/S with the "Join AUVOX Today" button.
 
 import dynamic from "next/dynamic";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { gsap, useGSAP } from "@/lib/gsap";
 import SectionHead from "@/components/ui/SectionHead";
 import Button from "@/components/ui/Button";
 import { FREQUENCY_BOX } from "@/content/packages";
 import { fbox } from "./state";
+import { afterGate, expectReady } from "@/store/preloader";
 
 const Stage = dynamic(() => import("./Stage"), { ssr: false });
 
 export default function FrequencyBox() {
   const root = useRef<HTMLElement>(null);
+  // the box's canvas mounts once the preloader's lockup is still (it warms there), or when the section comes near
+  const [stageOn, setStageOn] = useState(false);
+  useEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    const on = () => setStageOn(true);
+    const io = new IntersectionObserver(([e]) => e.isIntersecting && on(), { rootMargin: "150% 0px" });
+    io.observe(el);
+    expectReady("fbox");
+    const cancel = afterGate(on);
+    return () => {
+      io.disconnect();
+      cancel();
+    };
+  }, []);
 
   useGSAP(
     () => {
@@ -61,7 +77,7 @@ export default function FrequencyBox() {
           <div className="lg:col-span-7">
             <div className="fbox-stage relative h-[60vw] lg:h-auto lg:aspect-[5/4]">
               <div className="fbox-halo pointer-events-none absolute top-1/2 left-1/2 aspect-square h-[96%] w-auto -translate-x-1/2 -translate-y-1/2 rounded-full opacity-0 lg:h-auto lg:w-[92%]" aria-hidden />
-              <Stage />
+              {stageOn && <Stage />}
               <span className="fbox-hint pointer-events-none absolute right-3 bottom-3 hidden opacity-0 pointer-coarse:flex" aria-hidden>
                 <span className="tap-ring relative flex h-11 w-11 items-center justify-center rounded-full border border-ink/60 text-[0.5rem] font-semibold tracking-[0.2em] text-ink/80 uppercase">Drag</span>
               </span>

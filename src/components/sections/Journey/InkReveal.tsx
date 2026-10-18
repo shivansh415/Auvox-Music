@@ -120,6 +120,23 @@ function loadImage(src: string) {
   });
 }
 
+/**
+ * The picture, decoded off the main thread and scaled to what the card actually shows (the files
+ * are 1600px; a card is a few hundred). Uploading an <img> made the browser decode the full-size
+ * file on the main thread at the moment of upload, an 80ms hitch each time a card came near.
+ */
+async function loadBitmap(src: string, width: number): Promise<TexImageSource> {
+  if (typeof createImageBitmap !== "function") return loadImage(src);
+  try {
+    const blob = await (await fetch(src)).blob();
+    const w = Math.max(64, Math.min(1600, Math.round(width)));
+    return await createImageBitmap(blob, { resizeWidth: w, resizeHeight: Math.round((w * 3) / 4), resizeQuality: "high", premultiplyAlpha: "none" });
+  } catch {
+    return loadImage(src);
+  }
+}
+const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
+
 const BRUSH_W = 192;
 const BRUSH_H = 144;
 
@@ -243,15 +260,22 @@ export default function InkReveal({
         near = e.isIntersecting;
         if (near && !loading) {
           loading = true;
-          Promise.all([loadImage(lines), loadImage(render)])
-            .then(([a, b]) => {
+          // the size the card is drawn at (with a little headroom for sharpness)
+          const px = el.getBoundingClientRect().width * Math.min(window.devicePixelRatio || 1, 1.5) * 1.25;
+          Promise.all([loadBitmap(lines, px), loadBitmap(render, px)])
+            .then(async ([a, b]) => {
               if (!alive) return;
+              // one upload per frame
               gl.activeTexture(gl.TEXTURE0);
               gl.bindTexture(gl.TEXTURE_2D, tLines);
               gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, a);
+              await nextFrame();
+              if (!alive) return;
               gl.activeTexture(gl.TEXTURE1);
               gl.bindTexture(gl.TEXTURE_2D, tRender);
               gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, b);
+              if ("close" in a) (a as ImageBitmap).close();
+              if ("close" in b) (b as ImageBitmap).close();
               ready = true;
               resize();
               el.dataset.ready = "1";

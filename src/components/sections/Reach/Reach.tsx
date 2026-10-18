@@ -18,6 +18,7 @@ import { useRef, useState } from "react";
 import clsx from "clsx";
 import { gsap, ScrollTrigger, SplitText, useGSAP } from "@/lib/gsap";
 import { ABOUT } from "@/content/packages";
+import { afterGate, expectReady } from "@/store/preloader";
 import { unlockAudio } from "@/components/sections/Session/audio";
 import { setSwell, touchSound, warmTouch } from "./sound";
 import { HOLD_SECONDS, reach, resetReach, setHolding, setPointer, together } from "./state";
@@ -87,7 +88,9 @@ export default function Reach() {
         { rootMargin: "120% 0px" },
       );
       io.observe(st);
-      const idle = window.requestIdleCallback ? window.requestIdleCallback(() => setReady(true), { timeout: 3500 }) : window.setTimeout(() => setReady(true), 2500);
+      // mount once the preloader's lockup is still: it warms there (see Prewarm) before the Enter button shows
+      expectReady("reach");
+      const cancelIdle = afterGate(() => setReady(true));
 
       const ring = q<HTMLElement>(".rch-ring")[0];
       const enter = q<HTMLElement>(".rch-enter")[0];
@@ -293,8 +296,7 @@ export default function Reach() {
 
       return () => {
         io.disconnect();
-        if (window.cancelIdleCallback) window.cancelIdleCallback(idle);
-        else window.clearTimeout(idle);
+        cancelIdle();
         ro.disconnect();
         gsap.ticker.remove(tick);
         window.removeEventListener("pointermove", onMove);

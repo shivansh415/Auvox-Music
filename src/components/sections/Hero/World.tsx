@@ -10,6 +10,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, Environment, Float, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import PauseOffscreen from "@/lib/r3f/PauseOffscreen";
+import Prewarm from "@/lib/r3f/Prewarm";
 import { hero, plinthOnScreen, type Verse } from "./state";
 
 const RED = "#850909";
@@ -284,8 +285,8 @@ function Scene() {
             <Model url="/models/casio.glb" size={2.5} rotation={[0, 0, 0]} />
           </Instrument>
           {/* soft shadow on the stone; follows the pair round the orbit and fades as they rise */}
-          {/* soft shadow on the stone; follows the pair round the orbit and fades as they rise */}
           <ContactShadows position={[0.3, 0.01, 0]} scale={[4.2, 2.4]} opacity={0.5} blur={2.6} far={3.5} resolution={256} color="#4a3626" />
+          <Prewarm name="hero" />
         </Suspense>
         <Rings />
       </group>

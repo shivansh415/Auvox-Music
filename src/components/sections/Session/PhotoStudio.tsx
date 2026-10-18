@@ -416,6 +416,12 @@ function Studio() {
 
   const heroFocus = useMemo(() => uvOf(...HERO_PHONE), []);
 
+  // two frames in, the plates are uploaded and the shaders compiled: the preloader may begin
+  const frames = useRef(0);
+  useFrame(() => {
+    if (frames.current < 3 && ++frames.current === 2) session.studioReady = true;
+  });
+
   return (
     <>
       {/* the studio, wall left bare */}
