@@ -1,11 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap";
 import { usePreloaderStore } from "@/store/preloader";
 import ChatOverlay from "./ChatOverlay";
-import { isMuted, onMuteChange, setMuted, unlockAudio } from "./audio";
+import { isMuted, useMuted, setMuted, unlockAudio } from "./audio";
 import { requestAutoPlay, session } from "./state";
 
 const Studio = dynamic(() => import("./PhotoStudio"), { ssr: false });
@@ -23,14 +23,21 @@ export default function Session() {
   const phoneHint = useRef<HTMLButtonElement>(null);
   const held = useRef<{ x: number; y: number } | null>(null);
   const done = usePreloaderStore((s) => s.done);
-  const [muted, setMutedState] = useState(false);
-  useEffect(() => onMuteChange(setMutedState), []);
+  const muted = useMuted();
 
   useGSAP(
     () => {
       // The studio stays put while the hero slides over it (pinSpacing off, so the hero overlaps it);
       // progress still tracks the hand-over and drives the hints and the reverse portal.
       const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      // `session` outlives this component: coming back to the home page must not inherit the last
+      // visit's scroll progress (it would read as "covered" and pause the scene) or its open
+      // conversation (camera still leaning into the phone, the phone's TAP hint gone)
+      gsap.killTweensOf(session, "focus");
+      session.progress = 0;
+      session.focus = 0;
+      session.autoPlay = false;
+      session.phoneHint = 1;
       const st = ScrollTrigger.create({
         trigger: root.current,
         start: "top top",
@@ -138,7 +145,7 @@ export default function Session() {
   };
 
   return (
-    <section ref={root} data-theme="dark" className="session relative z-0 h-screen w-full overflow-clip bg-black text-pearl">
+    <section ref={root} data-theme="dark" className="session relative z-0 h-[100svh] w-full overflow-clip bg-black text-pearl">
       <div ref={stage} className="absolute inset-0 origin-[50%_35%] will-change-transform">
       <Studio />
 

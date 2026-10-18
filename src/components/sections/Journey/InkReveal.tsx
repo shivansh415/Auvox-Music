@@ -157,14 +157,22 @@ export default function InkReveal({
   seed?: number;
 }) {
   const wrap = useRef<HTMLDivElement>(null);
-  const canvas = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const el = wrap.current;
-    const cv = canvas.current;
-    if (!el || !cv) return;
+    if (!el) return;
+    // a fresh canvas for every run, released and removed in the cleanup. The page can keep its DOM
+    // while its effects stop and start again (StrictMode in dev; Next keeping a visited page for
+    // back/forward), and a canvas whose context was released can't draw again.
+    const cv = document.createElement("canvas");
+    cv.className = "absolute inset-0 h-full w-full";
+    cv.setAttribute("aria-hidden", "true");
+    el.appendChild(cv);
     const gl = cv.getContext("webgl2", { antialias: false, alpha: true, premultipliedAlpha: true, preserveDrawingBuffer: false });
-    if (!gl) return; // the <img> fallback stays visible
+    if (!gl) {
+      cv.remove();
+      return; // the <img> fallback stays visible
+    }
 
     let raf = 0;
     let alive = true;
@@ -342,7 +350,12 @@ export default function InkReveal({
       gl.deleteTexture(tBrush);
       gl.deleteBuffer(buf);
       gl.deleteProgram(prog);
-      // no loseContext(): React's dev double-mount reuses this canvas, and a lost context can't compile
+      // release the context now rather than whenever it is collected: the home page runs ~10 at once
+      // and Chrome drops the oldest live one (maybe the hero's) past 16, which return visits reach
+      gl.getExtension("WEBGL_lose_context")?.loseContext();
+      cv.remove();
+      // the picture shows again until a new canvas has drawn
+      delete el.dataset.ready;
     };
   }, [lines, render, sun, state, seed]);
 
@@ -351,7 +364,7 @@ export default function InkReveal({
       {/* fallback / pre-load: the finished picture, shown until the canvas is ready (and without WebGL) */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={render} alt={alt} className="ink-fallback absolute inset-0 h-full w-full object-cover" loading="lazy" decoding="async" />
-      <canvas ref={canvas} className="absolute inset-0 h-full w-full" aria-hidden />
+      {/* the WebGL canvas is added here by the effect */}
     </div>
   );
 }

@@ -72,7 +72,9 @@ export default function Header() {
       if (st.progress > 0 || window.scrollY >= heroEl.getBoundingClientRect().top + window.scrollY - 1) show();
       return () => st.kill();
     },
-    { dependencies: [pathname, home] },
+    // revertOnUpdate: the header never unmounts, so without it a route change would keep every
+    // earlier run's triggers and listeners alive (useGSAP only runs cleanups on unmount otherwise)
+    { dependencies: [pathname, home], revertOnUpdate: true },
   );
 
   // while reading: a soft glass ground once content passes under it; out of the way when scrolling
@@ -127,13 +129,17 @@ export default function Header() {
         gsap.set(el, { y: 0 });
       };
     },
-    { dependencies: [pathname, home] },
+    // revertOnUpdate: the header never unmounts, so without it a route change would keep every
+    // earlier run's triggers and listeners alive (useGSAP only runs cleanups on unmount otherwise)
+    { dependencies: [pathname, home], revertOnUpdate: true },
   );
 
   // which theme is under the header right now
   useGSAP(
     () => {
       const els = Array.from(document.querySelectorAll<HTMLElement>("[data-theme='dark']"));
+      // a new page starts light under the header (killing the old triggers doesn't fire onToggle)
+      setDark(false);
       let under = 0;
       const triggers = els.map((el) =>
         ScrollTrigger.create({
@@ -149,7 +155,7 @@ export default function Header() {
       );
       return () => triggers.forEach((t) => t.kill());
     },
-    { dependencies: [pathname] },
+    { dependencies: [pathname], revertOnUpdate: true },
   );
 
   // the full-screen menu

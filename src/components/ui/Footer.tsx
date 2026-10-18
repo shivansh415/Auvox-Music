@@ -95,13 +95,13 @@ export default function Footer() {
                 setSent(true);
               }}
             >
-              <label className="field-line flex items-end gap-3 border-b border-peach/30 pb-2 focus-within:border-tan">
-                <span className="sr-only">Email address</span>
-                <input type="email" required placeholder="Your email" className="w-full bg-transparent py-1 text-sm text-peach placeholder:text-peach/35 focus:outline-none" />
-                <button type="submit" className="text-[0.62rem] tracking-[0.3em] text-tan uppercase" aria-label="Subscribe">
+              <div className="field-line flex items-end gap-3 border-b border-peach/30 pb-2 focus-within:border-tan">
+                <input type="email" required placeholder="Your email" aria-label="Email address" className="w-full bg-transparent py-1 text-sm text-peach placeholder:text-peach/35 focus:outline-none" />
+                <button type="submit" className="shrink-0 text-[0.62rem] tracking-[0.3em] text-tan uppercase">
                   {sent ? "Sent ✦" : "Join ↗"}
                 </button>
-              </label>
+              </div>
+              <span role="status" className="sr-only">{sent ? "You are on the list." : ""}</span>
               <p className="mt-3 text-xs text-peach/45">Occasional notes on new verses, sessions and the Frequency Box. No noise.</p>
             </form>
             <ul className="mt-8 flex gap-5 text-[0.62rem] tracking-[0.3em] uppercase">

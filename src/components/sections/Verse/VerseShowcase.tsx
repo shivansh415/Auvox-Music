@@ -349,7 +349,13 @@ export default function VerseShowcase({ verse, ready }: { verse: Verse; ready: b
             <div className="vs-copy absolute z-10" data-side={side}>
               {i === 0 ? (
                 <>
-                  {ready && <SectionHead as="h1" size="lg" immediate kicker={copy.kicker} title={copy.title} accent={copy.accent} body={copy.body} />}
+                  {ready ? (
+                    <SectionHead as="h1" size="lg" immediate kicker={copy.kicker} title={copy.title} accent={copy.accent} body={copy.body} />
+                  ) : (
+                    // the heading animates in once the page is in view; until then (and in the server
+                    // HTML, for search engines and screen readers) the page still has its h1
+                    <h1 className="sr-only">{copy.title}</h1>
+                  )}
                   <div className="vs-cta mt-10 flex flex-wrap items-center gap-x-8 gap-y-4 opacity-0">
                     <Button href={`/enroll?package=${verse}-complete`} variant="ink">
                       Enroll now

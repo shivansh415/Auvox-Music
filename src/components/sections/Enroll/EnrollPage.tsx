@@ -105,11 +105,13 @@ function EnrollBody({ saved, initialPackage }: { saved: Enrollment | null; initi
       gsap.fromTo(q(".en-summary"), { y: reduced ? 0 : 36, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 1.2, ease: "expo.out", delay: 0.5 });
       q<HTMLElement>(".en-group").forEach((group) => {
         const rows = group.querySelectorAll(".en-row");
-        gsap
-          .timeline({ defaults: { ease: "expo.out" }, scrollTrigger: { trigger: group, start: "top 80%", once: true } })
-          .fromTo(group.querySelector(".en-rule"), { scaleX: 0 }, { scaleX: 1, duration: 1.1, transformOrigin: "left" }, 0)
-          .fromTo(group.querySelector(".en-num"), { y: reduced ? 0 : 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9 }, 0.05)
-          .fromTo(rows, { y: reduced ? 0 : 28, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 1, stagger: 0.08 }, 0.15);
+        const rule = group.querySelector(".en-rule");
+        // the closing group (payment note + button) has no number and no rows
+        const num = group.querySelector(".en-num");
+        const tl = gsap.timeline({ defaults: { ease: "expo.out" }, scrollTrigger: { trigger: group, start: "top 80%", once: true } });
+        if (rule) tl.fromTo(rule, { scaleX: 0 }, { scaleX: 1, duration: 1.1, transformOrigin: "left" }, 0);
+        if (num) tl.fromTo(num, { y: reduced ? 0 : 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9 }, 0.05);
+        if (rows.length) tl.fromTo(rows, { y: reduced ? 0 : 28, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 1, stagger: 0.08 }, 0.15);
       });
       ScrollTrigger.refresh();
     },

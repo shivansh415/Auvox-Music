@@ -929,7 +929,8 @@ export default function ReachWorld() {
         style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
         dpr={dpr}
         frameloop="demand"
-        shadows="soft"
+        // three r186 dropped PCFSoftShadowMap ("soft" fell back to PCF with a warning); PCF is soft now
+        shadows="percentage"
         camera={{ fov: FOV, near: 0.1, far: 60, position: [0, 0, CAM_Z] }}
         gl={{ antialias: false, alpha: false, powerPreference: "high-performance", toneMapping: THREE.NoToneMapping }}
       >

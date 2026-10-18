@@ -1,4 +1,5 @@
 "use client";
+import { useSyncExternalStore } from "react";
 
 // Guitar audio. Uses real recordings when they are present in /public/audio/guitar/ (see SAMPLE_FILES),
 // and falls back to a plucked-string synth (Karplus-Strong) for anything that is missing.
@@ -89,6 +90,11 @@ export function setMuted(value: boolean) {
   muted = value;
   if (master && ctx) master.gain.setTargetAtTime(value ? 0 : 0.85, ctx.currentTime, 0.05);
   muteListeners.forEach((fn) => fn(value));
+}
+
+/** the mute state for React: `const muted = useMuted()` (always the current value, also on remount) */
+export function useMuted() {
+  return useSyncExternalStore(onMuteChange, isMuted, () => false);
 }
 
 export function onMuteChange(fn: (muted: boolean) => void) {

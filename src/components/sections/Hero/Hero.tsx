@@ -220,6 +220,9 @@ export default function Hero() {
         sheet.scrollTrigger?.kill();
         sheet.kill();
         mm.revert();
+        // the button may be docked in the header (which outlives this page): bring it home first, or
+        // it would be left behind in the header when the hero unmounts
+        toHome();
         title.revert();
       };
     },
@@ -279,7 +282,12 @@ export default function Hero() {
         <div ref={ctaHome} className="hero-cta mt-10">
           <a
             ref={cta}
-            href="#reserve"
+            href="/reserve"
+            onClick={(e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+              e.preventDefault();
+              useTransitionStore.getState().go("/reserve");
+            }}
             className="cta group inline-flex items-center gap-3 rounded-full bg-ink px-9 py-[1.15rem] text-[0.74rem] font-semibold tracking-[0.3em] text-pearl uppercase transition-colors hover:bg-red"
           >
             <span>Reserve your spot</span>

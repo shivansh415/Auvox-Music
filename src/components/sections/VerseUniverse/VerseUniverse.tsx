@@ -17,7 +17,7 @@ import { afterGate, expectReady } from "@/store/preloader";
 import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap";
 import SectionHead from "@/components/ui/SectionHead";
 import type { Verse } from "@/content/packages";
-import { isMuted, onMuteChange, playChord, pluck, setMuted, unlockAudio } from "@/components/sections/Session/audio";
+import { isMuted, useMuted, playChord, pluck, setMuted, unlockAudio } from "@/components/sections/Session/audio";
 import { useTransition } from "@/store/transition";
 import Sheet, { type SheetContent } from "./Sheet";
 import { armLift, needleDrop, setCrackle, setScratch } from "./sound";
@@ -140,10 +140,9 @@ export default function VerseUniverse() {
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState<SheetContent | null>(null);
   const [now, setNow] = useState<NodeKey | null>(null);
-  const [muted, setMutedState] = useState(false);
+  const muted = useMuted();
 
   useEffect(() => onNowSpinning(setNow), []);
-  useEffect(() => onMuteChange(setMutedState), []);
 
   // ---- the dive: the stage zooms toward what was opened while the sheet grows over it
   const dive = (el: HTMLElement, depth: number) => {
@@ -454,6 +453,9 @@ export default function VerseUniverse() {
         scrub?.scrollTrigger?.kill();
         intro.scrollTrigger?.kill();
         leave.kill();
+        // the arm moves on timelines started from callbacks (outside this context): stop them, so a
+        // needle that was on its way down doesn't land (and crackle) on the next page
+        gsap.killTweensOf(disc.arm);
         setCrackle(false);
         setScratch(0);
         disc.inView = false;
@@ -485,7 +487,7 @@ export default function VerseUniverse() {
               onPointerMove={onPointerMove}
               onPointerUp={(e) => endDrag(e, true)}
               onPointerCancel={(e) => endDrag(e, false)}
-              className="vu-box @container relative mx-auto aspect-square w-full min-w-[300px] max-w-[720px]"
+              className="vu-box @container relative mx-auto aspect-square w-full min-w-[min(300px,100%)] max-w-[720px]"
             >
               <div ref={stage} className="vu-stage absolute inset-0">
                 <div className="vu-rise absolute inset-0">

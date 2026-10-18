@@ -108,7 +108,7 @@ export default function Begin() {
       <div className="grain pointer-events-none absolute inset-0 opacity-[0.04] mix-blend-multiply" />
 
       {/* the two choice zones */}
-      <div className="begin-zones" aria-label="Choose your verse">
+      <div className="begin-zones" role="group" aria-label="Choose your verse">
         {SIDES.map((s, i) => (
           <button
             key={s.key}

@@ -511,6 +511,8 @@ html[data-overlay="1"] .hdr-glass { opacity: 0; }
   position: relative; z-index: 1; padding: 0.75rem 0.2rem; border-radius: 9999px; font-size: 0.66rem; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase;
   color: var(--auvox-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color 0.35s;
 }
+/* narrow phones: four options (Mornings ... Weekends) must fit without being cut */
+@media (max-width: 420px) { .en-chip { font-size: 0.6rem; letter-spacing: 0.1em; padding-inline: 0.1rem; } }
 @media (min-width: 640px) { .en-chip { font-size: 0.7rem; letter-spacing: 0.3em; } }
 .en-chip[data-on="1"] { color: var(--auvox-peach); }
 .en-chip:not([data-on="1"]):hover { color: var(--auvox-red); }

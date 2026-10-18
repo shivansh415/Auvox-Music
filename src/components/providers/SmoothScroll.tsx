@@ -4,6 +4,13 @@ import { ReactLenis, useLenis, type LenisRef } from "lenis/react";
 import { useEffect, useRef } from "react";
 import { gsap, ScrollTrigger } from "@/lib/gsap";
 
+/** ScrollTrigger updates on every Lenis scroll (subscribed once Lenis exists: an effect in the
+ * provider itself runs before ReactLenis has created the instance, so it would never attach) */
+function SyncScrollTrigger() {
+  useLenis(ScrollTrigger.update);
+  return null;
+}
+
 /** dev: the Lenis instance on window, for scripted scrolling */
 function DevHandle() {
   const lenis = useLenis();
@@ -19,7 +26,6 @@ export default function SmoothScroll({ children }: { children: React.ReactNode }
   // Drive Lenis from GSAP's ticker so ScrollTrigger and Lenis stay in sync
   useEffect(() => {
     const update = (time: number) => lenisRef.current?.lenis?.raf(time * 1000);
-    lenisRef.current?.lenis?.on("scroll", ScrollTrigger.update);
     gsap.ticker.add(update);
     gsap.ticker.lagSmoothing(0);
     // ScrollTrigger measures by jumping the page to the top and back during a refresh (a resize, a
@@ -47,6 +53,7 @@ export default function SmoothScroll({ children }: { children: React.ReactNode }
 
   return (
     <ReactLenis root options={{ autoRaf: false, lerp: 0.1 }} ref={lenisRef}>
+      <SyncScrollTrigger />
       <DevHandle />
       {children}
     </ReactLenis>

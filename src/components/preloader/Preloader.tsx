@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLenis } from "lenis/react";
 import { gsap, useGSAP } from "@/lib/gsap";
 import { usePreloaderStore, whenReady } from "@/store/preloader";
@@ -69,7 +69,17 @@ export default function Preloader() {
   const counterRef = useRef<HTMLSpanElement>(null);
   const enterGo = useRef<(withSound: boolean) => void>(() => {});
   const lenis = useLenis();
+  const lenisRef = useRef(lenis);
   const { setProgress, finish, openGate } = usePreloaderStore();
+
+  // Lenis is created a moment after this mounts: hold the page still as soon as it exists (until
+  // the preloader is done). The timeline below is built once and reaches Lenis through the ref; if
+  // it depended on `lenis` it would be built twice, with the first run's key listener and ticker
+  // left behind (a later Space or Enter anywhere would then "enter with sound" and unmute the site).
+  useEffect(() => {
+    lenisRef.current = lenis;
+    if (lenis && !usePreloaderStore.getState().done) lenis.stop();
+  }, [lenis]);
 
   useGSAP(
     () => {
@@ -78,7 +88,7 @@ export default function Preloader() {
 
       const done = () => {
         finish();
-        lenis?.start();
+        lenisRef.current?.start();
         setMounted(false);
       };
 
@@ -94,7 +104,7 @@ export default function Preloader() {
       // the lockup only flies onto the studio wall on the home page; elsewhere it simply lifts away
       const home = window.location.pathname === "/";
       if (ONCE_PER_SESSION) sessionStorage.setItem(SESSION_KEY, "1");
-      lenis?.stop();
+      lenisRef.current?.stop();
 
       // while the strings play, only the network works: fetch the 3D models into the HTTP cache so
       // parsing them can start the moment the gate opens (fetching doesn't block the main thread)
@@ -303,7 +313,7 @@ export default function Preloader() {
         // Landing: the scene's sign fades in underneath while the flown logo fades out — a straight swap.
         .add(() => {
           finish();
-          lenis?.start();
+          lenisRef.current?.start();
         }, "exit+=1.25")
         .to(stage, { autoAlpha: 0, duration: 0.4, ease: "power1.inOut" }, "exit+=1.3");
 
@@ -339,7 +349,7 @@ export default function Preloader() {
         gsap.ticker.remove(tick);
       };
     },
-    { scope: root, dependencies: [lenis] },
+    { scope: root },
   );
 
   if (!mounted) return null;

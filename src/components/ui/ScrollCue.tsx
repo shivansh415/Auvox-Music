@@ -24,7 +24,9 @@ export default function ScrollCue() {
       }
       const nearEnd = lenis.limit > 0 && lenis.scroll > lenis.limit - window.innerHeight * 0.6;
       const locked = document.documentElement.dataset.overlay === "1";
-      const next = !nearEnd && !locked && lenis.limit > 10;
+      // out of the way while typing in a form (on phones it would sit over the fields)
+      const typing = !!document.activeElement?.matches("input, textarea, select");
+      const next = !nearEnd && !locked && !typing && lenis.limit > 10;
       if (next !== shown) {
         shown = next;
         gsap.to(el, { autoAlpha: next ? 1 : 0, y: next ? 0 : 10, duration: 0.5, ease: "power2.out" });
@@ -35,10 +37,14 @@ export default function ScrollCue() {
       if (!raf) raf = requestAnimationFrame(() => ((raf = 0), update()));
     };
     lenis.on("scroll", onScroll);
+    document.addEventListener("focusin", onScroll);
+    document.addEventListener("focusout", onScroll);
     const id = window.setInterval(update, 600);
     update();
     return () => {
       lenis.off("scroll", onScroll);
+      document.removeEventListener("focusin", onScroll);
+      document.removeEventListener("focusout", onScroll);
       window.clearInterval(id);
       cancelAnimationFrame(raf);
     };

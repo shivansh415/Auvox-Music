@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Button from "@/components/ui/Button";
 
-export const metadata: Metadata = { title: "Coming soon" };
+export const metadata: Metadata = { title: "Coming soon — AUVOX Music", robots: { index: false } };
 
 /** Where the preview build sends the pages that are still being built. */
 export default function ComingSoon() {

@@ -39,11 +39,15 @@ export default function SectionHead({ kicker, title, accent, body, tone = "light
         defaults: { ease: "expo.out" },
         scrollTrigger: immediate ? undefined : { trigger: el, start: "top 80%", once: true },
       });
-      tl.fromTo(q(".sh-rule"), { scaleX: 0 }, { scaleX: 1, duration: 1, transformOrigin: "left" }, 0)
-        .fromTo(q(".sh-kicker"), { y: 10, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.8 }, 0.1)
-        .from(split.words, { yPercent: 110, duration: 1.1, stagger: 0.03 }, 0.2)
-        .fromTo(q(".sh-body"), { y: 16, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9, stagger: 0.08 }, 0.6)
-        .add(() => split.revert());
+      // the kicker, rule and body are optional: only animate the parts this heading has
+      const rule = q(".sh-rule");
+      const kicker = q(".sh-kicker");
+      const body = q(".sh-body");
+      if (rule.length) tl.fromTo(rule, { scaleX: 0 }, { scaleX: 1, duration: 1, transformOrigin: "left" }, 0);
+      if (kicker.length) tl.fromTo(kicker, { y: 10, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.8 }, 0.1);
+      tl.from(split.words, { yPercent: 110, duration: 1.1, stagger: 0.03 }, 0.2);
+      if (body.length) tl.fromTo(body, { y: 16, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9, stagger: 0.08 }, 0.6);
+      tl.add(() => split.revert());
       return () => {
         split.revert();
       };
