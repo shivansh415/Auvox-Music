@@ -124,9 +124,6 @@ export default function Footer() {
       <div className="relative border-t border-peach/10">
         <div className="mx-auto flex max-w-[1440px] flex-col gap-3 px-6 py-5 text-[0.62rem] tracking-[0.2em] text-peach/45 uppercase md:flex-row md:items-center md:justify-between md:px-12">
           <span>© {YEAR} AUVOX Music · Toronto</span>
-          <span className="normal-case tracking-normal">
-            3D models: “ibanez jem guitar” by abazibiz, “Casio MT-55” by Lassi Kaukonen — CC BY 4.0, modified.
-          </span>
           <span className="flex gap-5">
             <TransitionLink href="/support" className="link-line">Support</TransitionLink>
             <span>Privacy</span>

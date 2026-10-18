@@ -108,7 +108,7 @@ export const disc = {
   dragging: false,
   /** which node the pointer is on */
   hover: null as NodeKey | "core" | null,
-  /** a verse sheet is open: its instrument lifts to the centre of the record */
+  /** a verse was clicked (its page is on the way): its instrument lifts to the centre of the record */
   focus: null as Verse | null,
   /** pointer relative to the box centre, in box sides (y down), and whether it is over the section */
   pointer: { x: 0, y: 0, on: false },

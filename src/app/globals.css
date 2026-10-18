@@ -723,23 +723,12 @@ html[data-overlay="1"] .hdr-glass { opacity: 0; }
 .vu-track:hover .vu-leader { border-color: rgba(30, 30, 30, 0.55); }
 @media (prefers-reduced-motion: reduce) { .vu-spin { animation: none; } }
 
-/* the sheet's low-opacity gradient, tinted by what it shows */
+/* the low-opacity gradient of the about sheet */
 .vu-sheet-tint {
   background:
     radial-gradient(45% 55% at 92% 8%, rgba(133, 9, 9, 0.07), transparent 70%),
     radial-gradient(50% 60% at 6% 96%, rgba(222, 184, 134, 0.4), transparent 70%);
 }
-.vu-sheet[data-tone="guitar"] .vu-sheet-tint {
-  background:
-    radial-gradient(60% 70% at 70% 45%, rgba(133, 9, 9, 0.16), transparent 70%),
-    linear-gradient(135deg, rgba(250, 227, 197, 0.7), transparent 60%);
-}
-.vu-sheet[data-tone="piano"] .vu-sheet-tint {
-  background:
-    radial-gradient(60% 70% at 30% 55%, rgba(231, 180, 126, 0.5), transparent 70%),
-    linear-gradient(315deg, rgba(222, 184, 134, 0.45), transparent 60%);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .vu-hint-arrow, .vu-now { animation: none; }
 }

@@ -18,6 +18,7 @@ import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap";
 import SectionHead from "@/components/ui/SectionHead";
 import type { Verse } from "@/content/packages";
 import { isMuted, onMuteChange, playChord, pluck, setMuted, unlockAudio } from "@/components/sections/Session/audio";
+import { useTransition } from "@/store/transition";
 import Sheet, { type SheetContent } from "./Sheet";
 import { armLift, needleDrop, setCrackle, setScratch } from "./sound";
 import {
@@ -118,6 +119,8 @@ function raiseNeedle() {
   gsap.to(disc, { motor: 0, duration: 1.8, ease: "power2.out", overwrite: "auto" });
 }
 
+const VERSE_HREF: Record<Verse, string> = { guitar: "/guitar-verse", piano: "/piano-verse" };
+
 export default function VerseUniverse() {
   const root = useRef<HTMLElement>(null);
   const box = useRef<HTMLDivElement>(null);
@@ -125,13 +128,14 @@ export default function VerseUniverse() {
   const origin = useRef({ x: 0, y: 0 });
   const viaHover = useRef(false);
   const isOpen = useRef<SheetContent["kind"] | null>(null);
-  /** the needle was lifted for a verse sheet, so closing it drops the needle again */
-  const lifted = useRef(false);
   /** true for a moment after a sheet closes, so the mouse still sitting on the logo doesn't reopen it */
   const cooling = useRef(false);
   /** true for a moment after a drag, so letting go over a verse doesn't open it */
   const dragged = useRef(false);
   const drag = useRef({ id: -1, active: false, x: 0, y: 0, last: 0, t: 0 });
+  /** a verse was clicked and the page is on its way, so a second click does nothing */
+  const leaving = useRef(false);
+  const go = useTransition();
   const [ready, setReady] = useState(false);
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState<SheetContent | null>(null);
@@ -172,10 +176,7 @@ export default function VerseUniverse() {
     setOpen(false);
     setFocus(null);
     undive();
-    if (lifted.current) {
-      lifted.current = false;
-      lowerNeedle(0.35);
-    } else if (disc.needleDown) {
+    if (disc.needleDown) {
       gsap.to(disc, { motor: 1, duration: 1.6, ease: "power2.inOut", overwrite: "auto" });
     }
   };
@@ -193,24 +194,22 @@ export default function VerseUniverse() {
     // the record slows to a crawl while you read
     gsap.to(disc, { motor: 0.25, duration: 1.4, ease: "power2.out", overwrite: "auto" });
   };
+  // a verse goes straight to its page (the verse, its packages and the comparison): a moment of
+  // feedback on the record (its voice, a ripple, the arm lifting, a lean in), then the page curtain
   const openVerse = (verse: Verse, el: HTMLElement) => {
-    if (dragged.current) return;
-    place(el);
-    viaHover.current = false;
+    if (dragged.current || leaving.current) return;
+    leaving.current = true;
+    window.setTimeout(() => {
+      leaving.current = false;
+    }, 2000);
     setHover(null);
     setFocus(verse);
-    isOpen.current = "verse";
-    setContent({ kind: "verse", verse });
-    setOpen(true);
     voice(verse, 1);
     const p = nodePoint(verse);
     ripple(p.x, p.y, TONE[verse], 1.4);
-    // the arm lifts, the record winds down, and we lean in toward the verse
-    if (disc.needleDown) {
-      lifted.current = true;
-      raiseNeedle();
-    }
+    if (disc.needleDown) raiseNeedle();
     dive(el, 1.45);
+    window.setTimeout(() => go(VERSE_HREF[verse]), 260);
   };
 
   const over = (key: NodeKey) => {
@@ -393,7 +392,7 @@ export default function VerseUniverse() {
           disc.spin += disc.vel * dt;
         }
         setScratch(disc.needleDown ? Math.abs(disc.vel - (disc.dragging ? 0 : target)) : 0);
-        setCrackle(disc.needleDown && isOpen.current !== "verse");
+        setCrackle(disc.needleDown);
 
         // forget waves that have run out
         const nowS = performance.now() / 1000;

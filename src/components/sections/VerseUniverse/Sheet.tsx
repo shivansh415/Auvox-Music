@@ -1,7 +1,7 @@
 "use client";
 
-// The disc's overlays. One sheet, two kinds of content: "about" (hover/tap the centre logo) shows
-// what AUVOX is and why; "verse" (click a verse node) shows that verse's intro with the way in.
+// The disc's overlay: hover (or tap) the centre logo and it shows what AUVOX is and why. (A verse
+// node doesn't open a sheet: clicking one goes straight to that verse's page, see VerseUniverse.)
 //
 // "About" reads as the record's liner notes: Side A is what AUVOX is, Side B is why — its reasons set
 // as a tracklist — and between them a small spinning label is the spine. On wide screens the sheet is
@@ -13,11 +13,9 @@ import { useEffect, useRef, type RefObject } from "react";
 import Image from "next/image";
 import clsx from "clsx";
 import { gsap, SplitText, useGSAP } from "@/lib/gsap";
-import { ABOUT, VERSE_COPY, type Verse } from "@/content/packages";
-import Button from "@/components/ui/Button";
-import { useTransition } from "@/store/transition";
+import { ABOUT } from "@/content/packages";
 
-export type SheetContent = { kind: "about" } | { kind: "verse"; verse: Verse };
+export type SheetContent = { kind: "about" };
 
 type Props = {
   open: boolean;
@@ -28,8 +26,6 @@ type Props = {
   viaHover: RefObject<boolean>;
   onClose: () => void;
 };
-
-const VERSE_HREF: Record<Verse, string> = { guitar: "/guitar-verse", piano: "/piano-verse" };
 
 /** a heading whose last words take the accent colour */
 function Title({ title, accent, className }: { title: string; accent: string; className?: string }) {
@@ -105,32 +101,6 @@ function About() {
   );
 }
 
-function VerseIntro({ verse, onEnter }: { verse: Verse; onEnter: () => void }) {
-  const c = VERSE_COPY[verse];
-  return (
-    <div className="md:mx-auto md:max-w-[52rem]">
-      <Kicker text={c.kicker} />
-      <Title title={c.title} accent={c.accent} className="mt-7 text-[clamp(2.1rem,4vw,4rem)] leading-[1.0] tracking-[-0.018em]" />
-      <p className="vu-sheet-item mt-7 max-w-[36rem] text-[1.06rem] leading-relaxed text-ink/72">{c.body}</p>
-      <ol className="mt-8 max-w-[30rem] border-t border-ink/12">
-        {c.points.map((p, i) => (
-          <li key={p} className="vu-track group flex items-center gap-4 border-b border-ink/12 py-3.5">
-            <span className="w-7 shrink-0 font-display text-[0.95rem] text-red/80 tabular-nums">{String(i + 1).padStart(2, "0")}</span>
-            <span className="text-[1.04rem] text-ink/85">{p}</span>
-            <span className="vu-leader mx-1 h-px flex-1 origin-left translate-y-[0.35em] border-b border-dotted border-ink/30" aria-hidden />
-            <span className="vu-track-dot block h-1.5 w-1.5 shrink-0 rounded-full bg-ink/25" aria-hidden />
-          </li>
-        ))}
-      </ol>
-      <div className="vu-sheet-item mt-10">
-        <Button variant="red" onClick={onEnter}>
-          Enter the verse
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 function Close({ onClose, className }: { onClose: () => void; className?: string }) {
   return (
     <button
@@ -156,7 +126,6 @@ export default function Sheet({ open, content, origin, viaHover, onClose }: Prop
   const root = useRef<HTMLDivElement>(null);
   const leaveTimer = useRef(0);
   const splits = useRef<SplitText[]>([]);
-  const go = useTransition();
 
   // --- escape closes
   useEffect(() => {
@@ -200,7 +169,7 @@ export default function Sheet({ open, content, origin, viaHover, onClose }: Prop
         gsap.set(el, { display: "block", "--ox": `${x}px`, "--oy": `${y}px` });
         const tl = gsap.timeline({ defaults: { ease: "expo.out", overwrite: "auto" } });
         if (wide) {
-          // grows out of the logo (or the verse that was clicked) until it covers the section
+          // grows out of the logo until it covers the section
           const r = Math.hypot(Math.max(x, el.clientWidth - x), Math.max(y, el.clientHeight - y)) + 40;
           tl.set(panel, { yPercent: 0, autoAlpha: 1 }, 0)
             .set(bg, { autoAlpha: 1 }, 0)
@@ -263,17 +232,14 @@ export default function Sheet({ open, content, origin, viaHover, onClose }: Prop
   };
   const pointerEnter = () => window.clearTimeout(leaveTimer.current);
 
-  const verse = content?.kind === "verse" ? content.verse : null;
-  const tone = verse ?? "about";
-  const label = verse ? `${VERSE_COPY[verse].kicker} — introduction` : "About AUVOX";
 
   return (
     <div
       ref={root}
       role="dialog"
       aria-modal="true"
-      aria-label={label}
-      data-tone={tone}
+      aria-label="About AUVOX"
+      data-tone="about"
       onPointerEnter={pointerEnter}
       onPointerLeave={pointerLeave}
       className="vu-sheet hidden text-ink max-md:fixed max-md:inset-0 max-md:z-[130] md:absolute md:inset-0 md:z-40"
@@ -298,7 +264,6 @@ export default function Sheet({ open, content, origin, viaHover, onClose }: Prop
           </div>
 
           {content?.kind === "about" && <About />}
-          {verse && <VerseIntro verse={verse} onEnter={() => go(VERSE_HREF[verse])} />}
 
           {content?.kind === "about" && (
             <p className="vu-sheet-item mt-14 hidden items-center gap-3 text-[0.58rem] font-semibold tracking-[0.34em] text-ink/40 uppercase md:flex">
