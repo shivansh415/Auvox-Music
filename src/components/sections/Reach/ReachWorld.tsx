@@ -57,6 +57,13 @@ function pickDpr(): [number, number] {
   return low ? [1, 1.2] : [1, 1.5];
 }
 
+/**
+ * Until this time the hidden pieces (picks, petals, the student) are still drawn, at no size, so their
+ * shaders compile during the warm-up instead of on the frame they first appear (Pulse sets it).
+ */
+let warmUntil = 0;
+const warming = () => performance.now() < warmUntil;
+
 /** what the 3D pieces tell each other, frame to frame */
 const shared = {
   /** the middle of the AUVOX palm, world */
@@ -543,7 +550,7 @@ function Picks() {
       m.position.set(x, y, z);
       m.rotation.set(s.tilt + Math.sin(t * 0.5 * s.spin + i) * 0.5, t * s.spin * 0.9 + i * 2.1, Math.sin(t * 0.4 + i) * 0.5);
       m.scale.setScalar(Math.max(0.0001, s.size * len * vis));
-      m.visible = vis > 0.01;
+      m.visible = vis > 0.01 || warming();
     });
   });
 
@@ -654,7 +661,7 @@ function Petals() {
       m.setMatrixAt(i, DUMMY.matrix);
     });
     m.instanceMatrix.needsUpdate = true;
-    m.visible = vis > 0.001;
+    m.visible = vis > 0.001 || warming();
   });
   return <instancedMesh ref={mesh} args={[geo, mat, PETAL_COUNT]} frustumCulled={false} renderOrder={6} />;
 }
@@ -683,7 +690,7 @@ function Student() {
     m.position.copy(S).sub(L);
     m.position.z = z;
     (m.material as THREE.MeshBasicMaterial).opacity = Math.min(1, sIn * 1.5);
-    m.visible = sIn > 0.001;
+    m.visible = sIn > 0.001 || warming();
   });
   return (
     <mesh ref={mesh} renderOrder={7} frustumCulled={false}>
@@ -900,6 +907,7 @@ function Pulse({ onReady }: { onReady: () => void }) {
   });
   useEffect(() => {
     const born = performance.now();
+    warmUntil = born + 1200;
     const tick = () => {
       if (reach.inView || performance.now() - born < 1200) invalidate();
     };

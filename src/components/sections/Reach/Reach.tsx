@@ -18,9 +18,8 @@ import { useRef, useState } from "react";
 import clsx from "clsx";
 import { gsap, ScrollTrigger, SplitText, useGSAP } from "@/lib/gsap";
 import { ABOUT } from "@/content/packages";
-import Button from "@/components/ui/Button";
 import { unlockAudio } from "@/components/sections/Session/audio";
-import { setSwell, touchSound } from "./sound";
+import { setSwell, touchSound, warmTouch } from "./sound";
 import { HOLD_SECONDS, reach, resetReach, setHolding, setPointer, together } from "./state";
 
 const ReachWorld = dynamic(() => import("./ReachWorld"), { ssr: false });
@@ -91,6 +90,8 @@ export default function Reach() {
       const idle = window.requestIdleCallback ? window.requestIdleCallback(() => setReady(true), { timeout: 3500 }) : window.setTimeout(() => setReady(true), 2500);
 
       const ring = q<HTMLElement>(".rch-ring")[0];
+      const enter = q<HTMLElement>(".rch-enter")[0];
+      const exit = q<HTMLElement>(".rch-exit")[0];
       const arc = q<SVGCircleElement>(".rch-arc")[0];
       const head = q<HTMLElement>(".rch-head")[0];
       const phraseA = q(".rch-a .rch-word");
@@ -194,6 +195,7 @@ export default function Reach() {
           anticipatePin: 1,
           invalidateOnRefresh: true,
           animation: tl,
+          onEnter: () => warmTouch(),
           onUpdate: (self) => {
             if (self.isActive) reach.inView = true;
             reach.armed = self.progress > 0.78;
@@ -213,6 +215,7 @@ export default function Reach() {
         if (e.pointerType === "mouse" && e.button !== 0) return;
         if (!reach.armed || reach.connected) return;
         unlockAudio();
+        warmTouch();
         setHolding(true);
       };
       const onAnyUp = () => setHolding(false);
@@ -276,6 +279,10 @@ export default function Reach() {
         reach.studentTip.x = (gx + (DIR.x * d) / 2 + (1 - sIn) * H * 0.32 - px) / W;
         reach.studentTip.y = (gy + (DIR.y * d) / 2 + (1 - sIn) * H * 0.6 - py) / H;
 
+        // the joins
+        enter.style.opacity = String(1 - ease(clamp01(reach.descend * 2.2)));
+        exit.style.opacity = String(reach.red * clamp01((reach.flood - 1.1) / 1.3));
+
         // the ring between the fingertips
         ring.style.left = `${gx}px`;
         ring.style.top = `${gy}px`;
@@ -312,12 +319,16 @@ export default function Reach() {
       <div ref={stage} className="rch-stage relative h-[100svh] w-full overflow-hidden bg-cream select-none" onContextMenu={(e) => e.preventDefault()}>
         {ready && <ReachWorld />}
 
+        {/* the joins: up out of the peach above; down into the red below */}
+        <div className="rch-enter pointer-events-none absolute inset-x-0 top-0 z-[2] h-[42%]" aria-hidden />
+        <div className="rch-exit pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-[45%]" aria-hidden />
+
         {/* the opening line, alone in the light */}
         <div className="rch-o pointer-events-none absolute inset-0 z-[7] flex flex-col items-center justify-center" aria-hidden>
           <span className="rch-phrase rch-opening relative block text-center font-display text-[clamp(4.4rem,13vw,14rem)] leading-[0.9] tracking-[-0.02em] text-ink">
             <span className="rch-mask -mb-[0.3em] inline-block overflow-hidden pb-[0.3em] align-bottom">
               <span className="rch-word inline-block will-change-transform">
-                <span className="rch-script relative -mr-[0.1em] text-[1.3em] leading-none text-red">Y</span><span className="text-ink">ou</span>
+                <span className="swash">Y</span><span className="text-ink">ou</span>
               </span>
             </span>
             <span className="rch-mask -mb-[0.3em] ml-[0.2em] inline-block overflow-hidden pb-[0.3em] align-bottom">
@@ -400,14 +411,7 @@ export default function Reach() {
                 Designed around the complete learner not only the <em className="not-italic text-tan">lesson.</em>
               </p>
               <p className="mt-7 max-w-[30rem] text-[1.05rem] leading-relaxed text-peach/75">{PROMISE}</p>
-              <div className="mt-10 flex flex-wrap gap-4">
-                <Button href="/reserve" variant="peach">
-                  Reserve your free demo
-                </Button>
-                <Button href="/packages" variant="outline" className="border-peach/40! text-peach! hover:border-peach! hover:bg-peach! hover:text-red!">
-                  Explore packages
-                </Button>
-              </div>
+
             </div>
             <ol className="rch-in grid self-end border-t border-peach/20 sm:grid-cols-2">
               {ABOUT.why.points.map((p, i) => (

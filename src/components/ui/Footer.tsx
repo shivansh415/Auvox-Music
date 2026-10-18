@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { gsap, useGSAP } from "@/lib/gsap";
 import { CONTACT_EMAIL } from "@/content/packages";
 import Button from "./Button";
@@ -21,6 +22,8 @@ const SOCIAL = [
 export default function Footer() {
   const root = useRef<HTMLElement>(null);
   const [sent, setSent] = useState(false);
+  // the home page already ends on its own call to begin; the footer doesn't repeat it there
+  const home = usePathname() === "/";
 
   useGSAP(
     () => {
@@ -39,8 +42,9 @@ export default function Footer() {
       <div className="grain pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-screen" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_90%_0%,rgba(133,9,9,0.35),transparent_70%)]" />
 
-      <div className="relative mx-auto max-w-[1440px] px-6 pt-24 md:px-12 md:pt-32">
+      <div className={`relative mx-auto max-w-[1440px] px-6 md:px-12 ${home ? "pt-20 md:pt-28" : "pt-24 md:pt-32"}`}>
         {/* last call */}
+        {!home && (
         <div className="flex flex-col gap-10 border-b border-peach/15 pb-16 md:flex-row md:items-end md:justify-between">
           <div className="max-w-[36rem]">
             <span className="text-[0.65rem] font-medium tracking-[0.38em] text-peach/60 uppercase">Begin</span>
@@ -53,6 +57,7 @@ export default function Footer() {
             <Button href="/packages" variant="outline" className="border-peach/40 text-peach hover:bg-peach hover:text-ink">Explore packages</Button>
           </div>
         </div>
+        )}
 
         {/* columns */}
         <div className="grid gap-12 py-16 md:grid-cols-12">

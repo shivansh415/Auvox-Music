@@ -4,7 +4,7 @@
 // a warm chord that swells while the visitor holds, and at the touch a low bloom, a breath of air,
 // a strummed D chord on the guitar, the same chord on the keys, and a long shimmer that fades.
 
-import { audioBus, playChord, pluck } from "@/components/sections/Session/audio";
+import { audioBus, playChord, pluck, warmNote } from "@/components/sections/Session/audio";
 
 type Bus = NonNullable<ReturnType<typeof audioBus>>;
 
@@ -64,6 +64,21 @@ function stopSwell(b: Bus) {
   s.gain.gain.cancelScheduledValues(t);
   s.gain.gain.setTargetAtTime(0, t, 0.6);
   window.setTimeout(() => s.oscs.forEach((o) => o.stop()), 4000);
+}
+
+/**
+ * The touch strums a D chord; its fretted strings are synthesised (Karplus-Strong) the first time
+ * they play, which is a few ms of main-thread work each at the very moment of the touch. Call this
+ * any time before (it does the work in idle time, once).
+ */
+let warmed = false;
+export function warmTouch() {
+  if (warmed || typeof window === "undefined") return;
+  if (!audioBus()) return; // nothing to warm until the browser lets audio run; try again later
+  warmed = true;
+  const run = () => [3, 4, 5].forEach((s) => warmNote(s, [0, 0, 0, 2, 3, 2][s]));
+  if (window.requestIdleCallback) window.requestIdleCallback(run, { timeout: 2000 });
+  else window.setTimeout(run, 200);
 }
 
 /** The touch. */

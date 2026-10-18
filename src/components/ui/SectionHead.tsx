@@ -17,10 +17,12 @@ type Props = {
   /** play the reveal immediately instead of on scroll */
   immediate?: boolean;
   as?: "h1" | "h2" | "h3";
+  /** the title's first letter in the calligraphic swash (the site's mark for lines addressed to "you") */
+  swash?: boolean;
 };
 
 /** The client's T / L / S heading block, with the line reveal built in. */
-export default function SectionHead({ kicker, title, accent, body, tone = "light", align = "left", size = "lg", className, immediate, as: Tag = "h2" }: Props) {
+export default function SectionHead({ kicker, title, accent, body, tone = "light", align = "left", size = "lg", className, immediate, as: Tag = "h2", swash }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const dark = tone === "dark";
   const head = accent && title.endsWith(accent) ? title.slice(0, -accent.length) : title;
@@ -65,7 +67,14 @@ export default function SectionHead({ kicker, title, accent, body, tone = "light
           dark ? "text-peach" : "text-ink",
         )}
       >
-        {head}
+        {swash && head ? (
+          <>
+            <span className="swash">{head[0]}</span>
+            {head.slice(1)}
+          </>
+        ) : (
+          head
+        )}
         {accent && <em className={clsx("not-italic", dark ? "text-tan" : "text-red")}>{accent}</em>}
       </Tag>
       {bodies.map((b, i) => (

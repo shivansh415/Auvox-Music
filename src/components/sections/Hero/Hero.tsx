@@ -66,7 +66,6 @@ export default function Hero() {
         .from(title.words, { yPercent: 110, duration: 1.2, stagger: 0.035 }, 0.35)
         .fromTo(q(".hero-body"), { y: 18, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9 }, 0.85)
         .fromTo(q(".hero-cta"), { y: 18, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9 }, 1.0)
-        .fromTo(q(".hero-social"), { y: 12, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.8 }, 1.15)
         .to(hero, { enter: 1, duration: 2.2, ease: "expo.out" }, 0.4)
         // once revealed, hand the headline back to normal text so it re-wraps on resize
         .add(() => title.revert());
@@ -261,15 +260,13 @@ export default function Hero() {
       <div className="pointer-events-none relative z-10 flex min-h-[100svh] flex-col justify-center px-6 pt-[52svh] pb-28 md:px-12 lg:w-[50%] lg:pt-28 lg:pb-32 lg:pl-[max(3rem,calc((100vw-1440px)/2+3rem))] [&_a]:pointer-events-auto">
         <div className="flex items-center gap-4">
           <span className="hero-rule block h-px w-10 bg-ink/50" />
-          <span className="hero-kicker text-[0.65rem] font-medium tracking-[0.38em] text-ink/70 uppercase">The Verse Universe</span>
+          <span className="hero-kicker text-[0.65rem] font-medium tracking-[0.38em] text-ink/70 uppercase">AUVOX Music</span>
         </div>
-        <h1 className="hero-title font-display mt-7 max-w-[13ch] text-[clamp(2.7rem,5vw,5.6rem)] leading-[1.0] tracking-[-0.015em]">
-          Every instrument has a voice waiting to be <em className="text-red">found.</em>
+        <h1 className="hero-title font-display mt-7 max-w-[11ch] text-[clamp(3rem,5.8vw,6.4rem)] leading-[0.98] tracking-[-0.02em]">
+          <span className="swash">Y</span>our world, your <em className="text-red">sound.</em>
         </h1>
-        <p className="hero-body mt-8 max-w-[30rem] text-[1.05rem] leading-relaxed text-ink/75">
-          The Verse Universe is a growing world of music where every voice is trained, shaped, and set free.
-          <br />
-          One world. Many instruments. One standard of mastery.
+        <p className="hero-body mt-8 max-w-[28rem] text-[1.05rem] leading-relaxed text-ink/75">
+          More than lessons, a musical journey built around you. Live instruction, personal guidance and premium materials, in one connected musical world.
         </p>
         <div ref={ctaHome} className="hero-cta mt-10">
           <a
@@ -280,20 +277,6 @@ export default function Hero() {
             <span>Reserve your spot</span>
             <span className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5">↗</span>
           </a>
-        </div>
-        <div className="hero-social mt-10 flex items-center gap-5">
-          <div className="flex -space-x-2">
-            {["a", "b"].map((k) => (
-              <Image key={k} src={`/chat/avatar-${k}.webp`} alt="" width={36} height={36} unoptimized className="h-9 w-9 rounded-full object-cover ring-2 ring-peach" />
-            ))}
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-tan text-xs font-semibold text-ink ring-2 ring-peach">+</span>
-          </div>
-          <span className="block h-px w-10 bg-ink/25" />
-          <p className="text-sm leading-snug text-ink/75">
-            Join a growing community
-            <br />
-            of modern music lovers.
-          </p>
         </div>
       </div>
 

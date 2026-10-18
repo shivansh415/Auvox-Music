@@ -75,6 +75,58 @@ export default function Header() {
     { dependencies: [pathname, home] },
   );
 
+  // while reading: a soft glass ground once content passes under it; out of the way when scrolling
+  // down, back the moment you scroll up (never while the menu is open)
+  useGSAP(
+    () => {
+      const el = root.current;
+      if (!el) return;
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let hidden = false;
+      let lastY = window.scrollY;
+      let acc = 0;
+      const heroTop = () => {
+        const h = home ? document.querySelector<HTMLElement>(".hero") : null;
+        return h ? h.getBoundingClientRect().top + window.scrollY : 0;
+      };
+      let top0 = heroTop();
+      const setHidden = (h: boolean) => {
+        if (h === hidden) return;
+        hidden = h;
+        gsap.to(el, { y: h ? -120 : 0, duration: h ? 0.5 : 0.7, ease: h ? "power3.in" : "expo.out", overwrite: "auto" });
+      };
+      const onScroll = () => {
+        const y = window.scrollY;
+        const dy = y - lastY;
+        lastY = y;
+        el.dataset.solid = y > top0 + 60 ? "1" : "";
+        if (reduce || document.documentElement.dataset.overlay === "1") return setHidden(false);
+        // only once well past the hero; a little hysteresis so a trackpad's jitter doesn't flap it
+        if (y < top0 + window.innerHeight * 0.9) {
+          acc = 0;
+          return setHidden(false);
+        }
+        acc = Math.sign(dy) === Math.sign(acc) ? acc + dy : dy;
+        if (acc > 80) setHidden(true);
+        else if (acc < -40) setHidden(false);
+      };
+      const onResize = () => {
+        top0 = heroTop();
+      };
+      window.addEventListener("scroll", onScroll, { passive: true });
+      window.addEventListener("resize", onResize);
+      ScrollTrigger.addEventListener("refresh", onResize);
+      onScroll();
+      return () => {
+        window.removeEventListener("scroll", onScroll);
+        window.removeEventListener("resize", onResize);
+        ScrollTrigger.removeEventListener("refresh", onResize);
+        gsap.set(el, { y: 0 });
+      };
+    },
+    { dependencies: [pathname, home] },
+  );
+
   // which theme is under the header right now
   useGSAP(
     () => {
@@ -134,10 +186,13 @@ export default function Header() {
       <header
         ref={root}
         className={clsx(
-          "pointer-events-none invisible fixed inset-x-0 top-0 z-[120] flex items-center justify-between px-6 py-5 transition-colors duration-500 md:px-12",
+          "hdr pointer-events-none invisible fixed inset-x-0 top-0 z-[120] flex items-center justify-between px-6 py-5 transition-colors duration-500 md:px-12",
           dark && !open ? "text-peach" : "text-ink",
         )}
+        data-dark={dark && !open ? "1" : ""}
       >
+        {/* the glass ground (only once content has scrolled under the header) */}
+        <span className="hdr-glass pointer-events-none absolute inset-0 -z-10" aria-hidden />
         <TransitionLink href="/" className="hdr-logo pointer-events-auto" aria-label="AUVOX Music — home">
           <Image src="/svg/auvox-primary-logo.svg" alt="AUVOX Music" width={130} height={45} unoptimized className={clsx("h-10 w-auto md:h-12 transition-[filter] duration-500", dark && !open && "brightness-0 invert-[0.92] sepia-[0.3]")} />
         </TransitionLink>

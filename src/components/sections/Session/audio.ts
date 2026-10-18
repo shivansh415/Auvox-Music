@@ -164,6 +164,14 @@ function playNote(freq: number, when: number, velocity: number) {
 }
 
 /** Pluck one open string (fret shifts the pitch in semitones). The string still vibrates when silent. */
+/** Synthesises (and caches) a fretted string's note ahead of time, so playing it later costs nothing. */
+export function warmNote(string: number, fret = 0) {
+  if (!ctx || fret === 0) return;
+  const freq = STRING_FREQS[string] * 2 ** (fret / 12);
+  const key = freq.toFixed(2);
+  if (!buffers.has(key)) buffers.set(key, karplusStrong(freq));
+}
+
 export function pluck(string: number, velocity = 1, fret = 0) {
   const recorded = fret === 0 ? samples.strings[string] : null;
   if (recorded) playBuffer(recorded, 0.9 * velocity);

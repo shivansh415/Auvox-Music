@@ -30,6 +30,13 @@ export default function Begin() {
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const coarse = window.matchMedia("(pointer: coarse)").matches;
 
+      // --- the sheet: rounded top corners and a lifted shadow while it slides over the red, squaring off as it lands
+      gsap.fromTo(
+        el,
+        { "--sheet-r": "28px", "--sheet-shadow": 1 },
+        { "--sheet-r": "0px", "--sheet-shadow": 0, ease: "none", scrollTrigger: { trigger: el, start: "top 35%", end: "top top", scrub: true } },
+      );
+
       // --- entrance: the two words rise out of the floor, then the CTAs
       gsap
         .timeline({ scrollTrigger: { trigger: el, start: "top 75%", once: true }, defaults: { ease: "expo.out" } })
@@ -93,7 +100,7 @@ export default function Begin() {
   );
 
   return (
-    <section ref={root} id="begin" className="begin relative flex min-h-[100svh] flex-col items-center justify-center overflow-clip bg-cream py-24 text-ink md:py-36">
+    <section ref={root} id="begin" className="begin sheet sheet-base relative z-10 -mt-7 -mb-7 flex min-h-[100svh] flex-col items-center justify-center overflow-clip bg-cream py-24 text-ink md:py-36">
       {/* base gradient + the two side washes (driven by data-side, see globals.css) */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_55%_at_50%_112%,rgba(222,184,134,0.5),transparent_70%)]" />
       <div className="begin-wash begin-wash-guitar pointer-events-none absolute inset-0 bg-[radial-gradient(55%_95%_at_10%_50%,rgba(133,9,9,0.28),transparent_72%)]" />
@@ -131,7 +138,7 @@ export default function Begin() {
 
       {/* the copy stays centred on top; only the buttons take the pointer */}
       <div className="begin-copy pointer-events-none relative z-10 mx-auto w-full max-w-[1440px] px-6 text-center md:px-12">
-        <SectionHead kicker={BEGIN.kicker} title={BEGIN.title} accent={BEGIN.accent} body={BEGIN.body} align="center" size="xl" />
+        <SectionHead kicker={BEGIN.kicker} title={BEGIN.title} accent={BEGIN.accent} body={BEGIN.body} align="center" size="xl" swash />
         <div className="pointer-events-auto mt-12 flex flex-wrap justify-center gap-4">
           <Button className="begin-cta" href="/reserve" variant="ink">
             {BEGIN.primary}

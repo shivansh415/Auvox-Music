@@ -246,7 +246,7 @@ export default function Journey() {
           {/* heading — pinned on desktop */}
           <div className="lg:self-start">
             <div className="jr-sticky">
-              <SectionHead kicker={JOURNEY.kicker} title={JOURNEY.title} accent={JOURNEY.accent} body={JOURNEY.body} />
+              <SectionHead kicker={JOURNEY.kicker} title={JOURNEY.title} accent={JOURNEY.accent} body={JOURNEY.body} swash />
               <div className="mt-12 hidden items-center gap-6 lg:flex">
                 <span className="relative block h-24 w-px overflow-hidden bg-ink/15">
                   <span className="jr-rail-fill absolute inset-0 origin-top bg-red" />

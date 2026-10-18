@@ -15,7 +15,6 @@ export default function Home() {
       <Hero />
       <Seam from="var(--auvox-peach)" to="var(--auvox-cream)" />
       <VerseUniverse />
-      <Seam from="var(--auvox-cream)" to="var(--auvox-peach)" />
       <Journey />
       {!SHOWCASE && <FrequencyBox />}
       {!SHOWCASE && <Reach />}

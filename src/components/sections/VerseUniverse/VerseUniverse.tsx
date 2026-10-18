@@ -469,11 +469,13 @@ export default function VerseUniverse() {
 
   return (
     <section ref={root} id="verse-universe" data-gl="0" data-hint="0" className="vu relative overflow-clip bg-cream text-ink">
+      {/* its foot is already the Journey's peach, so the two run on without a join (under the grain, like the Journey's) */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-72 bg-gradient-to-b from-transparent to-peach" />
       <div className="grain pointer-events-none absolute inset-0 opacity-[0.04] mix-blend-multiply" />
       {/* a soft pool of peach behind the disc, a whisper of tan at the foot */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(55%_55%_at_72%_50%,rgba(250,227,197,0.95),transparent_72%),linear-gradient(180deg,transparent_60%,rgba(231,180,126,0.18))]" />
 
-      <div className="relative mx-auto max-w-[1440px] px-6 py-24 md:px-12 md:py-36">
+      <div className="relative mx-auto max-w-[1440px] px-6 pt-24 pb-16 md:px-12 md:pt-36 md:pb-20">
         <div className="grid items-center gap-14 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-12">
           {/* copy */}
           <SectionHead kicker={COPY.kicker} title={COPY.title} accent={COPY.accent} body={COPY.body} className="lg:max-w-[34rem]" />
