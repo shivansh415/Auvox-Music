@@ -362,21 +362,21 @@ html[data-overlay="1"] .hdr-glass { opacity: 0; }
 /* ---------- verse pages ---------- */
 
 /* ---------- the verse showcase ---------- */
-.vs-wash {
-  background:
-    radial-gradient(70% 60% at 50% 50%, rgba(253, 242, 227, 0.9), transparent 70%),
-    linear-gradient(180deg, rgba(231, 180, 126, 0) 60%, rgba(231, 180, 126, 0.35));
-}
-/* the colour blob: guitar red, piano tan */
-.vs-blob { position: absolute; top: 0; left: 0; width: min(66svh, 42vw); height: min(66svh, 42vw); overflow: visible; }
+/* a soft light in the middle of each chapter that fades to the plain peach at its edges, so the
+   chapters run into each other with no seam */
+.vs-wash { background: radial-gradient(70% 60% at 50% 50%, rgba(253, 242, 227, 0.9), transparent 72%); }
+/* the spot of a chapter: a zero-size point where the instrument rests while that chapter is centred */
+.vs-spot { left: calc(50% + var(--sx)); top: calc(50% + var(--sy)); width: 0; height: 0; }
+/* the colour blob: guitar red, piano tan (centred with translate, so GSAP can scale and turn it) */
+.vs-blob { position: absolute; top: 0; left: 0; width: min(66svh, 42vw); height: min(66svh, 42vw); overflow: visible; translate: -50% -50%; }
 .vs-blob-path { fill: #a3121a; }
 .vs[data-verse="piano"] .vs-blob-path { fill: #e9b57c; }
-/* the big word: over the blob, on the instrument's side */
+/* the big word: over the blob, on the instrument side */
 .vs-word {
-  top: 50%; left: calc(50% + var(--wx)); font-size: min(var(--wfit), 24svh);
+  top: 50%; left: calc(50% + var(--wx)); translate: -50% -50%; font-size: min(var(--wfit), 24svh);
   color: var(--auvox-ink); letter-spacing: -0.035em;
 }
-/* the renders: each fits its chapter's box (h in svh, w in vw), with a soft studio shadow */
+/* the renders: each fits its chapter box (h in svh, w in vw), with a soft studio shadow */
 .vs-img {
   width: auto; height: auto; max-height: var(--ih); max-width: var(--iw);
   filter: drop-shadow(0 40px 46px rgba(74, 34, 14, 0.28)) drop-shadow(0 8px 12px rgba(74, 34, 14, 0.18));
@@ -384,7 +384,7 @@ html[data-overlay="1"] .hdr-glass { opacity: 0; }
 }
 .vs-float { animation: vs-float 7s ease-in-out infinite; }
 @keyframes vs-float { 0%, 100% { transform: translateY(-8px); } 50% { transform: translateY(8px); } }
-.vs-doodles { width: min(92svh, 60vw); height: min(92svh, 60vw); overflow: visible; }
+.vs-doodles { position: absolute; top: 0; left: 0; width: min(92svh, 60vw); height: min(92svh, 60vw); overflow: visible; translate: -50% -50%; }
 .vs-ink, .vs-dot { fill: none; stroke: var(--auvox-ink); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .vs-dot { stroke-dasharray: 0.5 11; stroke-width: 3; opacity: 0.7; }
 /* the copy takes the half away from the instrument */
@@ -392,6 +392,8 @@ html[data-overlay="1"] .hdr-glass { opacity: 0; }
 .vs-copy[data-side="left"] { left: max(6vw, calc((100vw - 1440px) / 2 + 3rem)); }
 .vs-copy[data-side="right"] { right: max(6vw, calc((100vw - 1440px) / 2 + 3rem)); }
 @media (max-width: 1023px) {
+  /* phones: the instrument lives in the top part of the screen, the copy below it */
+  .vs-spot { left: 50%; top: 30%; }
   .vs-blob { width: 70vw; height: 70vw; }
   /* the word sits above the instrument, so it reads past it */
   .vs-word { left: 50%; top: 19%; font-size: min(18vw, 9rem); }
