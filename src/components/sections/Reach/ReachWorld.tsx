@@ -275,10 +275,10 @@ function Guide() {
     () => ({
       uFadeA: { value: -0.3 },
       uFadeB: { value: -0.13 },
-      uRim: { value: 0.16 },
-      uRimColor: { value: new THREE.Color("#ffd0a4") },
-      uSss: { value: 0.3 },
-      uSssColor: { value: new THREE.Color("#ff6d3e") },
+      uRim: { value: 0.22 },
+      uRimColor: { value: new THREE.Color("#ffe3cf") },
+      uSss: { value: 0.4 },
+      uSssColor: { value: new THREE.Color("#ff6a44") },
     }),
     [],
   );
@@ -294,20 +294,20 @@ function Guide() {
     // the index fingertip in each pose: empties the export writes next to the mesh
     const find = (name: string) => root.getObjectByName(name)?.position.clone() ?? new THREE.Vector3(MODEL_LEN, 0, 0);
     const mat = new THREE.MeshPhysicalMaterial({
-      color: "#a01212",
-      roughness: 0.4,
+      color: "#b4211a",
+      roughness: 0.58,
       metalness: 0,
-      clearcoat: 0.55,
-      clearcoatRoughness: 0.2,
-      sheen: 0.7,
-      sheenColor: new THREE.Color("#ff8d6e"),
-      sheenRoughness: 0.5,
-      specularIntensity: 0.8,
-      envMapIntensity: 0.85,
+      clearcoat: 0.12,
+      clearcoatRoughness: 0.5,
+      sheen: 1.0,
+      sheenColor: new THREE.Color("#ff9d84"),
+      sheenRoughness: 0.6,
+      specularIntensity: 0.6,
+      envMapIntensity: 0.9,
       transparent: true,
     });
     mat.onBeforeCompile = (shader) => patchArm(shader, uniforms);
-    mat.customProgramCacheKey = () => "reach-arm-v7";
+    mat.customProgramCacheKey = () => "reach-arm-v8";
     mat.userData.u = uniforms;
     m.material = mat;
     m.position.set(0, 0, 0);
@@ -375,9 +375,9 @@ function Guide() {
     shared.palmUv.set(PROJ.x * 0.5 + 0.5, PROJ.y * 0.5 + 0.5);
 
     // the rim warms when the red comes
-    u.uRim.value = 0.16 + reach.touch * 0.8 + reach.red * 0.5;
-    u.uSss.value = 0.3 + (1 - turn) * 0.12 + reach.touch * 0.5;
-    u.uRimColor.value.set(reach.red > 0.3 ? "#ff8a6a" : "#ffd0a4");
+    u.uRim.value = 0.22 + reach.touch * 0.8 + reach.red * 0.5;
+    u.uSss.value = 0.4 + (1 - turn) * 0.12 + reach.touch * 0.5;
+    u.uRimColor.value.set(reach.red > 0.3 ? "#ff8a6a" : "#ffe3cf");
   });
 
   return (
@@ -830,7 +830,7 @@ function Atmosphere() {
   const bp = useRef(new THREE.Vector3());
   useFrame(({ camera }) => {
     if (fog.current) fog.current.density = 0.011 + 0.042 * reach.fog;
-    if (key.current) key.current.intensity = 3.4 + 0.8 * ease(clamp01(reach.open)) + reach.touch * 1.5;
+    if (key.current) key.current.intensity = 3.0 + 0.8 * ease(clamp01(reach.open)) + reach.touch * 1.5;
     if (below.current) {
       onPlane(camera, 0.5, 1.05, bp.current, 3.2);
       below.current.position.copy(bp.current);
@@ -841,10 +841,10 @@ function Atmosphere() {
     <>
       <fogExp2 ref={fog} attach="fog" args={[CREAM.getHex(), 0.05]} />
       <directionalLight ref={key} position={[-3, 6.5, 6]} intensity={2.4} color="#ffe6c4" castShadow shadow-mapSize={[1024, 1024]} shadow-bias={-0.0004} shadow-normalBias={0.02} shadow-camera-left={-7} shadow-camera-right={7} shadow-camera-top={7} shadow-camera-bottom={-7} shadow-camera-near={1} shadow-camera-far={30} />
-      <directionalLight position={[6, -1, 3]} intensity={0.35} color="#ffd9b3" />
-      <directionalLight position={[0, 1, 9]} intensity={0.3} color="#fff0e4" />
-      <directionalLight position={[3, 4, -7]} intensity={3.0} color="#fff1e2" />
-      <hemisphereLight args={["#fff4e6", "#5a3024", 0.4]} />
+      <directionalLight position={[6, -1, 3]} intensity={0.45} color="#ffd9b3" />
+      <directionalLight position={[0, 1, 9]} intensity={0.45} color="#fff0e4" />
+      <directionalLight position={[3, 4, -7]} intensity={3.2} color="#f6f1ff" />
+      <hemisphereLight args={["#fff4e6", "#6a3a2c", 0.6]} />
       <pointLight ref={below} position={[0, -4, 2]} intensity={0} color="#fff1dc" distance={14} decay={2} />
     </>
   );
@@ -877,7 +877,7 @@ function Post() {
     u.get("uAspect")!.value = aspect;
   });
   return (
-    <EffectComposer multisampling={0} frameBufferType={THREE.HalfFloatType}>
+    <EffectComposer multisampling={4} frameBufferType={THREE.HalfFloatType}>
       <Bloom intensity={0.7} luminanceThreshold={0.78} luminanceSmoothing={0.25} mipmapBlur radius={0.7} />
       <primitive object={grade} />
       <Vignette eskil={false} offset={0.28} darkness={0.5} />

@@ -209,19 +209,27 @@ export function patchArm(shader: Shader, uniforms: Record<string, unknown>) {
       diffuseColor.a *= armFade;`,
     )
     .replace(
+      "#include <color_fragment>",
+      /* glsl */ `#include <color_fragment>
+      // skin has more blood in it toward the fingertips: lighter and pinker there, deeper toward the wrist
+      float toward = smoothstep(-0.05, 0.17, vArm.x);
+      diffuseColor.rgb = mix(diffuseColor.rgb * vec3(0.86, 0.8, 0.8), diffuseColor.rgb * vec3(1.12, 1.06, 1.02), toward);`,
+    )
+    .replace(
       "#include <roughnessmap_fragment>",
       /* glsl */ `#include <roughnessmap_fragment>
       // the surface is not perfectly even: a slow ripple in the gloss, like hand-polished lacquer
       float rGrain = sin(vArm.x * 95.0 + vArm.z * 40.0) * sin(vArm.y * 120.0 - vArm.x * 30.0) * sin(vArm.z * 110.0 + vArm.y * 50.0);
-      roughnessFactor = clamp(roughnessFactor + rGrain * 0.07, 0.04, 1.0);`,
+      roughnessFactor = clamp(roughnessFactor + rGrain * 0.05, 0.08, 1.0);`,
     )
     .replace(
       "#include <opaque_fragment>",
       /* glsl */ `float ndv = 1.0 - abs(dot(normal, normalize(vViewPosition)));
       float rimF = pow(ndv, 2.6);
       // light getting into the lacquer: a broad warm glow toward the edges, strongest where the body is thin
-      float sssF = pow(ndv, 1.35);
-      outgoingLight += uSssColor * sssF * uSss * (0.35 + 0.65 * diffuseColor.r);
+      // a soft, wide wrap (the light getting through the thin parts) and a thinner, brighter edge
+      float sssF = pow(ndv, 1.6) * 0.75 + pow(ndv, 4.0) * 0.6;
+      outgoingLight += uSssColor * sssF * uSss * (0.4 + 0.6 * diffuseColor.r);
       outgoingLight += uRimColor * rimF * uRim;
       #include <opaque_fragment>`,
     );

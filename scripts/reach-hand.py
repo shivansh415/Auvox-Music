@@ -98,10 +98,10 @@ for i in range(1, FOREARM_SEGMENTS + 1):
         src = next(e.other_vert(v) for e in v.link_edges if e.other_vert(v) in origin and e.other_vert(v) not in fset)
         origin[v] = origin[src]; new.append((v, origin[src]))
     c = c0 - F * step * i
-    # a real wrist first narrows a little past the hand, then the forearm widens toward the elbow;
-    # it is flatter front-to-back than side-to-side
-    grow = (0.8 + 0.14 * min(1.0, t * 3.0)) * (1 + 0.26 * t ** 1.3)
-    deep = 0.68 + 0.1 * min(1.0, t * 2.0)
+    # the forearm continues the wrist at its own size, then widens gently toward the elbow;
+    # a little flatter front-to-back than side-to-side
+    grow = 1 + 0.28 * t ** 1.4
+    deep = 0.92 + 0.12 * min(1.0, t * 1.5)
     w = min(1.0, i / 2.0)
     for v, o in new:
         phi, ru, rn = polar[o]
