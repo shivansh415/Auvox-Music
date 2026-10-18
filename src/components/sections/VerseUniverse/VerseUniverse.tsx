@@ -13,7 +13,6 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
-import clsx from "clsx";
 import { afterGate, expectReady } from "@/store/preloader";
 import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap";
 import SectionHead from "@/components/ui/SectionHead";
@@ -337,7 +336,6 @@ export default function VerseUniverse() {
         .to(disc, { enter: 1, duration: 1.6 }, 0)
         .to(disc, { reveal: 1, duration: reduce ? 0.01 : 2.4, ease: "expo.inOut" }, 0.1)
         .fromTo(q(".vu-tag"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.9, stagger: 0.09 }, 0.8)
-        .fromTo(q(".vu-soon"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.9, stagger: 0.09 }, 0.9)
         .fromTo(q(".vu-foot"), { y: 12, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.8, stagger: 0.1 }, 1.0)
         .add(() => lowerNeedle(), reduce ? 0 : 1.1);
 
@@ -525,14 +523,7 @@ export default function VerseUniverse() {
                             {n.label}
                           </span>
                         </button>
-                      ) : (
-                        <span key={n.key} data-node={n.key} className="vu-node absolute top-0 left-0 -mt-[10.5%] -ml-[10.5%] h-[21%] w-[21%] rounded-full">
-                          <span className="vu-soon absolute inset-0 flex items-center justify-center text-[0.5rem] font-semibold tracking-[0.32em] text-peach/55 uppercase">Soon</span>
-                          <span data-node={n.key} className="vu-tag vu-tag-ghost absolute top-1/2 left-1/2 rounded-full border border-dashed border-peach/45 bg-ink/40 px-3.5 py-1.5 text-[0.58rem] font-semibold tracking-[0.28em] whitespace-nowrap text-peach/70 uppercase backdrop-blur-[2px]">
-                            {n.label}
-                          </span>
-                        </span>
-                      ),
+                      ) : null,
                     )}
                   </div>
 
@@ -589,22 +580,13 @@ export default function VerseUniverse() {
                 {nowNode ? (
                   <span key={nowNode.key} className="vu-now flex items-center gap-2.5">
                     <span className="text-ink/45">Now spinning</span>
-                    <span className={clsx(nowNode.active ? "text-ink" : "text-ink/55")}>{nowNode.label}</span>
-                    {!nowNode.active && <span className="text-ink/40">· Soon</span>}
+                    <span className="text-ink">{nowNode.label}</span>
                   </span>
                 ) : (
                   <span>Choose your verse</span>
                 )}
               </span>
               <span className="flex flex-wrap items-center gap-5">
-                <span className="flex items-center gap-2">
-                  <span className="block h-2 w-2 rounded-full bg-ink" aria-hidden />
-                  Active Verse
-                </span>
-                <span className="flex items-center gap-2">
-                  <span className="block h-2 w-2 rounded-full border border-dashed border-ink/60" aria-hidden />
-                  Future Verse
-                </span>
                 <button
                   type="button"
                   onClick={toggleSound}

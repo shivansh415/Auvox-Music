@@ -21,3 +21,30 @@ export const LEARN_COPY: Record<Verse, readonly string[]> = {
 
 /** The closing marquee: verse name, the three points, and the academy. */
 export const marqueeItems = (verse: Verse) => [`${VERSE_NAME[verse]} Verse`, ...VERSE_COPY[verse].points.map((p) => p.replace(/\.$/, "")), "Toronto", "AUVOX Music"];
+
+/** The showcase's big word per chapter: the verse, then one word for each of the client's three points. */
+export const SHOWCASE_WORDS: Record<Verse, readonly string[]> = {
+  guitar: ["Guitar", "Begin", "Guided", "Sound"],
+  piano: ["Piano", "Stages", "Touch", "Timeless"],
+};
+
+/**
+ * Where the instrument sits in each chapter, on wide screens: offset from the centre (x in vw, y in
+ * vh), a small turn (deg) and the box its render fits in (h in vh, w in vw). It alternates sides; the
+ * copy takes the other half. Renders: public/verse/<verse>-<chapter>.webp (Blender, transparent).
+ */
+export type Pose = { x: number; y: number; r: number; h: number; w: number };
+export const SHOWCASE_POSES: Record<Verse, readonly Pose[]> = {
+  guitar: [
+    { x: 21, y: 2, r: 0, h: 86, w: 40 },
+    { x: -22, y: 2, r: -3, h: 88, w: 36 },
+    { x: 21, y: 0, r: 3, h: 72, w: 44 },
+    { x: -20, y: 4, r: -2, h: 32, w: 46 },
+  ],
+  piano: [
+    { x: 21, y: 4, r: 0, h: 50, w: 44 },
+    { x: -21, y: 2, r: 0, h: 50, w: 44 },
+    { x: 21, y: 0, r: 2, h: 60, w: 40 },
+    { x: -21, y: 4, r: -2, h: 50, w: 44 },
+  ],
+};

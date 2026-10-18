@@ -361,19 +361,47 @@ html[data-overlay="1"] .hdr-glass { opacity: 0; }
 
 /* ---------- verse pages ---------- */
 
-/* the hero's low-opacity red→peach wash (the client's "gradient" panel) */
-.verse-wash {
+/* ---------- the verse showcase ---------- */
+.vs-wash {
   background:
-    linear-gradient(118deg, rgba(133, 9, 9, 0.17) 0%, rgba(133, 9, 9, 0.06) 36%, rgba(250, 227, 197, 0) 60%),
-    radial-gradient(70% 60% at 82% 68%, rgba(231, 180, 126, 0.55), transparent 70%),
-    radial-gradient(45% 40% at 100% 0%, rgba(222, 184, 134, 0.45), transparent 70%);
+    radial-gradient(70% 60% at 50% 50%, rgba(253, 242, 227, 0.9), transparent 70%),
+    linear-gradient(180deg, rgba(231, 180, 126, 0) 60%, rgba(231, 180, 126, 0.35));
 }
-
-/* the huge ghost word behind the instrument */
-.verse-ghost {
-  font-size: clamp(5.5rem, 13vw, 15rem);
-  letter-spacing: -0.03em;
+/* the colour blob: guitar red, piano tan */
+.vs-blob { position: absolute; top: 0; left: 0; width: min(66svh, 42vw); height: min(66svh, 42vw); overflow: visible; }
+.vs-blob-path { fill: #a3121a; }
+.vs[data-verse="piano"] .vs-blob-path { fill: #e9b57c; }
+/* the big word: over the blob, on the instrument's side */
+.vs-word {
+  top: 50%; left: calc(50% + var(--wx)); font-size: min(var(--wfit), 24svh);
+  color: var(--auvox-ink); letter-spacing: -0.035em;
 }
+/* the renders: each fits its chapter's box (h in svh, w in vw), with a soft studio shadow */
+.vs-img {
+  width: auto; height: auto; max-height: var(--ih); max-width: var(--iw);
+  filter: drop-shadow(0 40px 46px rgba(74, 34, 14, 0.28)) drop-shadow(0 8px 12px rgba(74, 34, 14, 0.18));
+  will-change: transform, opacity;
+}
+.vs-float { animation: vs-float 7s ease-in-out infinite; }
+@keyframes vs-float { 0%, 100% { transform: translateY(-8px); } 50% { transform: translateY(8px); } }
+.vs-doodles { width: min(92svh, 60vw); height: min(92svh, 60vw); overflow: visible; }
+.vs-ink, .vs-dot { fill: none; stroke: var(--auvox-ink); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.vs-dot { stroke-dasharray: 0.5 11; stroke-width: 3; opacity: 0.7; }
+/* the copy takes the half away from the instrument */
+.vs-copy { top: 0; bottom: 0; width: 38vw; display: flex; flex-direction: column; justify-content: center; }
+.vs-copy[data-side="left"] { left: max(6vw, calc((100vw - 1440px) / 2 + 3rem)); }
+.vs-copy[data-side="right"] { right: max(6vw, calc((100vw - 1440px) / 2 + 3rem)); }
+@media (max-width: 1023px) {
+  .vs-blob { width: 70vw; height: 70vw; }
+  /* the word sits above the instrument, so it reads past it */
+  .vs-word { left: 50%; top: 19%; font-size: min(18vw, 9rem); }
+  .vs-img { max-height: calc(var(--ih) * 0.44); max-width: 84vw; }
+  .vs-cta { column-gap: 0.6rem; }
+  .vs-cta > * { padding-inline: 1.25rem; letter-spacing: 0.22em; }
+  .vs-doodles { width: 96vw; height: 96vw; }
+  .vs-copy { top: auto; bottom: 11svh; left: 6vw !important; right: 6vw !important; width: auto; justify-content: flex-end; }
+}
+@media (prefers-reduced-motion: reduce) { .vs-float { animation: none; } }
 
 /* package cards tilt toward the pointer (max 4°) */
 .verse-card { perspective: 1200px; }

@@ -99,7 +99,10 @@ export default function Header() {
         const y = window.scrollY;
         const dy = y - lastY;
         lastY = y;
-        el.dataset.solid = y > top0 + 60 ? "1" : "";
+        // on wide screens the hero holds still for a while (its button flies up into this header):
+        // nothing passes under the header then, so the glass waits until the page moves again
+        const hold = home && window.innerWidth >= 1024 ? window.innerHeight * 0.85 : 0;
+        el.dataset.solid = y > top0 + hold + 40 ? "1" : "";
         if (reduce || document.documentElement.dataset.overlay === "1") return setHidden(false);
         // only once well past the hero; a little hysteresis so a trackpad's jitter doesn't flap it
         if (y < top0 + window.innerHeight * 0.9) {

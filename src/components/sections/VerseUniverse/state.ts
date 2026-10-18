@@ -15,11 +15,10 @@ export type VerseNode = {
   | { key: "drum" | "production"; /** still to come: dashed, ghosted */ active: false }
 );
 
+// the two verses that exist, opposite each other on the record (the future ones are left off until they're real)
 export const NODES: readonly VerseNode[] = [
   { key: "guitar", label: "Guitar Verse", active: true, angle: -64 },
-  { key: "piano", label: "Piano Verse", active: true, angle: 26 },
-  { key: "drum", label: "Drum Verse", active: false, angle: 116 },
-  { key: "production", label: "Production Verse", active: false, angle: 206 },
+  { key: "piano", label: "Piano Verse", active: true, angle: 116 },
 ];
 
 export const NODE_BY_KEY = Object.fromEntries(NODES.map((n) => [n.key, n])) as Record<NodeKey, VerseNode>;

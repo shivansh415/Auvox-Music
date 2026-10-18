@@ -30,7 +30,7 @@ export const VINYL_FRAG = /* glsl */ `
   uniform float uLabelR;
   uniform float uOrbitR;
   uniform float uPuckR;
-  uniform vec4 uNodes[4];       // x, y, hover 0-1, active 0/1
+  uniform vec4 uNodes[2];       // x, y, hover 0-1, active 0/1
   uniform vec4 uRipples[6];     // x, y, age (s), strength
   uniform vec3 uRippleTone[6];
   uniform vec4 uStylus;         // x, y, down 0-1, arm visible 0/1
@@ -167,7 +167,7 @@ export const VINYL_FRAG = /* glsl */ `
     }
 
     // ---- the pucks
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 2; i++) {
       vec4 n = uNodes[i];
       float pr = uPuckR * uEnter * (1.0 + 0.1 * n.z);
       if (pr < 0.001) continue;
@@ -214,7 +214,7 @@ export const VINYL_FRAG = /* glsl */ `
     }
 
     // ---- the instruments' soft shadows on their pucks
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 2; i++) {
       vec4 n = uNodes[i];
       if (n.w < 0.5) continue;
       vec2 so = p - (n.xy + vec2(0.035, -0.055) * (1.0 + n.z * 0.8));

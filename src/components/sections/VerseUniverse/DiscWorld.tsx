@@ -11,6 +11,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Environment, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
+import { GUITAR_BODY, lacquer } from "@/lib/r3f/lacquer";
 import { gsap } from "@/lib/gsap";
 import Prewarm from "@/lib/r3f/Prewarm";
 import { sampleAudio } from "@/components/sections/Session/audio";
@@ -190,15 +191,8 @@ function useNormalized(url: string, size: number) {
       const mat = mesh.material as THREE.MeshStandardMaterial;
       if (mat.map) mat.map.anisotropy = 8;
       mat.envMapIntensity = 0.9;
-      // the guitar's lacquer gets a clearcoat so the brand red reads as a glossy finish
-      if (mat.name === "lambert4SG") {
-        const phys = new THREE.MeshPhysicalMaterial();
-        phys.copy(mat as THREE.MeshPhysicalMaterial);
-        phys.clearcoat = 1;
-        phys.clearcoatRoughness = 0.12;
-        phys.roughness = Math.min(mat.roughness, 0.55);
-        mesh.material = phys;
-      }
+      // the guitar's body: an even gloss lacquer (see lib/r3f/lacquer)
+      if (mat.name === GUITAR_BODY) mesh.material = lacquer(mat);
     });
     const holder = new THREE.Group();
     holder.add(obj);
