@@ -305,6 +305,13 @@ export default function VerseUniverse() {
       const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       // a fresh turntable every time the section mounts (the state outlives route changes)
       resetDisc(reduce);
+      // and an unzoomed stage: a verse click leans in (scale 1.45) and leaves for its page, and when
+      // the visitor comes back with Back, Next restores this same DOM with the zoom still on it
+      if (stage.current) {
+        gsap.killTweensOf(stage.current);
+        gsap.set(stage.current, { scale: 1 });
+      }
+      leaving.current = false;
 
       // --- near the viewport: mount the canvas, and run the loops only while we are around
       const io = new IntersectionObserver(

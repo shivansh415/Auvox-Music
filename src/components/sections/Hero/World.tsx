@@ -6,13 +6,22 @@
 // Hovering an instrument stops the orbit and lifts it; clicking it opens its verse.
 
 import { Suspense, useEffect, useMemo, useRef } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, events as createEvents, useFrame, useThree, type RootState } from "@react-three/fiber";
 import { ContactShadows, Environment, Float, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { GUITAR_BODY, lacquer } from "@/lib/r3f/lacquer";
 import PauseOffscreen from "@/lib/r3f/PauseOffscreen";
 import Prewarm from "@/lib/r3f/Prewarm";
 import { hero, plinthOnScreen, type Verse } from "./state";
+
+/** the page's own controls (never a 3D target) */
+const INTERACTIVE = "a, button, input, textarea, select, label, [role='button']";
+/** a pointer event that really happened over the hero (not on its links or buttons): the canvas
+ * listens on the whole page, so without this any click lined up with an instrument opened a verse */
+function onHero(e: Event) {
+  const t = e.target instanceof Element ? e.target : null;
+  return !!t && !!t.closest(".hero") && !t.closest(INTERACTIVE);
+}
 
 const RED = "#850909";
 const TAN = "#e7b47e";
@@ -138,8 +147,9 @@ function Instrument({
     a.on = e > 0.6;
   });
 
-  const over = (ev: { stopPropagation: () => void }) => {
+  const over = (ev: { stopPropagation: () => void; nativeEvent: Event }) => {
     ev.stopPropagation();
+    if (!onHero(ev.nativeEvent)) return;
     if (hero.hover === kind) return;
     hero.hover = kind;
     document.body.style.cursor = "pointer";
@@ -150,7 +160,7 @@ function Instrument({
   };
 
   return (
-    <group ref={group} onPointerOver={over} onPointerOut={out} onClick={() => hero.navigate(kind)}>
+    <group ref={group} onPointerOver={over} onPointerOut={out} onClick={(ev) => onHero(ev.nativeEvent) && hero.navigate(kind)}>
       {children}
     </group>
   );
@@ -292,6 +302,28 @@ function Scene() {
   );
 }
 
+/**
+ * The instruments listen to pointer events on the whole page (so the hero copy layered over the
+ * canvas doesn't block them), which means every click anywhere reaches this scene: one that
+ * happened to line up with the keyboard opened the Piano Verse from the disc section, or from the
+ * Support page while Next kept the home page alive for Back. Only pointers over the hero itself
+ * (and not on its links or buttons) count, measured against the canvas where it actually is.
+ */
+function compute(event: PointerEvent | MouseEvent, state: RootState) {
+  const el = state.gl.domElement;
+  const ok = onHero(event) && el.isConnected;
+  if (!ok) {
+    state.pointer.set(10, 10); // off the scene: nothing is hit
+  } else {
+    const r = el.getBoundingClientRect();
+    state.pointer.set(((event.clientX - r.left) / r.width) * 2 - 1, -((event.clientY - r.top) / r.height) * 2 + 1);
+  }
+  state.raycaster.setFromCamera(state.pointer, state.camera);
+}
+/** R3F's pointer events with that compute. (No `eventPrefix` on the Canvas: it installs its own
+ * compute when the canvas is created, replacing this one.) */
+const heroEvents: typeof createEvents = (store) => ({ ...createEvents(store), compute });
+
 export default function World() {
   return (
     <Canvas
@@ -301,7 +333,7 @@ export default function World() {
       camera={{ fov: FOV, near: 0.1, far: 60, position: [0, 0, CAM_Z] }}
       gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.95 }}
       eventSource={typeof document !== "undefined" ? document.body : undefined}
-      eventPrefix="client"
+      events={heroEvents}
     >
       <Scene />
     </Canvas>
