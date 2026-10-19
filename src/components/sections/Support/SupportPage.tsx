@@ -46,7 +46,7 @@ export default function SupportPage() {
   };
 
   return (
-    <div className={`apple-support ${inter.variable} bg-white`}>
+    <div className={`apple-support ${inter.variable} bg-cream`}>
       <SupportHero onTopic={pickTopic} onAsk={(q) => toChat(q)} onQuery={setQuestion} />
       <GetHelp onChat={() => toChat()} question={question} />
       <PopularAnswers />

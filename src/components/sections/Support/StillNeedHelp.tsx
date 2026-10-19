@@ -11,7 +11,7 @@ export default function StillNeedHelp({ question }: { question?: string }) {
   const root = useRef<HTMLElement>(null);
   useReveal(root, ".as-still", 0.08);
   return (
-    <section ref={root} className="bg-[#f5f5f7] py-24 md:py-32" aria-labelledby="still-title">
+    <section ref={root} className="bg-peach py-24 md:py-32" aria-labelledby="still-title">
       <div className="mx-auto max-w-[760px] px-6 text-center">
         <h2 id="still-title" className="as-still as-display text-[2.25rem] leading-[1.08] font-semibold tracking-[-0.025em] text-[#1d1d1f] md:text-[3rem]">
           Still need help?

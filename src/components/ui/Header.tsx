@@ -195,7 +195,7 @@ export default function Header() {
       <header
         ref={root}
         className={clsx(
-          "hdr pointer-events-none invisible fixed inset-x-0 top-0 z-[120] flex items-center justify-between px-6 py-5 transition-colors duration-500 md:px-12",
+          "hdr pointer-events-none invisible fixed inset-x-0 top-0 z-[120] flex items-center justify-between gap-6 px-6 py-5 transition-colors duration-500 md:px-12",
           dark && !open ? "text-peach" : "text-ink",
         )}
         data-dark={dark && !open ? "1" : ""}
@@ -206,11 +206,11 @@ export default function Header() {
           <Image src="/svg/auvox-primary-logo.svg" alt="AUVOX Music" width={130} height={45} unoptimized className={clsx("h-10 w-auto md:h-12 transition-[filter] duration-500", dark && !open && "brightness-0 invert-[0.92] sepia-[0.3]")} />
         </TransitionLink>
 
-        <nav className="pointer-events-auto hidden items-center gap-9 lg:flex" aria-label="Primary">
+        <nav className="pointer-events-auto hidden items-center gap-7 xl:flex 2xl:gap-9" aria-label="Primary">
           {NAV.map((n) => {
             const active = n.href === pathname;
             return (
-              <TransitionLink key={n.href} href={n.href} className={clsx("nav-link relative text-[0.95rem] font-medium tracking-[0.01em]", active && "is-active")}>
+              <TransitionLink key={n.href} href={n.href} className={clsx("nav-link relative text-[0.95rem] font-medium tracking-[0.01em] whitespace-nowrap", active && "is-active")}>
                 {n.label}
               </TransitionLink>
             );
@@ -218,6 +218,20 @@ export default function Header() {
         </nav>
 
         <div className="hdr-right pointer-events-auto flex items-center gap-3">
+          {/* students who have already enrolled: a quiet outline pill beside the main call (an icon below 1280px) */}
+          {pathname !== "/login" && (
+            <TransitionLink
+              href="/login"
+              aria-label="Log in to your student space"
+              className="hdr-login group flex h-10 items-center justify-center gap-2 rounded-full border border-current/35 transition-colors duration-300 hover:border-current max-xl:w-10 xl:px-5"
+            >
+              <svg viewBox="0 0 20 20" className="h-[1.05rem] w-[1.05rem]" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden>
+                <circle cx="10" cy="7" r="3.4" />
+                <path d="M3.6 17c.8-3.3 3.4-5.2 6.4-5.2s5.6 1.9 6.4 5.2" />
+              </svg>
+              <span className="hidden text-[0.62rem] font-semibold tracking-[0.28em] uppercase xl:inline">Log in</span>
+            </TransitionLink>
+          )}
           {/* the hero docks its button here on the home page; elsewhere the header brings its own */}
           <div id="header-cta-slot" className="flex min-h-10 items-center justify-end lg:min-w-[13rem]">
             {!home && (
@@ -231,7 +245,7 @@ export default function Header() {
           <button
             type="button"
             onClick={() => setOpen((o) => !o)}
-            className={clsx("burger relative flex h-10 w-10 items-center justify-center rounded-full border lg:hidden", open ? "border-peach/40 text-peach" : "border-current")}
+            className={clsx("burger relative flex h-10 w-10 items-center justify-center rounded-full border xl:hidden", open ? "border-peach/40 text-peach" : "border-current")}
             aria-label={open ? "Close menu" : "Open menu"}
             aria-expanded={open}
             data-open={open ? "1" : "0"}
@@ -247,7 +261,7 @@ export default function Header() {
         <div className="grain pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-screen" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_60%_at_80%_90%,rgba(133,9,9,0.45),transparent_70%)]" />
         <nav className="relative flex flex-1 flex-col justify-center px-6 pt-24 md:px-12" aria-label="Menu">
-          {[...NAV, { label: "Reserve your spot", href: "/reserve" }].map((n, i) => (
+          {[...NAV, { label: "Reserve your spot", href: "/reserve" }, { label: "Log in", href: "/login" }].map((n, i) => (
             <div key={n.href} className="overflow-hidden">
               <button type="button" onClick={() => nav(n.href)} className="menu-link group flex w-full items-baseline gap-4 py-1.5 text-left">
                 <span className="w-7 text-[0.6rem] tracking-[0.3em] text-tan/70">0{i + 1}</span>

@@ -13,7 +13,7 @@ export default function PopularAnswers() {
   const half = Math.ceil(POPULAR.length / 2);
   const cols = [POPULAR.slice(0, half), POPULAR.slice(half)];
   return (
-    <section ref={root} className="bg-white py-20 md:py-28" aria-labelledby="popular-title">
+    <section ref={root} className="bg-cream py-20 md:py-28" aria-labelledby="popular-title">
       <div className="mx-auto max-w-[1180px] px-6">
         <h2 id="popular-title" className="as-display text-[2rem] leading-tight font-semibold tracking-[-0.02em] text-[#1d1d1f] md:text-[2.5rem]">
           Popular answers

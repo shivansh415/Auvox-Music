@@ -22,7 +22,7 @@ function Bubble({ msg }: { msg: Msg }) {
       <div
         className={clsx(
           "rounded-[1.25rem] px-4 py-2.5 text-[1rem] leading-snug md:text-[1.0625rem]",
-          user ? "rounded-br-[0.4rem] bg-red text-white" : "rounded-bl-[0.4rem] bg-[#e9e9eb] text-[#1d1d1f]",
+          user ? "rounded-br-[0.4rem] bg-red text-white" : "rounded-bl-[0.4rem] bg-cream text-[#1d1d1f]",
         )}
       >
         {msg.faq && <p className="mb-1 text-[0.75rem] font-semibold text-[#6e6e73]">{msg.faq.q}</p>}
@@ -85,7 +85,7 @@ export default function AskAuvox({ onAsk, ref }: Props) {
   useImperativeHandle(ref, () => ({ ask, focus: () => field.current?.focus({ preventScroll: true }) }));
 
   return (
-    <section ref={root} id="ask" className="scroll-mt-20 bg-white py-20 md:py-28" aria-labelledby="ask-title">
+    <section ref={root} id="ask" className="scroll-mt-20 bg-cream py-20 md:py-28" aria-labelledby="ask-title">
       <div className="mx-auto max-w-[1180px] px-6">
         <div className="text-center">
           <h2 id="ask-title" className="as-display text-[2rem] leading-tight font-semibold tracking-[-0.02em] text-[#1d1d1f] md:text-[2.5rem]">
@@ -94,9 +94,9 @@ export default function AskAuvox({ onAsk, ref }: Props) {
           <p className="mx-auto mt-3 max-w-[30rem] text-[1.0625rem] text-[#6e6e73]">Type it like you would text us. Anything I can&rsquo;t answer goes to a person.</p>
         </div>
 
-        <div className="as-chat mx-auto mt-10 max-w-[46rem] overflow-hidden rounded-[1.75rem] bg-[#f5f5f7] ring-1 ring-black/5">
+        <div className="as-chat mx-auto mt-10 max-w-[46rem] overflow-hidden rounded-[1.75rem] bg-peach ring-1 ring-black/5">
           {/* header: who you're talking to */}
-          <div className="flex items-center gap-3 border-b border-black/[0.06] bg-white/70 px-5 py-3.5 backdrop-blur md:px-6">
+          <div className="flex items-center gap-3 border-b border-black/[0.06] bg-cream/70 px-5 py-3.5 backdrop-blur md:px-6">
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-red">
               <Image src="/svg/auvox-logomark.svg" alt="" width={20} height={18} unoptimized className="h-[18px] w-auto brightness-0 invert" />
             </span>
@@ -111,7 +111,7 @@ export default function AskAuvox({ onAsk, ref }: Props) {
               <Bubble key={m.id} msg={m} />
             ))}
             {typing && (
-              <div className="flex items-center gap-1 self-start rounded-[1.25rem] rounded-bl-[0.4rem] bg-[#e9e9eb] px-4 py-3.5" aria-label="AUVOX is typing">
+              <div className="flex items-center gap-1 self-start rounded-[1.25rem] rounded-bl-[0.4rem] bg-cream px-4 py-3.5" aria-label="AUVOX is typing">
                 {[0, 1, 2].map((d) => (
                   <span key={d} className="typing-dot block h-2 w-2 rounded-full bg-[#8e8e93]" />
                 ))}
@@ -132,7 +132,7 @@ export default function AskAuvox({ onAsk, ref }: Props) {
           )}
 
           <form
-            className="flex items-center gap-2 border-t border-black/[0.06] bg-white/70 px-3 py-3 md:px-4"
+            className="flex items-center gap-2 border-t border-black/[0.06] bg-cream/70 px-3 py-3 md:px-4"
             onSubmit={(e) => {
               e.preventDefault();
               ask(draft);
@@ -150,7 +150,7 @@ export default function AskAuvox({ onAsk, ref }: Props) {
               placeholder="Message"
               autoComplete="off"
               enterKeyHint="send"
-              className="h-11 min-w-0 flex-1 rounded-full border border-black/10 bg-white px-4 text-[1rem] text-[#1d1d1f] outline-none placeholder:text-[#86868b] focus:border-black/25"
+              className="h-11 min-w-0 flex-1 rounded-full border border-black/10 bg-cream px-4 text-[1rem] text-[#1d1d1f] outline-none placeholder:text-[#86868b] focus:border-black/25"
             />
             <button
               type="submit"

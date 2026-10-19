@@ -20,14 +20,14 @@ const Card = ({ icon, title, body, cta }: { icon: React.ReactNode; title: string
   </>
 );
 
-const CARD = "as-card as-help flex min-h-[16.5rem] flex-col rounded-[1.5rem] bg-white p-7 text-left transition-[transform,box-shadow] duration-500 hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(0,0,0,0.08)] md:p-8";
+const CARD = "as-card as-help flex min-h-[16.5rem] flex-col rounded-[1.5rem] bg-cream p-7 text-left transition-[transform,box-shadow] duration-500 hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(0,0,0,0.08)] md:p-8";
 
-/** Four ways to get help, as Apple-style cards on a light grey band. */
+/** Four ways to get help, as Apple-style cards on a peach band. */
 export default function GetHelp({ onChat, question }: Props) {
   const root = useRef<HTMLElement>(null);
   useReveal(root, ".as-help", 0.08);
   return (
-    <section ref={root} className="bg-[#f5f5f7] py-20 md:py-28" aria-labelledby="get-help-title">
+    <section ref={root} className="bg-peach py-20 md:py-28" aria-labelledby="get-help-title">
       <div className="mx-auto max-w-[1180px] px-6">
         <h2 id="get-help-title" className="as-display text-[2rem] leading-tight font-semibold tracking-[-0.02em] text-[#1d1d1f] md:text-[2.5rem]">
           Get help

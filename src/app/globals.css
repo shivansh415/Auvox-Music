@@ -293,16 +293,13 @@ button:not(:disabled), [role="button"], label[for], select, summary { cursor: po
 html[data-overlay="1"] .hdr-glass { opacity: 0; }
 
 /* the Support page, in the manner of Apple Support: system type (SF Pro on Apple devices, Inter
-   elsewhere), quiet greys, AUVOX red where Apple would use its blue */
+   elsewhere) on the AUVOX cream and peach, AUVOX red where Apple would use its blue */
 .apple-support {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", var(--font-inter), "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   color: #1d1d1f;
 }
 .apple-support .as-display { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", var(--font-inter), "Helvetica Neue", Arial, sans-serif; }
-/* the header turns to frosted white over this page */
-body:has(.apple-support) .hdr-glass { background: rgba(251, 251, 253, 0.8); }
-body:has(.apple-support) .hdr[data-dark="1"] .hdr-glass { background: color-mix(in srgb, #2a0606 55%, transparent); }
 
 .apple-support input[type="search"]::-webkit-search-cancel-button,
 .apple-support input[type="search"]::-webkit-search-decoration { -webkit-appearance: none; appearance: none; }
@@ -322,7 +319,7 @@ body:has(.apple-support) .hdr[data-dark="1"] .hdr-glass { background: color-mix(
 .as-btn-line { border: 1px solid var(--auvox-red); color: var(--auvox-red); }
 .as-btn-line:hover { background: var(--auvox-red); color: #fff; }
 .as-chip {
-  border-radius: 980px; border: 1px solid rgba(0, 0, 0, 0.14); background: #fff; padding: 0.4rem 0.9rem;
+  border-radius: 980px; border: 1px solid rgba(0, 0, 0, 0.14); background: var(--auvox-cream); padding: 0.4rem 0.9rem;
   font-size: 0.875rem; color: #1d1d1f; transition: border-color 0.25s, color 0.25s;
 }
 .as-chip:hover { border-color: var(--auvox-red); color: var(--auvox-red); }

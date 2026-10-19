@@ -68,7 +68,7 @@ export default function SupportHero({ onTopic, onAsk, onQuery }: Props) {
   };
 
   return (
-    <section ref={root} className="relative bg-white pt-32 pb-16 md:pt-44 md:pb-24" aria-label="AUVOX Support">
+    <section ref={root} className="relative bg-cream pt-32 pb-16 md:pt-44 md:pb-24" aria-label="AUVOX Support">
       <div className="mx-auto max-w-[980px] px-6 text-center">
         <h1 className="as-rise as-display text-[2.75rem] leading-[1.05] font-semibold tracking-[-0.025em] text-[#1d1d1f] md:text-[4rem]">
           AUVOX Support
@@ -82,7 +82,7 @@ export default function SupportHero({ onTopic, onAsk, onQuery }: Props) {
           {TOPICS.map((t) => (
             <li key={t.key} className="flex justify-center">
               <button type="button" onClick={() => onTopic(t.key)} className="as-tile group flex w-[6.5rem] flex-col items-center gap-3 md:w-[7.5rem]">
-                <span className="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-[1.25rem] bg-[#f5f5f7] text-[#1d1d1f] transition-[background-color,color,transform] duration-300 group-hover:bg-[#ebebef] group-hover:text-red group-active:scale-95 md:h-20 md:w-20">
+                <span className="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-[1.25rem] bg-peach text-[#1d1d1f] transition-[background-color,color,transform] duration-300 group-hover:bg-peach-deep/40 group-hover:text-red group-active:scale-95 md:h-20 md:w-20">
                   <span className="block h-9 w-9 md:h-10 md:w-10">{t.icon}</span>
                 </span>
                 <span className="text-[0.8125rem] leading-tight text-[#1d1d1f] md:text-[0.875rem]">{t.short}</span>
@@ -103,7 +103,7 @@ export default function SupportHero({ onTopic, onAsk, onQuery }: Props) {
           <label htmlFor="support-search" className="sr-only">
             Search Support
           </label>
-          <div className={clsx("as-search flex items-center gap-3 rounded-full border bg-white px-5 transition-[border-color,box-shadow] duration-300", focused ? "border-[#1d1d1f]/40 shadow-[0_8px_30px_rgba(0,0,0,0.08)]" : "border-black/15")}>
+          <div className={clsx("as-search flex items-center gap-3 rounded-full border bg-cream px-5 transition-[border-color,box-shadow] duration-300", focused ? "border-[#1d1d1f]/40 shadow-[0_8px_30px_rgba(0,0,0,0.08)]" : "border-black/15")}>
             <span className="block h-5 w-5 shrink-0 text-[#6e6e73]">{ICONS.search}</span>
             <input
               ref={input}
@@ -153,7 +153,7 @@ export default function SupportHero({ onTopic, onAsk, onQuery }: Props) {
 
           {/* quick links while the field is empty and focused */}
           {showQuick && (
-            <div className="as-pop mt-3 rounded-[1.25rem] bg-white p-5 shadow-[0_12px_40px_rgba(0,0,0,0.10)] ring-1 ring-black/5">
+            <div className="as-pop mt-3 rounded-[1.25rem] bg-cream p-5 shadow-[0_12px_40px_rgba(0,0,0,0.10)] ring-1 ring-black/5">
               <p className="text-[0.75rem] font-medium text-[#6e6e73]">Quick links</p>
               <ul className="mt-2">
                 {POPULAR.slice(0, 4).map((f) => (
@@ -170,7 +170,7 @@ export default function SupportHero({ onTopic, onAsk, onQuery }: Props) {
 
           {/* live answers */}
           {trimmed && (
-            <div className="as-pop mt-3 rounded-[1.25rem] bg-white px-5 pt-1 pb-4 shadow-[0_12px_40px_rgba(0,0,0,0.10)] ring-1 ring-black/5 md:px-6">
+            <div className="as-pop mt-3 rounded-[1.25rem] bg-cream px-5 pt-1 pb-4 shadow-[0_12px_40px_rgba(0,0,0,0.10)] ring-1 ring-black/5 md:px-6">
               {results.length ? (
                 <div>
                   {results.map((r, i) => (

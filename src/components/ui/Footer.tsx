@@ -84,6 +84,7 @@ export default function Footer() {
               <li><TransitionLink href="/packages" className="link-line text-peach/85">Packages</TransitionLink></li>
               <li><TransitionLink href="/enroll" className="link-line text-peach/85">Enroll</TransitionLink></li>
               <li><TransitionLink href="/dashboard" className="link-line text-peach/85">Student space</TransitionLink></li>
+              <li><TransitionLink href="/login" className="link-line text-peach/85">Log in</TransitionLink></li>
             </ul>
           </div>
           <div className="md:col-span-4">
