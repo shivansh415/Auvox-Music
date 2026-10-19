@@ -34,3 +34,8 @@ export const fbox = {
 if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
   (window as unknown as { __fbox: typeof fbox }).__fbox = fbox;
 }
+
+/** a push on the spin (the edition switch turns the box; inertia slows it back to idle) */
+export function nudge(amount: number) {
+  fbox.vel += amount;
+}

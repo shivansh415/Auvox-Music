@@ -328,7 +328,8 @@ export default function Reach() {
         {/* the opening line, alone in the light */}
         <div className="rch-o pointer-events-none absolute inset-0 z-[7] flex flex-col items-center justify-center" aria-hidden>
           <span className="rch-phrase rch-opening relative block text-center font-display text-[clamp(4.4rem,13vw,14rem)] leading-[0.9] tracking-[-0.02em] text-ink">
-            <span className="rch-mask -mb-[0.3em] inline-block overflow-hidden pb-[0.3em] align-bottom">
+            {/* the script Y rises well above the line: the mask gets headroom so its swash isn't clipped */}
+            <span className="rch-mask -mt-[0.5em] -mb-[0.3em] inline-block overflow-hidden pt-[0.5em] pb-[0.3em] align-bottom">
               <span className="rch-word inline-block will-change-transform">
                 <span className="swash">Y</span><span className="text-ink">ou</span>
               </span>

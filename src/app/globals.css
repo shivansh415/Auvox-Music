@@ -346,9 +346,9 @@ html[data-overlay="1"] .hdr-glass { opacity: 0; }
 }
 
 /* ---------- frequency box ---------- */
-/* the faint peach-deep circle behind the box */
+/* the faint sand circle behind the box */
 .fbox-halo {
-  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--auvox-peach-deep) 70%, transparent) 0%, color-mix(in srgb, var(--auvox-peach-deep) 35%, transparent) 42%, transparent 70%);
+  background: radial-gradient(circle at 50% 55%, rgba(188, 177, 159, 0.42) 0%, rgba(188, 177, 159, 0.16) 45%, transparent 70%);
 }
 /* the canvas: vertical swipes still scroll the page, horizontal ones turn the box */
 .fbox-canvas { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
@@ -753,9 +753,9 @@ html[data-overlay="1"] .hdr-glass { opacity: 0; }
   display: inline-block; margin-right: -0.14em; vertical-align: -0.04em;
 }
 
-/* the scene's two joins: it comes up out of the peach of the Frequency Box, and once the red has
+/* the scene, two joins: it comes up out of the off-white of the Frequency Box, and once the red has
    flooded the sky its foot deepens into the red of the promise below */
-.rch-enter { background: linear-gradient(180deg, var(--auvox-peach) 0%, color-mix(in srgb, var(--auvox-peach) 55%, transparent) 45%, transparent 100%); }
+.rch-enter { background: linear-gradient(180deg, var(--auvox-pearl) 0%, color-mix(in srgb, var(--auvox-pearl) 55%, transparent) 45%, transparent 100%); }
 .rch-exit { background: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--auvox-red) 70%, transparent) 55%, var(--auvox-red) 100%); opacity: 0; }
 
 /* the picture fades in once the first frames are drawn (a black canvas never shows) */

@@ -1,9 +1,10 @@
 "use client";
 
-// The Frequency Box in 3D: a cream rigid box (base + lid with a real seam) in the client's 15 × 10 × 5 in
-// proportions, its tan foil print painted at runtime onto two transparent planes that sit on the front and
-// the spine with a more metallic finish than the card. It floats, turns on its own, picks up rotation from
-// the page scroll, and can be dragged with inertia. It never opens.
+// The Frequency Box in 3D, after the client's reference box (shown closed: it stays a surprise): a wide,
+// low sand-coloured box under a thin taupe lid, its print painted at runtime onto transparent planes:
+// the brown AUVOX MUSIC lockup with "FORGED IN FREQUENCY" and a waveform hairline on the front, the
+// edition on the side, the logomark tone on tone on the lid. It floats, turns on its own, picks up
+// rotation from the page scroll, and can be dragged with inertia. A new edition turns it once.
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
@@ -12,39 +13,38 @@ import * as THREE from "three";
 import { gsap } from "@/lib/gsap";
 import Prewarm from "@/lib/r3f/Prewarm";
 import { fbox } from "./state";
-import { makePrintTextures, type PrintTextures } from "./textures";
+import { makePrintTextures, type Edition, type PrintTextures } from "./textures";
 
-// 15 × 10 × 5 in → 3 × 2 × 1 units
+// 15 × 10 × 5 in, lying flat: 3 wide, 1 high, 2 deep
 const W = 3;
-const H = 2;
-const D = 1;
-const CREAM = "#f1e6d2";
-const SEAM = "#cbb89c";
-const TAN = "#e7b47e";
-const RADIUS = 0.035;
+const H = 1;
+const D = 2;
+/** colours sampled from the reference */
+const SAND = "#bcb19f";
+const LID = "#948c7e";
+const SEAM = "#8a7f6e";
+const RADIUS = 0.03;
 
-// the lid is a shallow tray over the top of the base; where its lip ends is the seam
-const LID_H = H * 0.17;
-const LID_Y = H / 2 - LID_H / 2;
-const SEAM_Y = H / 2 - LID_H;
-const BASE_H = H * 0.86;
-const BASE_Y = -H / 2 + BASE_H / 2;
-const LIP = 0.015;
+// the lid: a thin panel over the whole top, a hair wider than the box
+const LID_T = 0.07;
+const LID_Y = H / 2 + LID_T / 2 - 0.012;
+const OVER = 0.012;
 
-// printed areas: the visible part of the base's front and spine, inset from the edges
-const INSET = 0.12;
-const PRINT_H = SEAM_Y + H / 2 - INSET;
-const PRINT_Y = (SEAM_Y + -H / 2) / 2;
-const FRONT_W = W - INSET - 0.02;
-const SPINE_W = D - INSET;
-const FRONT_RATIO = PRINT_H / FRONT_W;
-const SPINE_RATIO = PRINT_H / SPINE_W;
+// printed areas, inset from the edges
+const INSET = 0.1;
+const FRONT_W = W - INSET * 2;
+const FRONT_H = H - INSET * 2;
+const SIDE_W = D - INSET * 2;
+const SIDE_H = H - INSET * 2;
+const TOP_W = W * 0.6;
+const TOP_H = D * 0.6;
+const RATIOS = { front: FRONT_H / FRONT_W, side: SIDE_H / SIDE_W, top: TOP_H / TOP_W };
 /** lifts the print off the card so it never z-fights */
 const LIFT = 0.003;
 
 const FOV = 26;
-const CAM = new THREE.Vector3(0, 1.3, 9.5);
-const LOOK = new THREE.Vector3(0, -0.05, 0);
+const CAM = new THREE.Vector3(0, 2.6, 9.2);
+const LOOK = new THREE.Vector3(0, -0.1, 0);
 const REST_Y = -0.5;
 const REST_X = 0.04;
 const TWO_PI = Math.PI * 2;
@@ -82,36 +82,46 @@ function useFit() {
     const dist = CAM.distanceTo(LOOK);
     const visH = 2 * dist * Math.tan(THREE.MathUtils.degToRad(FOV / 2));
     const visW = visH * (size.width / size.height);
-    return Math.min((visW * 0.8) / 3.5, (visH * 0.6) / 2.6);
+    return Math.min((visW * 0.82) / 3.7, (visH * 0.62) / 2.3);
   }, [size.width, size.height]);
 }
+
+const printMat = { transparent: true, metalness: 0, roughness: 0.85, envMapIntensity: 0.5, polygonOffset: true, polygonOffsetFactor: -2 } as const;
 
 function Print({ textures }: { textures: PrintTextures }) {
   return (
     <>
-      <mesh position={[0, PRINT_Y, D / 2 + LIFT]}>
-        <planeGeometry args={[FRONT_W, PRINT_H]} />
-        <meshStandardMaterial map={textures.front} transparent metalness={0.6} roughness={0.3} envMapIntensity={1.1} polygonOffset polygonOffsetFactor={-2} />
+      <mesh position={[0, 0, D / 2 + LIFT]}>
+        <planeGeometry args={[FRONT_W, FRONT_H]} />
+        <meshStandardMaterial map={textures.front} {...printMat} />
       </mesh>
-      <mesh position={[W / 2 + LIFT, PRINT_Y, 0]} rotation={[0, Math.PI / 2, 0]}>
-        <planeGeometry args={[SPINE_W, PRINT_H]} />
-        <meshStandardMaterial map={textures.spine} transparent metalness={0.6} roughness={0.3} envMapIntensity={1.1} polygonOffset polygonOffsetFactor={-2} />
+      <mesh position={[W / 2 + LIFT, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
+        <planeGeometry args={[SIDE_W, SIDE_H]} />
+        <meshStandardMaterial map={textures.side} {...printMat} />
+      </mesh>
+      <mesh position={[-W / 2 - LIFT, 0, 0]} rotation={[0, -Math.PI / 2, 0]}>
+        <planeGeometry args={[SIDE_W, SIDE_H]} />
+        <meshStandardMaterial map={textures.side} {...printMat} />
+      </mesh>
+      <mesh position={[0, LID_Y + LID_T / 2 + LIFT, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[TOP_W, TOP_H]} />
+        <meshStandardMaterial map={textures.top} {...printMat} />
       </mesh>
     </>
   );
 }
 
-function Box() {
+function Box({ edition }: { edition: Edition }) {
   const rig = useRef<THREE.Group>(null);
   const box = useRef<THREE.Group>(null);
   const sweep = useRef<THREE.DirectionalLight>(null);
   const [textures, setTextures] = useState<PrintTextures | null>(null);
 
-  // paint the print once; dispose with the scene
+  // paint the print for this edition; repaint (and swap) when it changes, dispose the old one
   useEffect(() => {
     let live = true;
     let made: PrintTextures | null = null;
-    makePrintTextures(FRONT_RATIO, SPINE_RATIO).then((t) => {
+    makePrintTextures(RATIOS, edition).then((t) => {
       if (!live) {
         t.dispose();
         return;
@@ -121,9 +131,11 @@ function Box() {
     });
     return () => {
       live = false;
-      made?.dispose();
+      // keep the old print on screen until the new one is ready, then let it go
+      const old = made;
+      if (old) window.setTimeout(() => old.dispose(), 1500);
     };
-  }, []);
+  }, [edition]);
 
   useFrame(({ clock }, delta) => {
     const g = rig.current;
@@ -168,15 +180,15 @@ function Box() {
     <group ref={rig}>
       <directionalLight ref={sweep} intensity={0} color="#fff1dc" />
       <group ref={box}>
-        <RoundedBox args={[W, BASE_H, D]} radius={RADIUS} smoothness={4} position={[0, BASE_Y, 0]}>
-          <meshStandardMaterial color={CREAM} roughness={0.78} metalness={0} envMapIntensity={0.6} />
+        <RoundedBox args={[W, H, D]} radius={RADIUS} smoothness={4}>
+          <meshStandardMaterial color={SAND} roughness={0.82} metalness={0} envMapIntensity={0.55} />
         </RoundedBox>
-        <RoundedBox args={[W + LIP * 2, LID_H, D + LIP * 2]} radius={RADIUS} smoothness={4} position={[0, LID_Y, 0]}>
-          <meshStandardMaterial color={CREAM} roughness={0.76} metalness={0} envMapIntensity={0.6} />
+        <RoundedBox args={[W + OVER * 2, LID_T, D + OVER * 2]} radius={RADIUS} smoothness={4} position={[0, LID_Y, 0]}>
+          <meshStandardMaterial color={LID} roughness={0.75} metalness={0} envMapIntensity={0.55} />
         </RoundedBox>
-        {/* the seam: a hair of shadow where the lid's lip ends */}
-        <mesh position={[0, SEAM_Y - 0.008, 0]}>
-          <boxGeometry args={[W + 0.004, 0.016, D + 0.004]} />
+        {/* the seam: a hair of shadow where the lid meets the box */}
+        <mesh position={[0, H / 2 - 0.016, 0]}>
+          <boxGeometry args={[W + 0.004, 0.012, D + 0.004]} />
           <meshStandardMaterial color={SEAM} roughness={0.9} />
         </mesh>
         {textures && <Print textures={textures} />}
@@ -185,37 +197,7 @@ function Box() {
   );
 }
 
-/** Three tan beads drifting around the box, like the hero's. */
-function Beads() {
-  const refs = useRef<(THREE.Mesh | null)[]>([]);
-  useFrame(({ clock }) => {
-    const t = clock.elapsedTime;
-    const e = fbox.enter;
-    refs.current.forEach((m, i) => {
-      if (!m) return;
-      const a = t * 0.3 + (i * TWO_PI) / 3;
-      m.position.set(Math.cos(a) * 2.3, Math.sin(a * 1.4 + i * 1.7) * 0.5 + 0.15, Math.sin(a) * 1.5);
-      m.scale.setScalar(Math.max(0.001, e));
-    });
-  });
-  return (
-    <>
-      {[0.065, 0.045, 0.055].map((r, i) => (
-        <mesh
-          key={i}
-          ref={(m) => {
-            refs.current[i] = m;
-          }}
-        >
-          <sphereGeometry args={[r, 24, 24]} />
-          <meshStandardMaterial color={TAN} roughness={0.35} metalness={0.2} />
-        </mesh>
-      ))}
-    </>
-  );
-}
-
-function Scene() {
+function Scene({ edition }: { edition: Edition }) {
   const fit = useFit();
   return (
     <>
@@ -223,11 +205,10 @@ function Scene() {
       <group scale={fit}>
         <Suspense fallback={null}>
           <Environment files="/world/studio_1k.hdr" environmentIntensity={0.35} />
-          <ContactShadows position={[0, -H / 2 - 0.32, 0]} scale={[5, 2.6]} opacity={0.42} blur={2.4} far={2.8} resolution={512} color="#5a3f26" />
+          <ContactShadows position={[0, -H / 2 - 0.32, 0]} scale={[5.5, 3.6]} opacity={0.38} blur={2.6} far={2.4} resolution={512} color="#4a3b2c" />
           <Prewarm name="fbox" />
         </Suspense>
-        <Box />
-        <Beads />
+        <Box edition={edition} />
       </group>
       {/* warm key from the upper left, a soft fill from the right, sky/ground fill */}
       <directionalLight position={[-6, 7, 5]} intensity={2.0} color="#ffe2bd" />
@@ -239,7 +220,7 @@ function Scene() {
 
 const clamp = THREE.MathUtils.clamp;
 
-export default function Stage() {
+export default function Stage({ edition }: { edition: Edition }) {
   const down = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     const s = fbox;
@@ -292,7 +273,7 @@ export default function Stage() {
         gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.95 }}
         style={{ touchAction: "pan-y" }}
       >
-        <Scene />
+        <Scene edition={edition} />
       </Canvas>
     </div>
   );
