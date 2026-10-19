@@ -13,7 +13,7 @@ export default function FaqAccordion() {
   useReveal(root, ".support-group", 0.1);
 
   return (
-    <section ref={root} className="bg-peach py-24 md:py-36" aria-label="All answers">
+    <section ref={root} className="bg-peach py-24 text-ink md:py-36" aria-label="All answers">
       <div className="mx-auto max-w-[1440px] px-6 md:px-12">
         <SectionHead kicker="All answers" title="Everything, by topic." accent="topic." body="The full set of preloaded answers. Open one at a time." />
 

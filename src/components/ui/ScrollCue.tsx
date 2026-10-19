@@ -51,8 +51,8 @@ export default function ScrollCue() {
   }, [lenis]);
 
   return (
-    <div ref={ref} className="scroll-cue pointer-events-none fixed bottom-6 left-1/2 z-[80] flex -translate-x-1/2 flex-col items-center gap-2 text-ink/70 transition-colors duration-500 data-[dark=1]:text-peach/80">
-      <span className="text-[0.55rem] tracking-[0.4em] uppercase">Scroll</span>
+    <div ref={ref} className="scroll-cue pointer-events-none fixed bottom-3 left-1/2 z-[80] flex -translate-x-1/2 scale-90 flex-col items-center gap-2 md:bottom-6 md:scale-100 text-ink/70 transition-colors duration-500 data-[dark=1]:text-peach/80">
+      <span className="hidden text-[0.55rem] tracking-[0.4em] uppercase md:inline">Scroll</span>
       <span className="flex h-8 w-5 justify-center rounded-full border border-current pt-1.5">
         <span className="scroll-dot block h-1 w-1 rounded-full bg-current" />
       </span>

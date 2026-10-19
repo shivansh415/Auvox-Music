@@ -44,10 +44,11 @@ export default function Button({ children, href, onClick, type = "button", varia
   };
 
   const cls = clsx(
-    "group inline-flex items-center justify-center gap-3 rounded-full font-semibold tracking-[0.3em] uppercase transition-colors duration-300 select-none",
-    size === "sm" && "px-5 py-3 text-[0.62rem]",
-    size === "md" && "px-8 py-[1.05rem] text-[0.7rem]",
-    size === "lg" && "px-10 py-5 text-[0.76rem]",
+    // phones get tighter letter-spacing and padding so labels stay on one line
+    "group inline-flex items-center justify-center gap-3 rounded-full font-semibold whitespace-nowrap uppercase transition-colors duration-300 select-none",
+    size === "sm" && "px-5 py-3 text-[0.62rem] tracking-[0.24em] sm:tracking-[0.3em]",
+    size === "md" && "px-6 py-[0.95rem] text-[0.66rem] tracking-[0.2em] sm:px-8 sm:py-[1.05rem] sm:text-[0.7rem] sm:tracking-[0.3em]",
+    size === "lg" && "gap-2.5 px-6 py-[1.1rem] text-[0.64rem] tracking-[0.14em] sm:gap-3 sm:px-10 sm:py-5 sm:text-[0.76rem] sm:tracking-[0.3em]",
     VARIANTS[variant],
     disabled && "pointer-events-none opacity-50",
     className,

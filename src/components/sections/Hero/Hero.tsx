@@ -290,7 +290,10 @@ export default function Hero() {
             }}
             className="cta group inline-flex items-center gap-3 rounded-full bg-ink px-9 py-[1.15rem] text-[0.74rem] font-semibold tracking-[0.3em] text-pearl uppercase transition-colors hover:bg-red"
           >
-            <span>Reserve your spot</span>
+            <span className="cta-label">
+              <span className="cta-long">Reserve your spot</span>
+              <span className="cta-short">Reserve</span>
+            </span>
             <span className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5">↗</span>
           </a>
         </div>

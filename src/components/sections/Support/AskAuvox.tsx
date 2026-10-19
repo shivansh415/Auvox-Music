@@ -80,7 +80,7 @@ export default function AskAuvox({ onAsk }: Props) {
   };
 
   return (
-    <section ref={root} className="bg-peach py-24 md:py-36" aria-label="Ask AUVOX">
+    <section ref={root} className="bg-peach py-24 text-ink md:py-36" aria-label="Ask AUVOX">
       <div className="mx-auto max-w-[1440px] px-6 md:px-12">
         <div className="grid gap-12 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:gap-16">
           <SectionHead

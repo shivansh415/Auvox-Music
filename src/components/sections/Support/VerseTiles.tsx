@@ -25,7 +25,7 @@ export default function VerseTiles() {
   useReveal(root, ".support-tile", 0.12);
 
   return (
-    <section ref={root} className="bg-peach py-24 md:py-36" aria-label="Products">
+    <section ref={root} className="bg-peach py-24 text-ink md:py-36" aria-label="Products">
       <div className="mx-auto max-w-[1440px] px-6 md:px-12">
         <SectionHead kicker="Products" title="Which verse are you in?" accent="in?" body="Pick your instrument to see its packages, classes and what ships in your kit." />
 

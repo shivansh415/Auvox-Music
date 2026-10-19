@@ -237,7 +237,7 @@ export default function Journey() {
   );
 
   return (
-    <section ref={root} id="journey" className="relative overflow-hidden bg-peach py-24 md:py-36">
+    <section ref={root} id="journey" className="relative overflow-hidden bg-peach py-24 text-ink md:py-36">
       <div className="jr-glow pointer-events-none absolute inset-0" />
       <div className="grain pointer-events-none absolute inset-0 opacity-[0.04] mix-blend-multiply" />
 

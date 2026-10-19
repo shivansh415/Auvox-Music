@@ -15,7 +15,7 @@ export default function QuickLinks() {
   useReveal(root, ".support-quick", 0.06);
 
   return (
-    <section ref={root} className="bg-peach py-24 md:py-36" aria-label="Quick links">
+    <section ref={root} className="bg-peach py-24 text-ink md:py-36" aria-label="Quick links">
       <div className="mx-auto max-w-[1440px] px-6 md:px-12">
         <div className="grid gap-12 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:gap-16">
           <SectionHead kicker="Quick links" title="The answers people open most." accent="most." body="Tap a question to read its answer right here." size="md" className="md:sticky md:top-32 md:self-start" />

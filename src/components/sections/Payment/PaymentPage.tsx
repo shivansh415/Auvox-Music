@@ -170,7 +170,7 @@ function PaymentBody({ enrollment, now }: { enrollment: Enrollment | null; now: 
           <div className="relative">
             <div className="flex items-center justify-between gap-4">
               <span className="text-[0.62rem] font-medium tracking-[0.38em] text-ink/60 uppercase">Order summary</span>
-              <TransitionLink href="/enroll" className="link-line text-[0.62rem] tracking-[0.3em] text-ink/60 uppercase">
+              <TransitionLink href="/enroll" className="link-line -my-3 py-3 text-[0.62rem] tracking-[0.3em] text-ink/60 uppercase">
                 Edit
               </TransitionLink>
             </div>
