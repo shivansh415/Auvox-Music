@@ -159,6 +159,14 @@ export const SUPPORT_FAQ = [
   { q: "Which T-shirt sizes are available?", a: "XS, S, M, L and XL — you pick your size on the enrollment form.", tags: ["kit"] },
   { q: "How do I renew my package?", a: "When you have 3–4 session credits left, renewal options appear in your dashboard and you can renew from there.", tags: ["dashboard"] },
   { q: "I'm a complete beginner. Is AUVOX for me?", a: "Yes. Both verses are built for beginners and guided by musicians, from your first chord or key to your first complete song.", tags: ["classes", "guitar", "piano"] },
+  { q: "How much do the packages cost?", a: "Guitar Core is $349, Guitar Complete $429, Piano Core $379 and Piano Complete $449, all in CAD.", tags: ["packages", "guitar", "piano"] },
+  { q: "How do I choose between Guitar Verse and Piano Verse?", a: "Start with the instrument that speaks to you. Not sure yet? Book a free demo and an AUVOX instructor will help you decide.", tags: ["demo", "guitar", "piano"] },
+  { q: "Are the classes live or recorded?", a: "Live. Every class is a real session with an AUVOX instructor, not a recording, so you get feedback as you play.", tags: ["classes"] },
+  { q: "What's in my AUVOX Kit?", a: "Your Frequency Box and the learning materials for your package. Complete packages also include your instrument: a guitar or a keyboard.", tags: ["kit", "frequency-box"] },
+  { q: "What happens after I enroll?", a: "Fill in the enrollment form, complete the payment and you land in your student dashboard. Your AUVOX Kit is delivered to your door and your live classes begin.", tags: ["packages", "dashboard"] },
+  { q: "Can I change my class time?", a: "Yes. From your dashboard, send the ready-drafted email with the time slot you'd like and we'll reply with what's open.", tags: ["dashboard", "classes"] },
+  { q: "Where can I see how many sessions I have left?", a: "Your dashboard shows your package status, the days left and the session credits you've used and have left.", tags: ["dashboard"] },
+  { q: "How do I reach a real person?", a: "Email us at hello@auvoxmusic.com. Use the Email us button on this page and your question is already in the draft.", tags: ["support"] },
 ];
 
 export const CONTACT_EMAIL = "hello@auvoxmusic.com";

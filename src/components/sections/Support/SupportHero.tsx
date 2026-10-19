@@ -3,30 +3,32 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import { gsap, useGSAP } from "@/lib/gsap";
-import SectionHead from "@/components/ui/SectionHead";
-import Button from "@/components/ui/Button";
-import Disclosure from "./Disclosure";
-import Highlight from "./Highlight";
-import Waveform from "./Waveform";
+import Answer from "./Answer";
 import { prefersReduced } from "./reveal";
-import { mailtoDraft, matchFaqs, TAG_LABEL } from "./search";
+import { mailtoDraft, matchFaqs } from "./search";
+import { ICONS, POPULAR, TOPICS, type TopicKey } from "./topics";
 
-const HINTS = ["Frequency Box", "beginner", "renew", "T-shirt"];
+type Props = {
+  /** a topic tile was picked: show its answers in "Browse by topic" */
+  onTopic: (key: TopicKey) => void;
+  /** hand a question to the Ask AUVOX chat */
+  onAsk: (q: string) => void;
+  /** remember the last question (it prefills the email draft at the end of the page) */
+  onQuery: (q: string) => void;
+};
 
-type Props = { onQuery?: (q: string) => void };
-
-/** Hero band: kicker / headline / the big underline search that filters the preloaded answers live. */
-export default function SupportHero({ onQuery }: Props) {
+/** The top of the page: the title, the topic row and the big search with live answers. */
+export default function SupportHero({ onTopic, onAsk, onQuery }: Props) {
   const root = useRef<HTMLElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
+  const [active, setActive] = useState(0);
 
   const trimmed = query.trim();
   const results = useMemo(() => matchFaqs(trimmed, 6), [trimmed]);
-  const sig = results.map((r) => r.faq.id).join("|");
-  const energy = focused ? 1 : trimmed ? 0.6 : 0;
+  const showQuick = !trimmed && focused;
 
   // "/" focuses the search from anywhere on the page
   useEffect(() => {
@@ -36,74 +38,73 @@ export default function SupportHero({ onQuery }: Props) {
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
       e.preventDefault();
       input.current?.focus();
-      input.current?.select();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // intro: the underline draws in, the field rises
+  // the intro: title, tiles and search rise in, Apple-quiet
   useGSAP(
     () => {
-      const reduced = prefersReduced();
-      const tl = gsap.timeline({ defaults: { ease: "expo.out" }, delay: 0.5 });
-      tl.fromTo(".support-field", { y: reduced ? 0 : 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 1.1 })
-        .fromTo(".support-line", { scaleX: 0 }, { scaleX: 1, duration: 1.5, ease: "expo.inOut" }, 0.1)
-        .fromTo(".support-hint", { y: reduced ? 0 : 10, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.8, stagger: 0.06 }, 0.7);
-    },
-    { scope: root },
-  );
-
-  // results: staggered line reveal whenever the set of matches changes
-  useGSAP(
-    () => {
-      if (!sig) return;
       const reduced = prefersReduced();
       gsap.fromTo(
-        ".support-result",
-        { yPercent: reduced ? 0 : 110, autoAlpha: reduced ? 0 : 1 },
-        { yPercent: 0, autoAlpha: 1, duration: 1, ease: "expo.out", stagger: 0.05, overwrite: true },
+        ".as-rise",
+        { y: reduced ? 0 : 22, autoAlpha: 0 },
+        { y: 0, autoAlpha: 1, duration: 1.1, ease: "power3.out", stagger: 0.08, delay: 0.35 },
       );
     },
-    { scope: root, dependencies: [sig] },
+    { scope: root },
   );
 
   const change = (v: string) => {
     setQuery(v);
     setOpen(null);
+    setActive(0);
+  };
+  const submit = () => {
+    if (!trimmed) return;
+    onQuery(trimmed);
+    if (results[0]) setOpen(results[Math.min(active, results.length - 1)].faq.id);
   };
 
   return (
-    <section ref={root} className="support-hero relative isolate overflow-hidden bg-peach text-ink pt-36 pb-20 md:pt-48 md:pb-28" aria-label="Support">
-      <div className="support-hero-glow pointer-events-none absolute inset-0 -z-10" aria-hidden="true" />
-      <div className="grain pointer-events-none absolute inset-0 -z-10 opacity-[0.04] mix-blend-multiply" aria-hidden="true" />
-      <Waveform energy={energy} />
+    <section ref={root} className="relative bg-white pt-32 pb-16 md:pt-44 md:pb-24" aria-label="AUVOX Support">
+      <div className="mx-auto max-w-[980px] px-6 text-center">
+        <h1 className="as-rise as-display text-[2.75rem] leading-[1.05] font-semibold tracking-[-0.025em] text-[#1d1d1f] md:text-[4rem]">
+          AUVOX Support
+        </h1>
+        <p className="as-rise mx-auto mt-4 max-w-[34rem] text-[1.1875rem] leading-snug text-[#6e6e73] md:text-[1.375rem]">
+          Answers about packages, live classes, your kit and your account.
+        </p>
 
-      <div className="relative mx-auto max-w-[1440px] px-6 md:px-12">
-        <SectionHead
-          as="h1"
-          immediate
-          size="xl"
-          kicker="Support"
-          title="How can we help you play?"
-          accent="play?"
-          body="Preloaded answers to the questions we hear most. If yours isn't here, email us — the draft is already written."
-          className="max-w-[52rem]"
-        />
+        {/* topics */}
+        <ul className="as-rise as-tiles mx-auto mt-12 grid max-w-[22rem] grid-cols-3 gap-x-2 gap-y-7 md:mt-14 md:flex md:max-w-none md:justify-center md:gap-4" aria-label="Topics">
+          {TOPICS.map((t) => (
+            <li key={t.key} className="flex justify-center">
+              <button type="button" onClick={() => onTopic(t.key)} className="as-tile group flex w-[6.5rem] flex-col items-center gap-3 md:w-[7.5rem]">
+                <span className="flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-[1.25rem] bg-[#f5f5f7] text-[#1d1d1f] transition-[background-color,color,transform] duration-300 group-hover:bg-[#ebebef] group-hover:text-red group-active:scale-95 md:h-20 md:w-20">
+                  <span className="block h-9 w-9 md:h-10 md:w-10">{t.icon}</span>
+                </span>
+                <span className="text-[0.8125rem] leading-tight text-[#1d1d1f] md:text-[0.875rem]">{t.short}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
 
+        {/* search */}
         <form
           role="search"
-          className="support-field mt-14 opacity-0 md:mt-20"
+          className="as-rise mx-auto mt-12 max-w-[42rem] text-left md:mt-16"
           onSubmit={(e) => {
             e.preventDefault();
-            if (trimmed) onQuery?.(trimmed);
-            if (results[0]) setOpen(results[0].faq.id);
+            submit();
           }}
         >
           <label htmlFor="support-search" className="sr-only">
-            Search a question
+            Search Support
           </label>
-          <div className="support-search relative">
+          <div className={clsx("as-search flex items-center gap-3 rounded-full border bg-white px-5 transition-[border-color,box-shadow] duration-300", focused ? "border-[#1d1d1f]/40 shadow-[0_8px_30px_rgba(0,0,0,0.08)]" : "border-black/15")}>
+            <span className="block h-5 w-5 shrink-0 text-[#6e6e73]">{ICONS.search}</span>
             <input
               ref={input}
               id="support-search"
@@ -111,114 +112,104 @@ export default function SupportHero({ onQuery }: Props) {
               value={query}
               onChange={(e) => change(e.target.value)}
               onFocus={() => setFocused(true)}
-              onBlur={() => setFocused(false)}
+              onBlur={() => window.setTimeout(() => setFocused(false), 150)}
               onKeyDown={(e) => {
-                if (e.key !== "Escape") return;
-                if (query) change("");
-                else e.currentTarget.blur();
+                if (e.key === "Escape") {
+                  if (query) change("");
+                  else e.currentTarget.blur();
+                } else if (e.key === "ArrowDown" && results.length) {
+                  e.preventDefault();
+                  setActive((a) => Math.min(results.length - 1, a + 1));
+                } else if (e.key === "ArrowUp" && results.length) {
+                  e.preventDefault();
+                  setActive((a) => Math.max(0, a - 1));
+                }
               }}
-              placeholder="Search a question…"
+              placeholder="Search Support"
               autoComplete="off"
               spellCheck={false}
               enterKeyHint="search"
               aria-describedby="support-search-status"
-              className="font-display w-full bg-transparent py-4 pr-20 text-[clamp(1.75rem,4.6vw,4rem)] leading-[1.1] tracking-[-0.015em] text-ink outline-none md:pr-28"
+              className="h-14 w-full bg-transparent text-[1.0625rem] text-[#1d1d1f] outline-none placeholder:text-[#86868b] md:h-16 md:text-[1.1875rem]"
             />
-            <div className="absolute inset-y-0 right-0 flex items-center gap-3">
-              {query ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    change("");
-                    input.current?.focus();
-                  }}
-                  aria-label="Clear search"
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-ink/25 text-ink transition-colors duration-300 hover:border-red hover:text-red"
-                >
-                  <span aria-hidden="true" className="text-xl leading-none">
-                    ×
-                  </span>
-                </button>
-              ) : (
-                <kbd aria-hidden="true" className="support-kbd hidden items-center justify-center rounded-md border border-ink/25 px-2.5 py-1 font-sans text-[0.7rem] text-ink/60 md:flex">
-                  /
-                </kbd>
-              )}
-            </div>
-            <span className="support-line" aria-hidden="true" />
-            <span className="support-line-focus" aria-hidden="true" />
+            {query && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => {
+                  change("");
+                  input.current?.focus();
+                }}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black/[0.08] text-[0.95rem] text-[#1d1d1f] transition-colors hover:bg-black/15"
+              >
+                ×
+              </button>
+            )}
           </div>
-        </form>
 
-        <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2">
-          <p id="support-search-status" aria-live="polite" className="text-[0.7rem] font-medium tracking-[0.3em] text-ink/60 uppercase">
-            {trimmed ? `${results.length} ${results.length === 1 ? "answer" : "answers"} for “${trimmed}”` : "Try"}
+          <p id="support-search-status" className="sr-only" aria-live="polite">
+            {trimmed ? (results.length ? `${results.length} answers found` : "No preloaded answer found") : ""}
           </p>
-          {!trimmed && (
-            <ul className="flex flex-wrap gap-2" aria-label="Suggested searches">
-              {HINTS.map((h) => (
-                <li key={h} className="support-hint">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      change(h);
-                      input.current?.focus();
-                    }}
-                    className="rounded-full border border-ink/20 px-3.5 py-1.5 text-[0.78rem] text-ink/80 transition-colors duration-300 hover:border-ink hover:bg-ink hover:text-peach"
-                  >
-                    {h}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
 
-        {trimmed && (
-          <div className="support-results mt-10 max-w-[56rem]">
-            {results.length ? (
-              <ul className="divide-y divide-ink/15 border-t border-ink/15" aria-label="Matching answers">
-                {results.map(({ faq, words }, i) => (
-                  <li key={faq.id} className="overflow-hidden">
-                    <div className="support-result">
-                      <Disclosure
-                        id={`search-${faq.id}`}
-                        index={String(i + 1).padStart(2, "0")}
-                        open={open === faq.id}
-                        onToggle={() => setOpen((o) => (o === faq.id ? null : faq.id))}
-                        title={<Highlight text={faq.q} words={words} />}
-                        titleClass="font-display text-[clamp(1.3rem,2.3vw,2rem)] leading-[1.15]"
-                      >
-                        <p className="max-w-[40rem] text-[1.05rem] leading-relaxed text-ink/75">
-                          <Highlight text={faq.a} words={words} />
-                        </p>
-                        <ul className="mt-4 flex flex-wrap gap-2" aria-label="Topics">
-                          {faq.tags.map((t) => (
-                            <li key={t} className="rounded-full bg-cream px-3 py-1 text-[0.62rem] font-medium tracking-[0.25em] text-ink/70 uppercase">
-                              {TAG_LABEL[t] ?? t}
-                            </li>
-                          ))}
-                        </ul>
-                      </Disclosure>
-                    </div>
+          {/* quick links while the field is empty and focused */}
+          {showQuick && (
+            <div className="as-pop mt-3 rounded-[1.25rem] bg-white p-5 shadow-[0_12px_40px_rgba(0,0,0,0.10)] ring-1 ring-black/5">
+              <p className="text-[0.75rem] font-medium text-[#6e6e73]">Quick links</p>
+              <ul className="mt-2">
+                {POPULAR.slice(0, 4).map((f) => (
+                  <li key={f.id}>
+                    <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => change(f.q)} className="as-quick flex w-full items-center gap-3 rounded-lg py-2 text-left text-[0.9375rem] text-[#1d1d1f] hover:text-red">
+                      <span className="block h-4 w-4 shrink-0 text-[#86868b]">{ICONS.search}</span>
+                      {f.q}
+                    </button>
                   </li>
                 ))}
               </ul>
-            ) : (
-              <div className={clsx("support-result rounded-[1.5rem] bg-cream p-7 md:p-9")}>
-                <p className="font-display text-[clamp(1.4rem,2.6vw,2.2rem)] leading-[1.1] text-ink">
-                  Nothing preloaded for <em className="text-red not-italic">“{trimmed}”</em>.
-                </p>
-                <p className="mt-3 max-w-[34rem] text-[1.02rem] leading-relaxed text-ink/75">That one needs a human. Your question is already in the draft — just hit send.</p>
-                <div className="mt-6">
-                  <Button href={mailtoDraft(trimmed)} variant="red">
-                    Email us
-                  </Button>
+            </div>
+          )}
+
+          {/* live answers */}
+          {trimmed && (
+            <div className="as-pop mt-3 rounded-[1.25rem] bg-white px-5 pt-1 pb-4 shadow-[0_12px_40px_rgba(0,0,0,0.10)] ring-1 ring-black/5 md:px-6">
+              {results.length ? (
+                <div>
+                  {results.map((r, i) => (
+                    <div key={r.faq.id} className={clsx("rounded-lg", i === active && open !== r.faq.id && "as-active")}>
+                      <Answer faq={r.faq} words={r.words} compact open={open === r.faq.id} onToggle={() => setOpen((o) => (o === r.faq.id ? null : r.faq.id))} />
+                    </div>
+                  ))}
+                  <p className="mt-4 text-[0.875rem] text-[#6e6e73]">
+                    Not what you need?{" "}
+                    <button type="button" className="as-link" onClick={() => onAsk(trimmed)}>
+                      Ask AUVOX
+                    </button>{" "}
+                    or{" "}
+                    <a className="as-link" href={mailtoDraft(trimmed)}>
+                      email us
+                    </a>
+                    .
+                  </p>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              ) : (
+                <div className="py-4">
+                  <p className="text-[1rem] text-[#1d1d1f]">No preloaded answer for &ldquo;{trimmed}&rdquo;.</p>
+                  <p className="mt-1 text-[0.9375rem] text-[#6e6e73]">A real person can answer it. Your question is already written in the email.</p>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <a className="as-btn as-btn-fill" href={mailtoDraft(trimmed)} onClick={() => onQuery(trimmed)}>
+                      Email us
+                    </a>
+                    <button type="button" className="as-btn as-btn-line" onClick={() => onAsk(trimmed)}>
+                      Ask AUVOX
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <p className="mt-4 hidden text-center text-[0.8125rem] text-[#86868b] md:block">
+            Tip: press <kbd className="rounded border border-black/15 px-1.5 py-0.5 font-sans text-[0.75rem]">/</kbd> to search from anywhere on this page.
+          </p>
+        </form>
       </div>
     </section>
   );
