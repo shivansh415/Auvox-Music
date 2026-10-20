@@ -103,6 +103,17 @@ export default function Preloader() {
       }
       // the lockup only flies onto the studio wall on the home page; elsewhere it simply lifts away
       const home = window.location.pathname === "/";
+      // A reload further down a page: the browser has put the scroll back (it does so within the first
+      // ~150ms). The intro belongs to the top of the site, so here the curtain just lifts off the page
+      // — no lockup, no gate. Checked now and again right before the intro would start.
+      const midPage = () => window.scrollY > window.innerHeight * 0.5;
+      const leaveQuietly = () => {
+        gsap.to(overlay, { autoAlpha: 0, duration: 0.45, ease: "power1.out", onComplete: done });
+      };
+      if (midPage()) {
+        leaveQuietly();
+        return;
+      }
       if (ONCE_PER_SESSION) sessionStorage.setItem(SESSION_KEY, "1");
       lenisRef.current?.stop();
 
@@ -334,6 +345,11 @@ export default function Preloader() {
         if (started) return;
         started = true;
         gsap.ticker.remove(waitStudio);
+        if (midPage()) {
+          tl.kill();
+          leaveQuietly();
+          return;
+        }
         if (!entered) tl.play();
       };
       const settle = () => {
