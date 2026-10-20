@@ -790,3 +790,23 @@ html[data-overlay="1"] .hdr-glass { opacity: 0; }
 }
 
 /* end */
+
+/* the splash sign: AUVOX MUSIC in cream over the studio, sized and placed for the screen (never cropped
+   by the photo). Upper left on wide screens, centred under the top on phones. The mark is the logo SVG
+   used as a mask; the shadow sits on the parent so the mask does not clip it */
+.session-sign {
+  left: clamp(24px, 5vw, 96px);
+  top: clamp(56px, 11svh, 140px);
+  width: clamp(240px, 26vw, 500px);
+  aspect-ratio: 1309 / 450.6;
+  filter: drop-shadow(0 6px 22px rgba(0, 0, 0, 0.45));
+  will-change: transform, opacity;
+}
+.session-sign-mark {
+  background: var(--auvox-pearl, #f1ede9);
+  -webkit-mask: url("/svg/auvox-primary-logo.svg") center / contain no-repeat;
+  mask: url("/svg/auvox-primary-logo.svg") center / contain no-repeat;
+}
+@media (max-width: 767px) {
+  .session-sign { left: calc(50% - min(31vw, 150px)); top: clamp(64px, 9svh, 96px); width: min(62vw, 300px); }
+}

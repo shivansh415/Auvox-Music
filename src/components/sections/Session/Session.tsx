@@ -21,6 +21,7 @@ export default function Session() {
   const shade = useRef<HTMLDivElement>(null);
   const tapHint = useRef<HTMLDivElement>(null);
   const phoneHint = useRef<HTMLButtonElement>(null);
+  const sign = useRef<HTMLDivElement>(null);
   const held = useRef<{ x: number; y: number } | null>(null);
   const done = usePreloaderStore((s) => s.done);
   const muted = useMuted();
@@ -114,6 +115,21 @@ export default function Session() {
     { scope: root },
   );
 
+  // The sign: AUVOX MUSIC in cream, in screen space (globals.css .session-sign) so it is never cropped by
+  // the photo's cover fit — wide laptop screens cut it at the top, phones lost it entirely. It fades
+  // in as the preloader's logo lands on it and leans a little against the pointer, like the room.
+  useEffect(() => {
+    const el = sign.current;
+    if (!el) return;
+    const tick = () => {
+      if (session.progress >= 1) return;
+      el.style.opacity = String(session.sign);
+      el.style.transform = `translate3d(${(-session.mouse.x * 6).toFixed(2)}px, ${(session.mouse.y * 4).toFixed(2)}px, 0)`;
+    };
+    gsap.ticker.add(tick);
+    return () => gsap.ticker.remove(tick);
+  }, []);
+
   // The preloader's logo has just landed on the wall: the sign takes over under it, then the ink wipe
   // paints the sketched studio in from the right, the LEDs bloom as it lands, and the hints follow.
   useEffect(() => {
@@ -121,7 +137,6 @@ export default function Session() {
     gsap.set(session.lights, { red: 1, lamp: 1, ambient: 1 });
     const tl = gsap.timeline({ delay: 0.05 });
     tl.fromTo(session, { sign: 0 }, { sign: 1, duration: 0.4, ease: "power1.inOut" }, 0)
-      .fromTo(session, { signShimmer: 0 }, { signShimmer: 1, duration: 1.3, ease: "power1.inOut" }, 0.25)
       // the portal opens out of the phone the moment the logo lands — no hold, one continuous move
       .to(session, { reveal: 1, duration: 3.4, ease: "power2.inOut" }, 0)
       .to(session, { bloom: 1, duration: 0.4, ease: "power2.out" }, 3.0)
@@ -148,6 +163,11 @@ export default function Session() {
     <section ref={root} data-theme="dark" className="session relative z-0 h-[100svh] w-full overflow-clip bg-black text-pearl">
       <div ref={stage} className="absolute inset-0 origin-[50%_35%] will-change-transform">
       <Studio />
+
+      {/* the sign: the preloader's logo lands here and becomes it */}
+      <div ref={sign} className="session-sign pointer-events-none absolute z-[5]" style={{ opacity: 0 }} aria-hidden>
+        <span className="session-sign-mark block h-full w-full" />
+      </div>
 
       <div
         ref={tapHint}

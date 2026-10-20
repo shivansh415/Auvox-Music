@@ -274,20 +274,25 @@ export default function Preloader() {
         .to(grain, { autoAlpha: 0, duration: 0.5 }, "exit")
         .to(overlay, { backgroundColor: "rgba(7,6,6,0)", duration: 0.9, ease: "power2.inOut" }, "exit+=0.1")
         .add(() => {
-          if (!home) {
-            gsap.to(stage, { y: -28, scale: 0.96, duration: 0.9, ease: "power2.inOut" });
+          // the flight onto the wall only makes sense on the splash: a reload further down the page (the
+          // browser restores the scroll) or any other page just lets the logo go with the curtain
+          const onSplash = home && window.scrollY < window.innerHeight * 0.5;
+          if (!onSplash) {
+            gsap.to(stage, { autoAlpha: 0, y: -18, scale: 0.97, duration: 0.5, ease: "power2.in" });
             return;
           }
-          // Fly the lockup onto the wall sign. The target is read live from the scene every frame,
-          // so the pointer's pan during the flight can't knock it off its mark.
+          // Fly the lockup onto the splash's sign. Its box is read live every frame, so the pointer's
+          // lean during the flight can't knock it off its mark.
           const r = stage.getBoundingClientRect();
           const unit = r.width / W;
           const ox = r.left + (W * unit) / 2;
           const oy = r.top + (WORDMARK.height * unit) / 2;
           const fallback = plateToScreen(SIGN_WORDMARK.x, SIGN_WORDMARK.y, window.innerWidth, window.innerHeight);
+          const signEl = document.querySelector<HTMLElement>(".session-sign");
           const target = () => {
-            const box = session.signScreen;
-            if (box.w > 0) return { cx: box.x + box.w / 2, cy: box.y + box.h / 2, scale: box.w / (W * unit) };
+            const box = signEl?.getBoundingClientRect();
+            // the sign is the whole lockup (the SVG fills its box exactly); land the wordmark on its top part
+            if (box && box.width > 0) return { cx: box.left + box.width / 2, cy: box.top + (WORDMARK.height / 2) * (box.width / W), scale: box.width / (W * unit) };
             return {
               cx: fallback.x + (SIGN_WORDMARK.w * fallback.s) / 2,
               cy: fallback.y + (SIGN_WORDMARK.h * fallback.s) / 2,
