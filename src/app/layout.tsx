@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Afacad_Flux, DM_Serif_Display, Inter, Pinyon_Script } from "next/font/google";
+import localFont from "next/font/local";
 import SmoothScroll from "@/components/providers/SmoothScroll";
 import PageTransition from "@/components/providers/PageTransition";
 import Preloader from "@/components/preloader/Preloader";
@@ -8,28 +8,33 @@ import Footer from "@/components/ui/Footer";
 import ScrollCue from "@/components/ui/ScrollCue";
 import "./globals.css";
 
-const afacadFlux = Afacad_Flux({
+// The faces are self-hosted (src/app/fonts, the latin woff2 of each, all under the SIL Open Font
+// License): next/font/google downloads at build time and silently swaps in a fallback when it
+// cannot reach Google — a dev server started on a flaky connection showed the swash Y in Georgia.
+const afacadFlux = localFont({
+  src: "./fonts/afacad-flux.woff2",
   variable: "--font-afacad-flux",
-  subsets: ["latin"],
+  weight: "100 1000",
 });
 
 // the Support page's system-style face on non-Apple devices. Declared here (not on the page) so no
 // route carries its own CSS chunk: the home page prefetches /support and Chrome would warn about the
-// preloaded, unused stylesheet. The font files themselves only download where the face is used.
-const inter = Inter({ variable: "--font-inter", subsets: ["latin"], display: "swap", preload: false });
+// preloaded, unused stylesheet. The font file itself only downloads where the face is used.
+const inter = localFont({ src: "./fonts/inter.woff2", variable: "--font-inter", weight: "100 900", display: "swap", preload: false });
 
 // stand-in for the licensed display face (Tan Pearl) until its files arrive
-const dmSerif = DM_Serif_Display({
+const dmSerif = localFont({
+  src: [
+    { path: "./fonts/dm-serif-display.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/dm-serif-display-italic.woff2", weight: "400", style: "italic" },
+  ],
   variable: "--font-dm-serif",
-  subsets: ["latin"],
-  weight: "400",
-  style: ["normal", "italic"],
 });
 
 // a calligraphic swash, for the single capital that opens a line of display type
-const pinyon = Pinyon_Script({
+const pinyon = localFont({
+  src: "./fonts/pinyon-script.woff2",
   variable: "--font-pinyon",
-  subsets: ["latin"],
   weight: "400",
 });
 
