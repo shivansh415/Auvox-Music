@@ -579,8 +579,9 @@ export default function VerseUniverse() {
 
             {/* now spinning · legend · sound */}
             <div className="vu-foot mt-9 flex flex-wrap items-center justify-between gap-x-6 gap-y-4 text-[0.6rem] font-semibold tracking-[0.3em] text-ink/65 uppercase">
-              <span className="flex min-h-5 items-center gap-3.5">
-                <span className="flex h-4 items-end gap-[3px]" aria-hidden>
+              {/* the bars stand on the text's baseline (items-baseline: a box with no text aligns by its bottom edge) */}
+              <span className="flex min-h-5 items-baseline gap-3.5">
+                <span className="flex h-3.5 items-end gap-[3px]" aria-hidden>
                   {[0, 1, 2, 3, 4].map((i) => (
                     <span key={i} className="vu-eq-bar block h-full w-[2px] origin-bottom rounded-full bg-red" style={{ transform: "scaleY(0.18)" }} />
                   ))}

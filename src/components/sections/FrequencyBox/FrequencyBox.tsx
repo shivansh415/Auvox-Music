@@ -170,12 +170,13 @@ export default function FrequencyBox() {
           </div>
         ))}
 
-        {/* the four pillars, called out as the camera reads them off the side */}
-        <ol className="pointer-events-none absolute top-1/2 left-6 -translate-y-1/2 md:left-10" aria-label="What the box holds">
+        {/* the four pillars, called out as the camera reads them off the side. On phones the side fills the
+            screen, so they sit low, each on a frosted chip, clear of the icons in the middle */}
+        <ol className="pointer-events-none absolute bottom-[12svh] left-4 flex flex-col items-start gap-1.5 md:top-1/2 md:bottom-auto md:left-10 md:block md:-translate-y-1/2" aria-label="What the box holds">
           {PILLARS.map((p, i) => (
-            <li key={p} className="fb-callout flex items-center gap-4 py-2.5 opacity-0 md:py-3.5">
+            <li key={p} className="fb-callout flex items-center gap-3 rounded-full bg-[#f3e4cc]/85 px-3.5 py-1.5 opacity-0 backdrop-blur-md md:gap-4 md:rounded-none md:bg-transparent md:px-0 md:py-3.5 md:backdrop-blur-none">
               <span className="text-[0.6rem] font-semibold tracking-[0.3em] text-red">0{i + 1}</span>
-              <span className="fb-callout-line block h-px w-10 origin-left bg-ink/45 md:w-16" aria-hidden />
+              <span className="fb-callout-line block h-px w-6 origin-left bg-ink/45 md:w-16" aria-hidden />
               <span className="font-display text-[1.15rem] leading-none tracking-[-0.01em] text-ink md:text-[1.6rem]">{p}</span>
             </li>
           ))}

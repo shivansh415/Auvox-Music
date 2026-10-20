@@ -185,9 +185,44 @@ function Sun() {
   );
 }
 
+/**
+ * A soft frame for the cloud plates: opaque in the middle, fading to nothing over the outer 16% of
+ * each side. The cloud art runs right up to its edges, so wherever a plate's edge comes into view
+ * (the mid plate's top does, once the scene has opened) it would show as a hard straight line.
+ */
+function makeFeather() {
+  const S = 128;
+  const c = document.createElement("canvas");
+  c.width = c.height = S;
+  const g = c.getContext("2d");
+  if (g) {
+    const img = g.createImageData(S, S);
+    const ramp = (t: number) => {
+      const x = Math.min(1, Math.max(0, t / 0.16));
+      return x * x * (3 - 2 * x);
+    };
+    for (let y = 0; y < S; y++) {
+      for (let x = 0; x < S; x++) {
+        const u = (x + 0.5) / S;
+        const v = (y + 0.5) / S;
+        const a = Math.round(255 * ramp(Math.min(u, 1 - u)) * ramp(Math.min(v, 1 - v)));
+        const i = (y * S + x) * 4;
+        img.data[i] = img.data[i + 1] = img.data[i + 2] = a;
+        img.data[i + 3] = 255;
+      }
+    }
+    g.putImageData(img, 0, 0);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.needsUpdate = true;
+  return t;
+}
+
 /** three cloud plates at three depths: far and wide, mid (mirrored), and a bank in front, low */
 function Clouds() {
   const [far, near] = srgb(useTexture(["/reach/clouds.webp", "/reach/clouds-near.webp"]));
+  const feather = useMemo(() => makeFeather(), []);
+  useEffect(() => () => feather.dispose(), [feather]);
   const refs = useRef<(THREE.Mesh | null)[]>([]);
   const aspect = useThree((s) => s.size.width / s.size.height);
   const layers = useMemo(
@@ -237,7 +272,7 @@ function Clouds() {
           frustumCulled={false}
         >
           <planeGeometry args={[1, 1]} />
-          <meshBasicMaterial map={L.tex} transparent depthWrite={false} color="#fff4e6" fog />
+          <meshBasicMaterial map={L.tex} alphaMap={feather} transparent depthWrite={false} color="#fff4e6" fog />
         </mesh>
       ))}
     </group>

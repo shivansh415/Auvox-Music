@@ -230,20 +230,29 @@ function paintSide(g: Ctx, W: number, H: number, sans: string) {
   const cx = W / 2;
   g.fillStyle = INK;
   g.strokeStyle = INK;
-  const top = H * 0.1;
-  const block = H * 0.205;
-  const ns = H * 0.0215;
+  // four equal blocks down the panel, a hairline between each; in every block the icon and its two
+  // lines of name are stacked as one unit and centred, so nothing ever overlaps whatever the ratio
+  const top = H * 0.06;
+  const block = (H - top * 2) / PILLARS.length;
+  const ns = Math.min(H * 0.02, W * 0.05); // name size
+  const lead = ns * 1.5;
+  const s = Math.min(W * 0.28, block * 0.4); // icon box (every icon fits inside ±s/2)
+  const gap = block * 0.07; // icon → name
+  const unit = s + gap + ns + lead;
+  g.font = `600 ${ns}px ${sans}`;
+  g.textBaseline = "alphabetic";
   PILLARS.forEach((p, i) => {
     const y0 = top + i * block;
-    p.icon(g, cx, y0 + H * 0.05, W * 0.3);
-    g.font = `600 ${ns}px ${sans}`;
-    g.textBaseline = "alphabetic";
-    tracked(g, p.name[0], cx, y0 + H * 0.118, ns * 0.14);
-    tracked(g, p.name[1], cx, y0 + H * 0.118 + ns * 1.45, ns * 0.14);
+    const u0 = y0 + (block - unit) / 2;
+    p.icon(g, cx, u0 + s / 2, s);
+    // the name: cap height is about 0.72 of the size, so the first baseline sits that far below the gap
+    const b1 = u0 + s + gap + ns * 0.72;
+    tracked(g, p.name[0], cx, b1, ns * 0.14);
+    tracked(g, p.name[1], cx, b1 + lead, ns * 0.14);
     if (i < PILLARS.length - 1) {
       g.lineWidth = Math.max(1.5, H * 0.0015);
       g.lineCap = "butt";
-      const ly = y0 + block - H * 0.022;
+      const ly = y0 + block;
       line(g, cx - W * 0.3, ly, cx + W * 0.3, ly);
     }
   });
