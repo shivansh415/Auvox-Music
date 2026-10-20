@@ -16,7 +16,7 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { ContactShadows, Environment, MeshReflectorMaterial, RoundedBox, useTexture } from "@react-three/drei";
+import { ContactShadows, Environment, Lightformer, MeshReflectorMaterial, RoundedBox, useTexture } from "@react-three/drei";
 import * as THREE from "three";
 import { gsap } from "@/lib/gsap";
 import Prewarm from "@/lib/r3f/Prewarm";
@@ -29,14 +29,14 @@ import { makePrintTextures, type Edition, type PrintTextures } from "./textures"
 const W = 3;
 const H = 1;
 const D = 2;
-const SAND = "#bcb19f";
-const LID = "#948c7e";
+const SAND = "#b4a893";
+const LID = "#857c6f";
 const SEAM = "#8a7f6e";
 const GLOW = new THREE.Color("#ffd9a8");
 const RADIUS = 0.03;
-const LID_T = 0.07;
+const LID_T = 0.1;
 const LID_Y = H / 2 + LID_T / 2 - 0.012;
-const OVER = 0.012;
+const OVER = 0.035;
 const INSET = 0.1;
 const FRONT_W = W - INSET * 2;
 const FRONT_H = H - INSET * 2;
@@ -129,26 +129,27 @@ function Rig() {
   return null;
 }
 
-const printMat = { transparent: true, metalness: 0, roughness: 0.85, envMapIntensity: 0.5, polygonOffset: true, polygonOffsetFactor: -2 } as const;
+/* the print: ink pressed into the card (the artwork doubles as a bump map, so its edges catch the light) */
+const printMat = { transparent: true, metalness: 0.05, roughness: 0.72, envMapIntensity: 0.9, bumpScale: -0.5, polygonOffset: true, polygonOffsetFactor: -2 } as const;
 
 function Print({ textures }: { textures: PrintTextures }) {
   return (
     <>
       <mesh position={[0, 0, D / 2 + LIFT]}>
         <planeGeometry args={[FRONT_W, FRONT_H]} />
-        <meshStandardMaterial map={textures.front} {...printMat} />
+        <meshStandardMaterial map={textures.front} bumpMap={textures.front} {...printMat} />
       </mesh>
       <mesh position={[W / 2 + LIFT, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
         <planeGeometry args={[SIDE_W, SIDE_H]} />
-        <meshStandardMaterial map={textures.side} {...printMat} />
+        <meshStandardMaterial map={textures.side} bumpMap={textures.side} {...printMat} />
       </mesh>
       <mesh position={[-W / 2 - LIFT, 0, 0]} rotation={[0, -Math.PI / 2, 0]}>
         <planeGeometry args={[SIDE_W, SIDE_H]} />
-        <meshStandardMaterial map={textures.side} {...printMat} />
+        <meshStandardMaterial map={textures.side} bumpMap={textures.side} {...printMat} />
       </mesh>
       <mesh position={[0, LID_Y + LID_T / 2 + LIFT, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[TOP_W, TOP_H]} />
-        <meshStandardMaterial map={textures.top} {...printMat} />
+        <meshStandardMaterial map={textures.top} bumpMap={textures.top} {...printMat} />
       </mesh>
     </>
   );
@@ -159,8 +160,8 @@ function Box({ edition }: { edition: Edition }) {
   const box = useRef<THREE.Group>(null);
   const shadow = useRef<THREE.Group>(null);
   const sweep = useRef<THREE.DirectionalLight>(null);
-  const body = useRef<THREE.MeshStandardMaterial>(null);
-  const lid = useRef<THREE.MeshStandardMaterial>(null);
+  const body = useRef<THREE.MeshPhysicalMaterial>(null);
+  const lid = useRef<THREE.MeshPhysicalMaterial>(null);
   const [textures, setTextures] = useState<PrintTextures | null>(null);
 
   // paint the print for this edition; repaint (and swap) when it changes, dispose the old one
@@ -244,11 +245,12 @@ function Box({ edition }: { edition: Edition }) {
       <group ref={rig}>
         <directionalLight ref={sweep} intensity={0} color="#fff1dc" />
         <group ref={box}>
-          <RoundedBox args={[W, H, D]} radius={RADIUS} smoothness={4}>
-            <meshStandardMaterial ref={body} color={SAND} emissive={GLOW} emissiveIntensity={0} roughness={0.82} metalness={0} envMapIntensity={0.55} />
+          {/* the card: a satin finish that takes a soft highlight; the lid a touch glossier, like a coated board */}
+          <RoundedBox args={[W, H, D]} radius={RADIUS} smoothness={4} receiveShadow>
+            <meshPhysicalMaterial ref={body} color={SAND} emissive={GLOW} emissiveIntensity={0} roughness={0.52} metalness={0} clearcoat={0.3} clearcoatRoughness={0.45} sheen={0.35} sheenRoughness={0.6} sheenColor="#f4e2c4" envMapIntensity={0.8} />
           </RoundedBox>
-          <RoundedBox args={[W + OVER * 2, LID_T, D + OVER * 2]} radius={RADIUS} smoothness={4} position={[0, LID_Y, 0]}>
-            <meshStandardMaterial ref={lid} color={LID} emissive={GLOW} emissiveIntensity={0} roughness={0.75} metalness={0} envMapIntensity={0.55} />
+          <RoundedBox args={[W + OVER * 2, LID_T, D + OVER * 2]} radius={RADIUS} smoothness={4} position={[0, LID_Y, 0]} castShadow receiveShadow>
+            <meshPhysicalMaterial ref={lid} color={LID} emissive={GLOW} emissiveIntensity={0} roughness={0.26} metalness={0} clearcoat={0.85} clearcoatRoughness={0.16} envMapIntensity={1.3} />
           </RoundedBox>
           <mesh position={[0, H / 2 - 0.016, 0]}>
             <boxGeometry args={[W + 0.004, 0.012, D + 0.004]} />
@@ -332,24 +334,24 @@ function Pedestal() {
       {/* the top plate: polished stone that carries a soft reflection of the box */}
       <mesh position={[0, PED_TOP, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[PED_W, PED_D]} />
-        <MeshReflectorMaterial color="#6e6058" metalness={0.55} roughness={0.5} mirror={0.45} mixBlur={1} mixStrength={0.9} blur={[360, 120]} resolution={512} depthScale={0.6} minDepthThreshold={0.6} maxDepthThreshold={1.4} />
+        <MeshReflectorMaterial color="#4a4542" metalness={0.7} roughness={0.35} mirror={0.6} mixBlur={1} mixStrength={1.1} blur={[220, 70]} resolution={512} depthScale={0.5} minDepthThreshold={0.7} maxDepthThreshold={1.5} />
       </mesh>
       <mesh position={[0, PED_TOP - 0.04, 0]}>
         <boxGeometry args={[PED_W, 0.08, PED_D]} />
-        <meshStandardMaterial color="#5a4e46" metalness={0.7} roughness={0.3} envMapIntensity={1.2} />
+        <meshStandardMaterial color="#56504c" metalness={0.8} roughness={0.28} envMapIntensity={1.3} />
       </mesh>
       <mesh position={[0, PED_TOP - 0.08 - 0.3, 0]}>
         <boxGeometry args={[PED_W, 0.6, PED_D]} />
-        <meshStandardMaterial color="#2a2320" metalness={0.5} roughness={0.5} envMapIntensity={0.6} />
+        <meshStandardMaterial color="#1e1b19" metalness={0.5} roughness={0.5} envMapIntensity={0.6} />
       </mesh>
       {/* a hairline of light between slab and base, like a joint in the stone */}
       <mesh position={[0, PED_TOP - 0.08 - 0.6 - 0.04, 0]}>
         <boxGeometry args={[PED_W - 0.02, 0.08, PED_D - 0.02]} />
-        <meshStandardMaterial color="#7a6a5e" metalness={0.8} roughness={0.3} />
+        <meshStandardMaterial color="#6e6660" metalness={0.85} roughness={0.28} />
       </mesh>
       <mesh position={[0, PED_TOP - 0.08 - 0.6 - 0.08 - 2.2, 0]}>
         <boxGeometry args={[PED_W, 4.4, PED_D]} />
-        <meshStandardMaterial color="#120e0c" metalness={0.3} roughness={0.7} envMapIntensity={0.4} />
+        <meshStandardMaterial color="#0d0b0a" metalness={0.3} roughness={0.7} envMapIntensity={0.4} />
       </mesh>
     </group>
   );
@@ -358,22 +360,44 @@ function Pedestal() {
 /** The atmosphere: a burgundy glow rising behind the box as the night settles in. */
 function Mood() {
   const red = useRef<THREE.PointLight>(null);
-  const key = useRef<THREE.DirectionalLight>(null);
+  const key = useRef<THREE.SpotLight>(null);
   const lamp = useRef<THREE.PointLight>(null);
+  const target = useMemo(() => {
+    const t = new THREE.Object3D();
+    t.position.set(0.6, -0.5, 0.4);
+    return t;
+  }, []);
   useFrame(() => {
     const p = fbox.progress;
-    if (red.current) red.current.intensity = kf(p, [[0.1, 0], [0.32, 7], [0.86, 1.5]]);
-    if (key.current) key.current.intensity = kf(p, [[0, 1.4], [0.3, 2.4], [0.84, 2.8]]);
+    if (red.current) red.current.intensity = kf(p, [[0.1, 0], [0.32, 4], [0.86, 1]]);
+    if (key.current) key.current.intensity = kf(p, [[0, 40], [0.3, 160], [0.84, 190]]);
     // the showcase lamp: a warm light over the plinth once it has arrived
     if (lamp.current) lamp.current.intensity = kf(p, [[0.64, 0], [0.88, 14]]);
   });
   return (
     <>
       <pointLight ref={lamp} position={[0.6, 1.4, 3.4]} intensity={0} color="#ffe6c8" distance={9} decay={1.8} />
-      <directionalLight ref={key} position={[-6, 8, 6]} intensity={1.4} color="#ffe2bd" />
-      <directionalLight position={[6, 3, -4]} intensity={1.1} color="#f3e7da" />
-      <pointLight ref={red} position={[0, 1.6, -5.5]} intensity={0} color="#8a1414" distance={16} decay={1.6} />
-      <hemisphereLight args={["#fff2e0", "#3a2a22", 0.35]} />
+      {/* the key: a spot close above-left, so each face carries a gradient and the lid throws a shadow line */}
+      <primitive object={target} />
+      <spotLight
+        ref={key}
+        position={[-4.5, 6.5, 5.5]}
+        target={target}
+        angle={0.42}
+        penumbra={0.8}
+        intensity={40}
+        decay={1.6}
+        distance={30}
+        color="#ffe6c6"
+        castShadow
+        shadow-mapSize={[1024, 1024]}
+        shadow-bias={-0.0004}
+        shadow-normalBias={0.02}
+      />
+      {/* the rim: from behind and the right, so the lid's edge and the box's silhouette read against the dark */}
+      <directionalLight position={[5, 4, -6]} intensity={3.2} color="#fff6ea" />
+      <directionalLight position={[-6, 1, -3]} intensity={0.7} color="#c9d6ff" />
+      <pointLight ref={red} position={[0, -2.6, -6]} intensity={0} color="#8a1414" distance={16} decay={1.6} />
     </>
   );
 }
@@ -384,7 +408,15 @@ function Scene({ edition, phone }: { edition: Edition; phone: boolean }) {
       <Driver />
       <Rig />
       <Suspense fallback={null}>
-        <Environment files="/world/studio_1k.hdr" environmentIntensity={0.3} />
+        {/* a dark studio: a big softbox above-left, a long strip behind right for the rim, a cool strip
+            left, a low burgundy ring. The box reflects these; nothing else is in the room. */}
+        <Environment resolution={256} frames={1}>
+          <color attach="background" args={["#0a0807"]} />
+          {/* the big softbox sits above and behind the camera, so the lid carries its soft gradient */}
+          <Lightformer form="rect" intensity={6} color="#fff1dc" position={[-2, 9, 13]} scale={[14, 6, 1]} target={[0, 0, 0]} />
+          <Lightformer form="rect" intensity={5} color="#ffd9b0" position={[7, 3, -5]} scale={[1.2, 9, 1]} target={[0, 0, 0]} />
+          <Lightformer form="rect" intensity={0.8} color="#dce6ff" position={[-8, 0.5, -3]} scale={[1, 6, 1]} target={[0, 0, 0]} />
+        </Environment>
         <Gallery phone={phone} />
         <Prewarm name="fbox" />
       </Suspense>
@@ -445,8 +477,9 @@ export default function Stage({ edition, phone }: { edition: Edition; phone: boo
       <Canvas
         dpr={[1, 1.5]}
         frameloop="demand"
+        shadows="percentage"
         camera={{ fov: FOV, near: 0.1, far: 60, position: [0, 0.6, 13.5] }}
-        gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.0 }}
+        gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.9 }}
         style={{ touchAction: "pan-y" }}
       >
         <Scene edition={edition} phone={phone} />
