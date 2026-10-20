@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Afacad_Flux, DM_Serif_Display, Pinyon_Script } from "next/font/google";
+import { Afacad_Flux, DM_Serif_Display, Inter, Pinyon_Script } from "next/font/google";
 import SmoothScroll from "@/components/providers/SmoothScroll";
 import PageTransition from "@/components/providers/PageTransition";
 import Preloader from "@/components/preloader/Preloader";
@@ -12,6 +12,11 @@ const afacadFlux = Afacad_Flux({
   variable: "--font-afacad-flux",
   subsets: ["latin"],
 });
+
+// the Support page's system-style face on non-Apple devices. Declared here (not on the page) so no
+// route carries its own CSS chunk: the home page prefetches /support and Chrome would warn about the
+// preloaded, unused stylesheet. The font files themselves only download where the face is used.
+const inter = Inter({ variable: "--font-inter", subsets: ["latin"], display: "swap", preload: false });
 
 // stand-in for the licensed display face (Tan Pearl) until its files arrive
 const dmSerif = DM_Serif_Display({
@@ -37,7 +42,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${afacadFlux.variable} ${dmSerif.variable} ${pinyon.variable} h-full antialiased`}>
+    <html lang="en" className={`${afacadFlux.variable} ${dmSerif.variable} ${pinyon.variable} ${inter.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-peach font-sans text-ink">
         <SmoothScroll>
           <Preloader />

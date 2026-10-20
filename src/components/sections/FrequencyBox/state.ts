@@ -2,22 +2,16 @@
 // Everything here is written from tweens, pointer handlers and useFrame — never from render.
 
 export const fbox = {
-  /** 0–1 entrance: rises, scales in, one full turn (tweened on scroll-enter) */
-  enter: 0,
-  /** 0–1 scroll progress through the section (scrubbed) — adds rotation */
-  scroll: 0,
-  /** 0–1 position of the light sweep that crosses the box on entrance */
-  sweep: 0,
-  /** 1 = do the full turn on entrance, 0 = reduced motion */
-  turnIn: 1,
-  /** idle spin speed, rad/s */
-  idleSpeed: 0.22,
-  /** accumulated idle rotation, rad */
-  idle: 0,
-  /** 0–1, the idle spin fades out while dragging and back in after */
-  idleGain: 1,
+  /**
+   * 0–1 through the pinned film, scrubbed (and smoothed) by the scroll. Every camera, light, box,
+   * panel and pedestal value is a pure function of this, so the film plays the same forwards,
+   * backwards, fast or slow.
+   */
+  progress: 0,
+  /** 1 = reduced motion: no film, the final frame only */
+  still: 0,
 
-  // --- drag (pointer handlers write, useFrame reads)
+  // --- drag (pointer handlers write, useFrame reads): a turn on top of the film's own
   dragging: false,
   /** accumulated drag rotation, rad */
   spin: 0,
@@ -35,7 +29,23 @@ if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
   (window as unknown as { __fbox: typeof fbox }).__fbox = fbox;
 }
 
-/** a push on the spin (the edition switch turns the box; inertia slows it back to idle) */
+/** a push on the spin (the edition switch turns the box; inertia slows it back) */
 export function nudge(amount: number) {
   fbox.vel += amount;
+}
+
+type Key = readonly [number, number];
+export const smooth = (t: number) => t * t * (3 - 2 * t);
+export const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
+export const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+/** a value along keyframes [[progress, value], ...], eased between neighbours, held past the ends */
+export function kf(p: number, keys: readonly Key[], ease: (t: number) => number = smooth) {
+  if (p <= keys[0][0]) return keys[0][1];
+  for (let i = 0; i < keys.length - 1; i++) {
+    const [a, va] = keys[i];
+    const [b, vb] = keys[i + 1];
+    if (p <= b) return va + (vb - va) * ease((p - a) / (b - a));
+  }
+  return keys[keys.length - 1][1];
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Inter } from "next/font/google";
 import { useLenis } from "lenis/react";
 import SupportHero from "./SupportHero";
 import GetHelp from "./GetHelp";
@@ -11,8 +10,6 @@ import AskAuvox, { type AskHandle } from "./AskAuvox";
 import StillNeedHelp from "./StillNeedHelp";
 import type { TopicKey } from "./topics";
 
-// Apple devices get the real SF Pro (system font); everyone else gets Inter, its closest open cousin.
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 /**
  * /support, in the manner of Apple Support: a white page with light grey bands, one big search,
@@ -46,7 +43,7 @@ export default function SupportPage() {
   };
 
   return (
-    <div className={`apple-support ${inter.variable} bg-cream`}>
+    <div className="apple-support bg-cream">
       <SupportHero onTopic={pickTopic} onAsk={(q) => toChat(q)} onQuery={setQuestion} />
       <GetHelp onChat={() => toChat()} question={question} />
       <PopularAnswers />

@@ -332,6 +332,10 @@ html[data-overlay="1"] .hdr-glass { opacity: 0; }
 .as-active { background: rgba(0, 0, 0, 0.035); box-shadow: 0 0 0 6px rgba(0, 0, 0, 0.035); }
 
 .as-tiles, .as-seg-wrap { scrollbar-width: none; }
+/* phones: the topic tabs scroll sideways; the right edge fades so the next tab reads as "more" */
+@media (max-width: 767px) {
+  .as-seg-wrap { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); padding-right: 3rem; }
+}
 .as-tiles::-webkit-scrollbar, .as-seg-wrap::-webkit-scrollbar { display: none; }
 .as-tile:focus-visible, .as-card:focus-visible { outline: 2px solid var(--auvox-red); outline-offset: 4px; border-radius: 1.25rem; }
 
@@ -346,11 +350,23 @@ html[data-overlay="1"] .hdr-glass { opacity: 0; }
 }
 
 /* ---------- frequency box ---------- */
-/* the faint sand circle behind the box */
-.fbox-halo {
-  background: radial-gradient(circle at 50% 55%, rgba(188, 177, 159, 0.42) 0%, rgba(188, 177, 159, 0.16) 45%, transparent 70%);
+/* the film's stage: the Journey's peach is the section's own colour; the night (an overlay) and the
+   burgundy glow behind the box are driven by --fb-dark / --fb-glow, which the film writes each frame */
+/* the night rises from the bottom of the screen, a soft edge first */
+.fb-night {
+  top: -30%; height: 160%;
+  background: linear-gradient(180deg, transparent 0%, rgba(23, 17, 15, 0.55) 10%, #17110f 20%);
+  transform: translateY(calc((1 - var(--fb-dark, 0)) * 100%));
+  will-change: transform;
 }
-/* the canvas: vertical swipes still scroll the page, horizontal ones turn the box */
+.fb-glow {
+  background: radial-gradient(55% 45% at 50% 58%, rgba(133, 9, 9, 0.55) 0%, rgba(133, 9, 9, 0.18) 45%, transparent 72%);
+  opacity: var(--fb-glow, 0);
+}
+.fb-vignette {
+  background: radial-gradient(120% 90% at 50% 45%, transparent 55%, rgba(10, 6, 5, 0.75) 100%);
+  opacity: calc(var(--fb-dark, 0) * 0.9);
+}
 .fbox-canvas { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
 .fbox-canvas canvas { touch-action: pan-y; }
 
@@ -753,9 +769,9 @@ html[data-overlay="1"] .hdr-glass { opacity: 0; }
   display: inline-block; margin-right: -0.14em; vertical-align: -0.04em;
 }
 
-/* the scene, two joins: it comes up out of the off-white of the Frequency Box, and once the red has
+/* the scene, two joins: it comes up out of the night of the Frequency Box (dawn), and once the red has
    flooded the sky its foot deepens into the red of the promise below */
-.rch-enter { background: linear-gradient(180deg, var(--auvox-pearl) 0%, color-mix(in srgb, var(--auvox-pearl) 55%, transparent) 45%, transparent 100%); }
+.rch-enter { background: linear-gradient(180deg, #17110f 0%, rgba(23, 17, 15, 0.6) 40%, transparent 100%); }
 .rch-exit { background: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--auvox-red) 70%, transparent) 55%, var(--auvox-red) 100%); opacity: 0; }
 
 /* the picture fades in once the first frames are drawn (a black canvas never shows) */

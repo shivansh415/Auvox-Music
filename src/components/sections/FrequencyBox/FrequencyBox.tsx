@@ -1,18 +1,20 @@
 "use client";
 
-// Section 7 — The Frequency Box, after the client's reference: the welcome box in 3D on the left (on top on
-// phones) on a warm off-white, closed (it stays a surprise). It rises in with a full turn and a light
-// sweep, then keeps turning: on its own, with the scroll, under the pointer. A Guitar Box / Piano Box
-// switch turns it to the other edition. Copy on the right is the client's T/L/S with "Join AUVOX Today".
+// Section 7 — The Frequency Box, as a film you scroll through. The section is four screens tall
+// and its stage stays pinned: the Journey's peach darkens into a warm studio night, a line of light
+// grows into the box, the box turns through a gallery of floating images, a light sweeps across it
+// as the headline arrives, then a pedestal rises and the box settles onto it for the final
+// showcase (headline above, call to action below). Everything is driven by one scrubbed progress
+// value (see Stage.tsx for the keyframes), so it plays the same forwards and backwards. The box
+// never opens; Guitar Box / Piano Box switches its print. Reduced motion shows the final frame.
 
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
-import { gsap, useGSAP } from "@/lib/gsap";
-import SectionHead from "@/components/ui/SectionHead";
+import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap";
 import Button from "@/components/ui/Button";
 import { FREQUENCY_BOX } from "@/content/packages";
-import { fbox, nudge } from "./state";
+import { fbox, kf, nudge } from "./state";
 import { afterGate, expectReady } from "@/store/preloader";
 import type { Edition } from "./textures";
 
@@ -23,17 +25,32 @@ const EDITIONS: { key: Edition; label: string }[] = [
 
 const Stage = dynamic(() => import("./Stage"), { ssr: false });
 
+/** the headline with its last word in the accent colour */
+function Headline({ title, accent }: { title: string; accent: string }) {
+  const head = title.endsWith(accent) ? title.slice(0, -accent.length) : title;
+  return (
+    <>
+      {head}
+      <em className="text-tan not-italic">{accent}</em>
+    </>
+  );
+}
+
 export default function FrequencyBox() {
   const root = useRef<HTMLElement>(null);
+  const stage = useRef<HTMLDivElement>(null);
   // the box's canvas mounts once the preloader's lockup is still (it warms there), or when the section comes near
   const [stageOn, setStageOn] = useState(false);
+  const [phone, setPhone] = useState(false);
+  const [reduce, setReduce] = useState(false);
   const [edition, setEdition] = useState<Edition>("guitar");
   const pick = (e: Edition) => {
     if (e === edition) return;
     setEdition(e);
-    // the box turns to show its new side
-    nudge(e === "piano" ? 7 : -7);
+    // one full turn to show the new print (the throw decays to about 2π, then settles facing front)
+    nudge(e === "piano" ? 15 : -15);
   };
+
   useEffect(() => {
     const el = root.current;
     if (!el) return;
@@ -42,75 +59,108 @@ export default function FrequencyBox() {
     io.observe(el);
     expectReady("fbox");
     const cancel = afterGate(on);
+    const mq = window.matchMedia("(max-width: 767px)");
+    const rm = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => {
+      setPhone(mq.matches);
+      setReduce(rm.matches);
+    };
+    sync();
+    mq.addEventListener("change", sync);
+    rm.addEventListener("change", sync);
     return () => {
       io.disconnect();
       cancel();
+      mq.removeEventListener("change", sync);
+      rm.removeEventListener("change", sync);
     };
   }, []);
 
   useGSAP(
     () => {
       const el = root.current;
-      if (!el) return;
+      const st = stage.current;
+      if (!el || !st) return;
       const q = gsap.utils.selector(el);
-      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      fbox.enter = 0;
-      fbox.sweep = 0;
-      fbox.scroll = 0;
-      fbox.turnIn = reduce ? 0 : 1;
-      fbox.idleSpeed = reduce ? 0.08 : 0.22;
+      fbox.spin = 0;
+      fbox.vel = 0;
 
-      // entrance: the box lands (rise + scale + one turn), the halo blooms, the sweep crosses, the caption follows
-      const tl = gsap.timeline({
-        scrollTrigger: { trigger: el, start: "top 70%", once: true },
-        defaults: { ease: "expo.out" },
-      });
-      tl.to(fbox, { enter: 1, duration: reduce ? 1.1 : 1.6, ease: reduce ? "power2.out" : "expo.out" }, 0)
-        .fromTo(q(".fbox-halo"), { scale: 0.7, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 1.8 }, 0)
-        .fromTo(q(".fbox-caption"), { y: 12, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9 }, 0.8)
-        .fromTo(q(".fbox-hint"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.6 }, 1.0);
-      if (!reduce) tl.to(fbox, { sweep: 1, duration: 1.5, ease: "power2.inOut" }, 0.45);
+      // the night falls over the first fifth; the vignette and the burgundy glow come with it
+      const paint = () => {
+        const p = fbox.progress;
+        st.style.setProperty("--fb-dark", kf(p, [[0.01, 0], [0.12, 1]]).toFixed(3));
+        st.style.setProperty("--fb-glow", kf(p, [[0.12, 0], [0.36, 0.8], [0.86, 0.35]]).toFixed(3));
+      };
 
-      // the page scroll adds to the turn
-      if (!reduce) {
-        gsap.to(fbox, {
-          scroll: 1,
-          ease: "none",
-          scrollTrigger: { trigger: el, start: "top bottom", end: "bottom top", scrub: 1 },
-        });
+      if (reduce) {
+        // no film: the final frame, with everything in place
+        fbox.still = 1;
+        fbox.progress = 1;
+        paint();
+        gsap.set(q(".fb-in"), { autoAlpha: 1, y: 0, filter: "blur(0px)" });
+        return;
       }
+      fbox.still = 0;
+
+      // the one value the whole film reads, smoothed a little behind the scroll
+      const scrub = gsap.fromTo(
+        fbox,
+        { progress: 0 },
+        { progress: 1, ease: "none", scrollTrigger: { trigger: el, start: "top top", end: "bottom bottom", scrub: 0.6 } },
+      );
+      gsap.ticker.add(paint);
+
+      // the words: the headline blurs in as the light sweeps the box, the copy and the call follow
+      const tl = gsap.timeline({ scrollTrigger: { trigger: el, start: "top top", end: "bottom bottom", scrub: 0.6 } });
+      tl.fromTo(q(".fb-head"), { autoAlpha: 0, y: 34, filter: "blur(16px)" }, { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: 0.12, ease: "power2.out" }, 0.48)
+        .fromTo(q(".fb-body"), { autoAlpha: 0, y: 20, filter: "blur(10px)" }, { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: 0.1, ease: "power2.out" }, 0.55)
+        .fromTo(q(".fb-foot"), { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: 0.12, ease: "power2.out" }, 0.64)
+        .fromTo(q(".fb-hint"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.06 }, 0.7);
+
+      return () => {
+        gsap.ticker.remove(paint);
+        scrub.scrollTrigger?.kill();
+        scrub.kill();
+        tl.scrollTrigger?.kill();
+        tl.kill();
+        ScrollTrigger.refresh();
+      };
     },
-    { scope: root },
+    { scope: root, dependencies: [reduce] },
   );
 
   return (
-    <section ref={root} id="frequency-box" className="relative overflow-hidden bg-pearl py-24 text-ink md:py-36">
-      {/* the peach of the Journey above melts into the box's warm off-white */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-peach to-transparent" aria-hidden />
-      <div className="grain pointer-events-none absolute inset-0 opacity-[0.035] mix-blend-multiply" />
-      <div className="relative mx-auto max-w-[1440px] px-6 md:px-12">
-        <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-12 lg:gap-8">
-          {/* the box */}
-          <div className="lg:col-span-7">
-            <div className="fbox-stage relative h-[60vw] lg:h-auto lg:aspect-[5/4]">
-              <div className="fbox-halo pointer-events-none absolute top-1/2 left-1/2 aspect-square h-[96%] w-auto -translate-x-1/2 -translate-y-1/2 rounded-full opacity-0 lg:h-auto lg:w-[92%]" aria-hidden />
-              {stageOn && <Stage edition={edition} />}
-              <span className="fbox-hint pointer-events-none absolute right-3 bottom-3 hidden opacity-0 pointer-coarse:flex" aria-hidden>
-                <span className="tap-ring relative flex h-11 w-11 items-center justify-center rounded-full border border-ink/60 text-[0.5rem] font-semibold tracking-[0.2em] text-ink/80 uppercase">Drag</span>
-              </span>
-            </div>
-            <p className="fbox-caption mt-4 flex items-center justify-center gap-4 text-center text-[0.65rem] font-medium tracking-[0.38em] text-ink/70 uppercase opacity-0">
-              <span className="block h-px w-10 bg-ink/40" aria-hidden />
-              <span>15 × 10 × 5 in · sealed until it reaches you</span>
-              <span className="block h-px w-10 bg-ink/40" aria-hidden />
-            </p>
-          </div>
+    <section ref={root} id="frequency-box" data-theme="dark" className={clsx("fb relative bg-peach text-pearl", reduce ? "h-[100svh]" : "h-[380svh] md:h-[420svh]")}>
+      <div ref={stage} className="fb-stage sticky top-0 h-[100svh] overflow-hidden" style={{ "--fb-dark": 0, "--fb-glow": 0 } as React.CSSProperties}>
+        {/* the night, the glow behind the box, the vignette: all driven by the film */}
+        <div className="fb-night pointer-events-none absolute inset-0" aria-hidden />
+        <div className="fb-glow pointer-events-none absolute inset-0" aria-hidden />
+        <div className="grain pointer-events-none absolute inset-0 opacity-[0.05] mix-blend-screen" aria-hidden />
 
-          {/* the copy */}
-          <div className="lg:col-span-5">
-            <SectionHead kicker={FREQUENCY_BOX.kicker} title={FREQUENCY_BOX.title} accent={FREQUENCY_BOX.accent} body={FREQUENCY_BOX.body} />
-            {/* the two editions, as in the reference */}
-            <div role="radiogroup" aria-label="Edition" className="mt-9 inline-flex rounded-full border border-ink/15 bg-cream/60 p-1">
+        {stageOn && <Stage edition={edition} phone={phone} />}
+        <div className="fb-vignette pointer-events-none absolute inset-0" aria-hidden />
+
+        {/* the words, over the scene */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center px-6 pt-[14svh] text-center md:pt-[13svh]">
+          <div className="fb-head fb-in w-full opacity-0">
+            <span className="block text-[0.62rem] font-semibold tracking-[0.42em] text-tan/90 uppercase">{FREQUENCY_BOX.kicker}</span>
+            {/* max-width in the headline's own ch, so it sets as two or three lines */}
+            <h2 className="font-display mx-auto mt-5 max-w-[36ch] text-[clamp(1.9rem,3.9vw,3.6rem)] leading-[1.02] tracking-[-0.02em] text-pearl">
+              <Headline title={FREQUENCY_BOX.title} accent={FREQUENCY_BOX.accent} />
+            </h2>
+          </div>
+          <div className="fb-body fb-in mt-5 max-w-[30rem] opacity-0">
+            {FREQUENCY_BOX.body.map((p, i) => (
+              <p key={i} className={clsx("text-[0.9rem] leading-relaxed text-peach/65 md:text-[0.95rem]", i > 0 && "mt-1.5 hidden md:block")}>
+                {p}
+              </p>
+            ))}
+          </div>
+        </div>
+
+        <div className="fb-foot fb-in pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-4 px-6 pb-[12svh] opacity-0 md:pb-[11svh]">
+          <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-4">
+            <div role="radiogroup" aria-label="Edition" className="inline-flex rounded-full border border-pearl/20 bg-pearl/5 p-1 backdrop-blur-sm">
               {EDITIONS.map((e) => (
                 <button
                   key={e.key}
@@ -119,21 +169,28 @@ export default function FrequencyBox() {
                   aria-checked={edition === e.key}
                   onClick={() => pick(e.key)}
                   className={clsx(
-                    "rounded-full px-6 py-2.5 text-[0.8rem] font-medium tracking-[0.06em] transition-colors duration-300",
-                    edition === e.key ? "bg-red text-peach" : "text-ink/70 hover:text-ink",
+                    "rounded-full px-5 py-2.5 text-[0.78rem] font-medium tracking-[0.06em] transition-colors duration-300",
+                    edition === e.key ? "bg-pearl text-ink" : "text-pearl/70 hover:text-pearl",
                   )}
                 >
                   {e.label}
                 </button>
               ))}
             </div>
-            <div className="mt-10">
-              <Button href="/reserve" variant="ink">
-                {FREQUENCY_BOX.cta}
-              </Button>
-            </div>
+            <Button href="/reserve" variant="peach">
+              {FREQUENCY_BOX.cta}
+            </Button>
           </div>
+          <p className="hidden items-center gap-4 text-[0.6rem] font-medium tracking-[0.38em] text-pearl/45 uppercase md:flex">
+            <span className="block h-px w-8 bg-pearl/25" aria-hidden />
+            <span>15 × 10 × 5 in · sealed until it reaches you</span>
+            <span className="block h-px w-8 bg-pearl/25" aria-hidden />
+          </p>
         </div>
+
+        <span className="fb-hint fb-in pointer-events-none absolute right-4 bottom-[22svh] hidden opacity-0 pointer-coarse:flex" aria-hidden>
+          <span className="tap-ring relative flex h-11 w-11 items-center justify-center rounded-full border border-pearl/50 text-[0.5rem] font-semibold tracking-[0.2em] text-pearl/80 uppercase">Drag</span>
+        </span>
       </div>
     </section>
   );
