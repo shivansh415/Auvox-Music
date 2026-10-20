@@ -85,17 +85,20 @@ export default function FrequencyBox() {
       fbox.spin = 0;
       fbox.vel = 0;
 
-      // the night falls over the first fifth; the vignette and the burgundy glow come with it
+      // the night rises while the section scrolls into view (before the pin), so the film opens in
+      // the dark; the burgundy glow comes with the box
+      const pre = { v: 0 };
       const paint = () => {
         const p = fbox.progress;
-        st.style.setProperty("--fb-dark", kf(p, [[0.01, 0], [0.12, 1]]).toFixed(3));
-        st.style.setProperty("--fb-glow", kf(p, [[0.12, 0], [0.36, 0.8], [0.86, 0.35]]).toFixed(3));
+        st.style.setProperty("--fb-dark", Math.max(pre.v, kf(p, [[0, 0], [0.06, 1]])).toFixed(3));
+        st.style.setProperty("--fb-glow", kf(p, [[0.08, 0], [0.34, 0.8], [0.86, 0.35]]).toFixed(3));
       };
 
       if (reduce) {
         // no film: the final frame, with everything in place
         fbox.still = 1;
         fbox.progress = 1;
+        pre.v = 1;
         paint();
         gsap.set(q(".fb-in"), { autoAlpha: 1, y: 0, filter: "blur(0px)" });
         return;
@@ -108,6 +111,7 @@ export default function FrequencyBox() {
         { progress: 0 },
         { progress: 1, ease: "none", scrollTrigger: { trigger: el, start: "top top", end: "bottom bottom", scrub: 0.6 } },
       );
+      const night = gsap.to(pre, { v: 1, ease: "none", scrollTrigger: { trigger: el, start: "top 95%", end: "top 5%", scrub: 0.4 } });
       gsap.ticker.add(paint);
 
       // the words: the headline blurs in as the light sweeps the box, the copy and the call follow
@@ -119,6 +123,8 @@ export default function FrequencyBox() {
 
       return () => {
         gsap.ticker.remove(paint);
+        night.scrollTrigger?.kill();
+        night.kill();
         scrub.scrollTrigger?.kill();
         scrub.kill();
         tl.scrollTrigger?.kill();
@@ -149,7 +155,7 @@ export default function FrequencyBox() {
               <Headline title={FREQUENCY_BOX.title} accent={FREQUENCY_BOX.accent} />
             </h2>
           </div>
-          <div className="fb-body fb-in mt-5 max-w-[30rem] opacity-0">
+          <div className="fb-body fb-in mt-4 max-w-[30rem] opacity-0">
             {FREQUENCY_BOX.body.map((p, i) => (
               <p key={i} className={clsx("text-[0.9rem] leading-relaxed text-peach/65 md:text-[0.95rem]", i > 0 && "mt-1.5 hidden md:block")}>
                 {p}
