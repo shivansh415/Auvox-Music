@@ -153,8 +153,9 @@ export default function Reach() {
       // --- the scene, scrubbed by the scroll while the stage is pinned
       const tl = gsap.timeline({ defaults: { ease: "none" }, paused: reduce });
       tl
-        // the opening line, alone in the light; then it lifts away
-        .to(opening, { yPercent: -145, duration: 0.07, stagger: 0.02, ease: "power2.in" }, 0.07)
+        // the opening line, alone in the light; then it lifts away — well past its mask's headroom (0.5em
+        // above, for the swash), or the foot of the red f would show through while the next line is up
+        .to(opening, { yPercent: -220, duration: 0.07, stagger: 0.02, ease: "power2.in" }, 0.07)
         .to(openingSub, { autoAlpha: 0, y: -10, duration: 0.05 }, 0.07)
         // out of the light: the hand comes down, the picks gather
         .fromTo(reach, { descend: 0 }, { descend: 1, duration: 0.28, ease: "power2.out" }, 0.1)
@@ -184,7 +185,7 @@ export default function Reach() {
         reach.assist = 0;
         reach.armed = true;
         gsap.set(ring, { autoAlpha: 1 });
-        gsap.set(opening, { yPercent: -145 });
+        gsap.set(opening, { yPercent: -220 });
         gsap.set(openingSub, { autoAlpha: 0 });
         gsap.set(phraseB, { yPercent: 0 });
         gsap.set(kickers[1], { autoAlpha: 1 });
