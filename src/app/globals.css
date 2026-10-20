@@ -350,9 +350,8 @@ html[data-overlay="1"] .hdr-glass { opacity: 0; }
 }
 
 /* ---------- frequency box ---------- */
-/* the film's stage: the Journey's peach is the section's own colour; the picture fades up over it
-   through --fb-in, which the film writes each frame */
-.fb-world { opacity: var(--fb-in, 0); }
+/* the film's stage: the Journey's peach is the section's own colour, and the picture is there the
+   moment the section scrolls into view (its first frame is the macro of the gold ink) */
 .fbox-canvas { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
 .fbox-canvas canvas { touch-action: pan-y; }
 

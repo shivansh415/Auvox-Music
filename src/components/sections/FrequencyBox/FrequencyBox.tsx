@@ -15,7 +15,7 @@ import clsx from "clsx";
 import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap";
 import Button from "@/components/ui/Button";
 import { FREQUENCY_BOX } from "@/content/packages";
-import { fbox, kf, nudge } from "./state";
+import { fbox, nudge } from "./state";
 import { afterGate, expectReady } from "@/store/preloader";
 import type { Edition } from "./textures";
 
@@ -95,16 +95,10 @@ export default function FrequencyBox() {
       fbox.spin = 0;
       fbox.vel = 0;
 
-      // the picture fades up from the page's peach over the first beat
-      const paint = () => {
-        st.style.setProperty("--fb-in", kf(fbox.progress, [[0, 0], [0.04, 1]]).toFixed(3));
-      };
-
       if (reduce) {
         // no film: the final frame, with everything in place
         fbox.still = 1;
         fbox.progress = 1;
-        paint();
         gsap.set(q(".fb-final"), { autoAlpha: 1, y: 0, filter: "blur(0px)" });
         gsap.set(q(".fb-corner"), { autoAlpha: 1 });
         return;
@@ -117,7 +111,6 @@ export default function FrequencyBox() {
         { progress: 0 },
         { progress: 1, ease: "none", scrollTrigger: { trigger: el, start: "top top", end: "bottom bottom", scrub: 0.6 } },
       );
-      gsap.ticker.add(paint);
 
       // the words, cut to the camera: corner notes, then the two notes, the four callouts, the headline.
       // The positions below are fractions of the film, so the timeline is pinned to a duration of 1.
@@ -143,7 +136,6 @@ export default function FrequencyBox() {
         .fromTo(q(".fb-hint"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.05 }, 0.82);
 
       return () => {
-        gsap.ticker.remove(paint);
         scrub.scrollTrigger?.kill();
         scrub.kill();
         tl.scrollTrigger?.kill();
@@ -156,7 +148,7 @@ export default function FrequencyBox() {
 
   return (
     <section ref={root} id="frequency-box" className={clsx("fb relative bg-peach text-ink", reduce ? "h-[100svh]" : "h-[400svh] md:h-[440svh]")}>
-      <div ref={stage} className="fb-stage sticky top-0 h-[100svh] overflow-hidden" style={{ "--fb-in": 0 } as React.CSSProperties}>
+      <div ref={stage} className="fb-stage sticky top-0 h-[100svh] overflow-hidden">
         <div className="fb-world absolute inset-0">{stageOn && <Stage edition={edition} phone={phone} />}</div>
         <div className="grain pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-multiply" aria-hidden />
 
