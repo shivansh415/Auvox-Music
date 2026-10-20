@@ -350,8 +350,15 @@ html[data-overlay="1"] .hdr-glass { opacity: 0; }
 }
 
 /* ---------- frequency box ---------- */
-/* the film's stage: the Journey's peach is the section's own colour, and the picture is there the
-   moment the section scrolls into view (its first frame is the macro of the gold ink) */
+/* the film's stage: the Journey's peach is the section's own colour. The picture arrives as a rounded
+   card inset on it and opens to full bleed as the section reaches the top (--fb-open, 0 → 1) */
+.fb-world {
+  --fb-c: calc(1 - var(--fb-open, 1));
+  clip-path: inset(calc(var(--fb-c) * 11%) calc(var(--fb-c) * 9%) round calc(var(--fb-c) * 36px));
+}
+@media (max-width: 767px) {
+  .fb-world { clip-path: inset(calc(var(--fb-c) * 7%) calc(var(--fb-c) * 5%) round calc(var(--fb-c) * 24px)); }
+}
 .fbox-canvas { touch-action: pan-y; user-select: none; -webkit-user-select: none; }
 .fbox-canvas canvas { touch-action: pan-y; }
 

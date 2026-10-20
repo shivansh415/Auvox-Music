@@ -95,7 +95,10 @@ export default function FrequencyBox() {
       fbox.spin = 0;
       fbox.vel = 0;
 
+      // the entry: the picture is a rounded card on the peach that opens to full bleed as the section
+      // scrolls up to the top of the screen (so the film never starts on a hard edge)
       if (reduce) {
+        st.style.setProperty("--fb-open", "1");
         // no film: the final frame, with everything in place
         fbox.still = 1;
         fbox.progress = 1;
@@ -104,6 +107,7 @@ export default function FrequencyBox() {
         return;
       }
       fbox.still = 0;
+      const open = gsap.fromTo(st, { "--fb-open": 0 }, { "--fb-open": 1, ease: "none", scrollTrigger: { trigger: el, start: "top bottom", end: "top top", scrub: 0.4 } });
 
       // the one value the whole film reads, smoothed a little behind the scroll
       const scrub = gsap.fromTo(
@@ -136,6 +140,8 @@ export default function FrequencyBox() {
         .fromTo(q(".fb-hint"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.05 }, 0.82);
 
       return () => {
+        open.scrollTrigger?.kill();
+        open.kill();
         scrub.scrollTrigger?.kill();
         scrub.kill();
         tl.scrollTrigger?.kill();
@@ -148,7 +154,7 @@ export default function FrequencyBox() {
 
   return (
     <section ref={root} id="frequency-box" className={clsx("fb relative bg-peach text-ink", reduce ? "h-[100svh]" : "h-[400svh] md:h-[440svh]")}>
-      <div ref={stage} className="fb-stage sticky top-0 h-[100svh] overflow-hidden">
+      <div ref={stage} className="fb-stage sticky top-0 h-[100svh] overflow-hidden" style={{ "--fb-open": 0 } as React.CSSProperties}>
         <div className="fb-world absolute inset-0">{stageOn && <Stage edition={edition} phone={phone} />}</div>
         <div className="grain pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-multiply" aria-hidden />
 

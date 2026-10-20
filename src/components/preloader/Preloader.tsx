@@ -296,17 +296,20 @@ export default function Preloader() {
           };
           gsap.set(stage, { transformOrigin: `${(W * unit) / 2}px ${(WORDMARK.height * unit) / 2}px` });
           const flight = { t: 0 };
+          // setters bound to the element now: the last frames of the flight run after the preloader's
+          // scope has gone, and a gsap.set there would re-resolve its target through it ("Invalid scope")
+          const setX = gsap.quickSetter(stage, "x", "px");
+          const setY = gsap.quickSetter(stage, "y", "px");
+          const setScale = gsap.quickSetter(stage, "scale");
           gsap.to(flight, {
             t: 1,
             duration: 1.25,
             ease: "expo.inOut",
             onUpdate: () => {
               const tgt = target();
-              gsap.set(stage, {
-                x: (tgt.cx - ox) * flight.t,
-                y: (tgt.cy - oy) * flight.t,
-                scale: 1 + (tgt.scale - 1) * flight.t,
-              });
+              setX((tgt.cx - ox) * flight.t);
+              setY((tgt.cy - oy) * flight.t);
+              setScale(1 + (tgt.scale - 1) * flight.t);
             },
           });
         }, "exit")

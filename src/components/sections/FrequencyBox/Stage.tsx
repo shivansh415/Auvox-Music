@@ -7,8 +7,9 @@
 // cyclorama does, so there is no horizon). One big soft key from the upper right throws the
 // shadow left, as in the reference; a large softbox fills from above.
 //
-//   0.00–0.13  macro: the gold hairline and waveform on the front, the camera drifting across
-//              the lockup — paper grain and foil in focus, everything else soft
+//   entry      the picture arrives as a rounded card on the page's peach and opens to full bleed
+//              as the section reaches the top (FrequencyBox.tsx, --fb-open)
+//   0.00–0.13  the front, straight on and centred — monogram, lockup, waveform — and a slow push in
 //   0.13–0.30  the camera pulls back and rises; the whole box, turned three-quarter
 //   0.30–0.56  it moves round to the right side and scans down the four pillars (callouts land)
 //   0.56–0.86  back round to the front, wider; the headline arrives
@@ -91,8 +92,8 @@ function kf3(p: number, keys: readonly (readonly [number, V3])[], out: THREE.Vec
 
 // the camera's path (desktop); the phone keeps the box centred at the end
 const CAM: readonly (readonly [number, V3])[] = [
-  [0.0, [0.85, -0.42, 1.95]],
-  [0.13, [-0.55, -0.08, 2.05]],
+  [0.0, [0, 0.02, 3.7]],
+  [0.13, [-0.15, -0.04, 3.0]],
   [0.3, [3.6, 1.1, 7.6]],
   [0.42, [3.3, 0.55, 1.45]],
   [0.56, [3.2, -0.4, 1.3]],
@@ -100,16 +101,17 @@ const CAM: readonly (readonly [number, V3])[] = [
   [0.86, [1.2, 0.8, 9.2]],
 ];
 const AIM: readonly (readonly [number, V3])[] = [
-  [0.0, [0.15, -0.5, 0.5]],
-  [0.13, [-0.1, -0.18, 0.5]],
+  [0.0, [0, 0.02, 0.5]],
+  [0.13, [-0.05, -0.06, 0.5]],
   [0.3, [0.1, -0.05, 0]],
   [0.42, [1.15, 0.45, 0.62]],
   [0.56, [1.15, -0.45, 0.62]],
   [0.72, [0.3, -0.1, 0]],
   [0.86, [-1.15, -0.15, 0]],
 ];
-const CAM_PHONE: readonly (readonly [number, V3])[] = [...CAM.slice(0, 6), [0.86, [1.0, 1.4, 14]]];
-const AIM_PHONE: readonly (readonly [number, V3])[] = [...AIM.slice(0, 6), [0.86, [0, 0.6, 0]]];
+// phones: the opening shot steps back so the whole lockup fits the narrow frame
+const CAM_PHONE: readonly (readonly [number, V3])[] = [[0.0, [0, 0.02, 7.4]], [0.13, [0, -0.04, 6.4]], ...CAM.slice(2, 6), [0.86, [1.0, 1.4, 14]]];
+const AIM_PHONE: readonly (readonly [number, V3])[] = [[0.0, [0, 0.02, 0.5]], [0.13, [0, -0.06, 0.5]], ...AIM.slice(2, 6), [0.86, [0, 0.6, 0]]];
 
 /** The camera: macro on the front, a pull back, round to the side, back to a wide three-quarter. */
 function Rig({ phone }: { phone: boolean }) {
@@ -245,7 +247,7 @@ function Box({ edition }: { edition: Edition }) {
     s.tilt += (s.tiltTarget - s.tilt) * Math.min(1, dt * (s.dragging ? 10 : 4));
 
     // the turn: near-frontal under the macro, three-quarter for the wide, side-on for the pillars
-    const yaw = kf(p, [[0, 0.04], [0.13, -0.06], [0.3, -0.45], [0.42, -0.35], [0.56, -0.35], [0.72, -0.5], [0.86, -0.48]], easeInOut);
+    const yaw = kf(p, [[0, 0], [0.13, -0.03], [0.3, -0.45], [0.42, -0.35], [0.56, -0.35], [0.72, -0.5], [0.86, -0.48]], easeInOut);
     const idle = s.still ? 0 : Math.sin(t * 0.3) * 0.004;
     b.rotation.set(s.tilt * 0.6, yaw + s.spin + idle, 0);
   });
@@ -395,7 +397,7 @@ export default function Stage({ edition, phone }: { edition: Edition; phone: boo
         dpr={[1, 1.5]}
         frameloop="demand"
         shadows="soft"
-        camera={{ fov: FOV, near: 0.05, far: 80, position: [0.85, -0.42, 1.95] }}
+        camera={{ fov: FOV, near: 0.05, far: 80, position: [0, 0.02, 3.7] }}
         gl={{ antialias: false, alpha: true, powerPreference: "high-performance", toneMapping: THREE.NoToneMapping }}
         style={{ touchAction: "pan-y" }}
       >
