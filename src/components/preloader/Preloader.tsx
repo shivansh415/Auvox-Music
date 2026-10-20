@@ -316,7 +316,9 @@ export default function Preloader() {
           // scope has gone, and a gsap.set there would re-resolve its target through it ("Invalid scope")
           const setX = gsap.quickSetter(stage, "x", "px");
           const setY = gsap.quickSetter(stage, "y", "px");
-          const setScale = gsap.quickSetter(stage, "scale");
+          // (quickSetter takes no shorthands: "scale" silently did nothing, so the logo flew at full size)
+          const setScaleX = gsap.quickSetter(stage, "scaleX");
+          const setScaleY = gsap.quickSetter(stage, "scaleY");
           gsap.to(flight, {
             t: 1,
             duration: 1.25,
@@ -325,7 +327,9 @@ export default function Preloader() {
               const tgt = target();
               setX((tgt.cx - ox) * flight.t);
               setY((tgt.cy - oy) * flight.t);
-              setScale(1 + (tgt.scale - 1) * flight.t);
+              const k = 1 + (tgt.scale - 1) * flight.t;
+              setScaleX(k);
+              setScaleY(k);
             },
           });
         }, "exit")
