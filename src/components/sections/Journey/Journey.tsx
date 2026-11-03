@@ -9,7 +9,6 @@ import Button from "@/components/ui/Button";
 import InkReveal, { type InkState } from "./InkReveal";
 import { wavePath, waveX, type WaveState } from "./wave";
 
-const NUMERALS = ["i", "ii", "iii", "iv", "v"] as const;
 /** each step's illustration, and where its red sun rises (uv centre + radius as a share of the height) */
 const ART: { sun: [number, number, number]; alt: string }[] = [
   { sun: [0.8, 0.22, 0.17], alt: "A guitar leaning on a keyboard stand beside a small amplifier" },
@@ -27,7 +26,7 @@ const TOTAL = pad(JOURNEY.steps.length);
  * Section 6 — Journey. A sound-wave line draws itself down the page as you scroll and keeps undulating;
  * the five steps reveal one by one beside it while the heading stays pinned. Each step carries a
  * picture that starts as a pen drawing and is inked into a black-and-white render as it scrolls up,
- * with a brand-red sun blooming through it (InkReveal); the pointer paints ink over it too.
+ * with a brand-red sun blooming through it (InkReveal).
  */
 export default function Journey() {
   const root = useRef<HTMLElement>(null);
@@ -246,7 +245,7 @@ export default function Journey() {
           {/* heading — pinned on desktop */}
           <div className="lg:self-start">
             <div className="jr-sticky">
-              <SectionHead kicker={JOURNEY.kicker} title={JOURNEY.title} accent={JOURNEY.accent} body={JOURNEY.body} swash />
+              <SectionHead kicker={JOURNEY.kicker} title={JOURNEY.title} accent={JOURNEY.accent} body={JOURNEY.body} />
               <div className="mt-12 hidden items-center gap-6 lg:flex">
                 <span className="relative block h-24 w-px overflow-hidden bg-ink/15">
                   <span className="jr-rail-fill absolute inset-0 origin-top bg-red" />
@@ -282,7 +281,7 @@ export default function Journey() {
                     </span>
                   </span>
 
-                  {/* the picture on one side of the line: pen drawing → inked render → red sun; the pointer paints too */}
+                  {/* the picture on one side of the line: pen drawing → inked render → red sun */}
                   <div className={clsx("jr-content relative w-full lg:row-start-1 lg:max-w-[30rem]", right ? "lg:col-start-2 lg:justify-self-start" : "lg:col-start-1 lg:justify-self-end")}>
                     <div className="jr-art relative">
                       <InkReveal
@@ -308,9 +307,6 @@ export default function Journey() {
                       {pad(i + 1)}
                     </span>
                     <span className={clsx("jr-num flex items-center gap-3 text-[0.62rem] font-semibold tracking-[0.32em] text-ink/55 uppercase", right && "lg:flex-row-reverse")}>
-                      <span className="jr-mark block h-2 w-2 bg-red" aria-hidden />
-                      <span className="font-display text-[1.35rem] leading-none tracking-normal text-red normal-case">{NUMERALS[i]}</span>
-                      <span className="block h-px w-8 bg-ink/25" aria-hidden />
                       <span>
                         Step {pad(i + 1)} <span className="text-ink/35">/ {TOTAL}</span>
                       </span>

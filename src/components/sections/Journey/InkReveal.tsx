@@ -5,11 +5,10 @@ import { useEffect, useRef } from "react";
 /**
  * One Journey illustration: a pen drawing that draws itself in, then an ink front runs down it and
  * leaves the rendered black-and-white picture behind, with a brand-red sun blooming through the ink.
- * The pointer works as a brush — wherever it passes, ink reveals the render for a moment.
  *
  * Plain WebGL (no three.js): one quad, two greyscale textures, and a shader. It only draws when
- * something changes — the scroll progress (`state.p`, written by Journey's ScrollTrigger) or the brush —
- * so a resting card costs nothing.
+ * the scroll progress changes (`state.p`, written by Journey's ScrollTrigger), so a resting card costs
+ * nothing. (The brush texture stays bound but empty: the pointer no longer paints.)
  */
 
 export type InkState = { p: number; dirty: boolean };
@@ -188,7 +187,6 @@ export default function InkReveal({
     bx.fillStyle = "#000";
     bx.fillRect(0, 0, BRUSH_W, BRUSH_H);
     let brushEnergy = 0;
-    let last: { x: number; y: number } | null = null;
 
     const prog = gl.createProgram()!;
     gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VERT));
@@ -302,37 +300,7 @@ export default function InkReveal({
     });
     ro.observe(el);
 
-    // the brush (mouse and pen only — on touch, a drag is a scroll)
-    const stamp = (x: number, y: number, r: number) => {
-      const g = bx.createRadialGradient(x, y, 0, x, y, r);
-      g.addColorStop(0, "rgba(255,255,255,0.9)");
-      g.addColorStop(1, "rgba(255,255,255,0)");
-      bx.fillStyle = g;
-      bx.beginPath();
-      bx.arc(x, y, r, 0, Math.PI * 2);
-      bx.fill();
-    };
-    const onMove = (e: PointerEvent) => {
-      if (e.pointerType === "touch") return;
-      const r = el.getBoundingClientRect();
-      const x = ((e.clientX - r.left) / r.width) * BRUSH_W;
-      const y = ((e.clientY - r.top) / r.height) * BRUSH_H;
-      const rad = BRUSH_H * 0.16;
-      // fill the gap between pointer events so fast strokes stay continuous
-      if (last) {
-        const dist = Math.hypot(x - last.x, y - last.y);
-        const n = Math.ceil(dist / (rad * 0.4));
-        for (let i = 1; i <= n; i++) stamp(last.x + ((x - last.x) * i) / n, last.y + ((y - last.y) * i) / n, rad);
-      } else stamp(x, y, rad);
-      last = { x, y };
-      brushEnergy = 1;
-      kick();
-    };
-    const onLeave = () => {
-      last = null;
-    };
-    el.addEventListener("pointermove", onMove);
-    el.addEventListener("pointerleave", onLeave);
+    // (no pointer brush: the client asked for the tap/paint effect to go — the reveal follows the scroll only)
 
     // scroll progress arrives from outside; poll it cheaply via the loop while near
     const poll = window.setInterval(kick, 250);
@@ -343,8 +311,6 @@ export default function InkReveal({
       window.clearInterval(poll);
       io.disconnect();
       ro.disconnect();
-      el.removeEventListener("pointermove", onMove);
-      el.removeEventListener("pointerleave", onLeave);
       gl.deleteTexture(tLines);
       gl.deleteTexture(tRender);
       gl.deleteTexture(tBrush);

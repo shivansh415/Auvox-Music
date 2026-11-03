@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { gsap, ScrollTrigger, SplitText, useGSAP } from "@/lib/gsap";
+import { gsap, ScrollTrigger, useGSAP } from "@/lib/gsap";
 import { useTransitionStore } from "@/store/transition";
 import { afterGate, expectReady } from "@/store/preloader";
 import { hero, roomFit, type Verse } from "./state";
@@ -60,23 +60,17 @@ export default function Hero() {
       if (!el) return;
       const q = gsap.utils.selector(el);
 
-      // --- text reveal: lines rise out of a mask, the coloured last word a beat later
-      const title = new SplitText(q(".hero-title"), { type: "lines,words", linesClass: "hero-line" });
-      gsap.set(title.lines, { overflow: "hidden", paddingBottom: "0.08em", marginBottom: "-0.08em" });
+      // --- reveal: the AUVOX MUSIC lockup rises out of a mask, the tagline and its wave follow
       const intro = gsap.timeline({
         scrollTrigger: { trigger: el, start: "top 70%", once: true },
         defaults: { ease: "expo.out" },
       });
       intro
         .fromTo(q(".hero-room"), { scale: 1.08, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 1.8 }, 0)
-        .fromTo(q(".hero-rule"), { scaleX: 0 }, { scaleX: 1, duration: 1.0, transformOrigin: "left" }, 0.2)
-        .fromTo(q(".hero-kicker"), { y: 12, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.8 }, 0.3)
-        .from(title.words, { yPercent: 110, duration: 1.2, stagger: 0.035 }, 0.35)
-        .fromTo(q(".hero-body"), { y: 18, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9 }, 0.85)
+        .fromTo(q(".hero-logo"), { yPercent: 105 }, { yPercent: 0, duration: 1.3 }, 0.35)
+        .fromTo(q(".hero-tag"), { y: 14, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9 }, 0.8)
         .fromTo(q(".hero-cta"), { y: 18, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9 }, 1.0)
-        .to(hero, { enter: 1, duration: 2.2, ease: "expo.out" }, 0.4)
-        // once revealed, hand the headline back to normal text so it re-wraps on resize
-        .add(() => title.revert());
+        .to(hero, { enter: 1, duration: 2.2, ease: "expo.out" }, 0.4);
 
       // --- the sheet: rounded top corners and a lifted shadow while it slides over the studio,
       // squaring off as it lands, so the two read as one page in layers
@@ -181,14 +175,13 @@ export default function Hero() {
         // it would be left behind in the header when the hero unmounts
         toHome();
         if (button) gsap.set(button, { clearProps: "opacity,visibility,transform" });
-        title.revert();
       };
     },
     { scope: root },
   );
 
   return (
-    <section ref={root} className="hero hero-sheet relative z-10 min-h-[100svh] overflow-clip bg-peach text-ink">
+    <section ref={root} id="home" className="hero hero-sheet relative z-10 min-h-[100svh] overflow-clip bg-peach text-ink">
       {/* the room + the 3D instruments: a band on top on phones, full-bleed on wide screens */}
       <div ref={stage} className="absolute inset-x-0 top-0 h-[56svh] lg:inset-0 lg:h-auto">
         <div ref={room} className="hero-room absolute opacity-0 will-change-transform">
@@ -227,15 +220,18 @@ export default function Hero() {
 
       {/* copy */}
       <div className="pointer-events-none relative z-10 flex min-h-[100svh] flex-col justify-center px-6 pt-[52svh] pb-28 md:px-12 lg:w-[50%] lg:pt-28 lg:pb-32 lg:pl-[max(3rem,calc((100vw-1440px)/2+3rem))] [&_a]:pointer-events-auto">
-        <div className="flex items-center gap-4">
-          <span className="hero-rule block h-px w-10 bg-ink/50" />
-          <span className="hero-kicker text-[0.65rem] font-medium tracking-[0.38em] text-ink/70 uppercase">AUVOX Music</span>
-        </div>
-        <h1 className="hero-title font-display mt-7 max-w-[11ch] text-[clamp(3rem,5.8vw,6.4rem)] leading-[0.98] tracking-[-0.02em]">
-          <span className="swash">Y</span>our world, your <em className="text-red">sound.</em>
+        {/* the client's brief: AUVOX MUSIC, and under it the tagline with a small, minimal sound wave */}
+        <h1 className="overflow-hidden pb-1">
+          <span className="sr-only">AUVOX Music</span>
+          <span className="hero-logo block w-[min(78vw,500px)] lg:w-[min(36vw,560px)]" aria-hidden />
         </h1>
-        <p className="hero-body mt-8 max-w-[28rem] text-[1.05rem] leading-relaxed text-ink/75">
-          More than lessons, a musical journey built around you. Live instruction, personal guidance and premium materials, in one connected musical world.
+        <p className="hero-tag mt-7 flex items-center gap-4 text-[0.7rem] font-semibold tracking-[0.42em] text-ink/70 uppercase md:mt-9 md:text-[0.76rem]">
+          <svg className="hero-wave h-5 w-[4.5rem] shrink-0 text-red" viewBox="0 0 72 20" aria-hidden>
+            {[3, 6, 10, 14, 18, 14, 9, 13, 17, 12, 8, 5, 3].map((h, i) => (
+              <rect key={i} x={i * 5.6 + 1} y={10 - h / 2} width="2" height={h} rx="1" fill="currentColor" style={{ animationDelay: `${(i * 0.11).toFixed(2)}s` }} />
+            ))}
+          </svg>
+          Forged in frequency
         </p>
         <div ref={ctaHome} className="hero-cta mt-10">
           <a

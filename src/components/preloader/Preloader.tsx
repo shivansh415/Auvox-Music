@@ -23,43 +23,27 @@ const MUSIC_SCALE = (W * 0.4) / MUSIC.width;
 const MUSIC_X = (W - MUSIC.width * MUSIC_SCALE) / 2;
 const MUSIC_Y = WORDMARK.height + 44;
 
-// The five strings — one per letter — rest around the wordmark's vertical centre.
-const STRING_CY = WORDMARK.height / 2;
-const STRING_GAP = 26;
-const STRING_THICKNESS = 1.4;
-// Strings span the middle 56% of the wordmark width while they vibrate.
-const STRING_X0 = W * 0.22;
-const STRING_X1 = W * 0.78;
-const STRING_SEGMENTS = 90;
-const MAX_AMPLITUDE = 44;
+// The sound wave: a row of rounded bars, symmetric about the middle like the brand's waveform, centred
+// on the wordmark. While the counter runs it plays like a level meter; then it settles and the lockup
+// rises in its place.
+const WAVE_CY = WORDMARK.height / 2;
+const WAVE_BARS = 41;
+const WAVE_X0 = W * 0.29;
+const WAVE_X1 = W * 0.71;
+const WAVE_BAR_W = 9;
+const WAVE_MAX_H = 230;
+const WAVE_STEP = (WAVE_X1 - WAVE_X0) / (WAVE_BARS - 1);
 
-/** Horizontal extent of each letter, so a string can gather over its letter before morphing. */
-const LETTER_SPANS = WORDMARK.letters.map(({ d }) => {
-  const xs = d.match(/-?\d*\.?\d+/g)!.map(Number).filter((_, k) => k % 2 === 0);
-  return { x0: Math.min(...xs), x1: Math.max(...xs) };
-});
-
-/**
- * Builds a closed, filled "ribbon" for string `i`: a thin band whose centre line vibrates
- * like a plucked string (ends pinned). Being a closed shape lets MorphSVG morph it into a letter.
- */
-function ribbonPath(i: number, t: number, amp: number, x0 = STRING_X0, x1 = STRING_X1) {
-  const cy = STRING_CY + (i - 2) * STRING_GAP;
-  const top: string[] = [];
-  const bottom: string[] = [];
-  for (let k = 0; k <= STRING_SEGMENTS; k++) {
-    const u = k / STRING_SEGMENTS;
-    const x = x0 + u * (x1 - x0);
-    const envelope = Math.sin(Math.PI * u);
-    const wave =
-      Math.sin(u * Math.PI * 3.1 + t * 2.3 + i * 1.3) * 0.6 +
-      Math.sin(u * Math.PI * 7.3 - t * 3.7 + i * 0.7) * 0.3 +
-      Math.sin(u * Math.PI * 13 + t * 5.1 + i * 2.1) * 0.1;
-    const y = cy + amp * envelope * wave;
-    top.push(`${x.toFixed(1)} ${(y - STRING_THICKNESS / 2).toFixed(1)}`);
-    bottom.push(`${x.toFixed(1)} ${(y + STRING_THICKNESS / 2).toFixed(1)}`);
-  }
-  return `M${top.join(" L")} L${bottom.reverse().join(" L")} Z`;
+/** height of bar `k` at time `t` (amp 0–1): an envelope that peaks in the middle, rippling like audio */
+function barHeight(k: number, t: number, amp: number) {
+  const u = k / (WAVE_BARS - 1);
+  const env = Math.pow(Math.sin(Math.PI * u), 1.6);
+  const ripple =
+    0.55 +
+    0.25 * Math.sin(t * 7.1 + k * 0.9) +
+    0.15 * Math.sin(t * 11.3 - k * 1.7) +
+    0.05 * Math.sin(t * 17.9 + k * 2.9);
+  return Math.max(WAVE_BAR_W, WAVE_MAX_H * amp * env * ripple);
 }
 
 export default function Preloader() {
@@ -116,7 +100,7 @@ export default function Preloader() {
       if (ONCE_PER_SESSION) sessionStorage.setItem(SESSION_KEY, "1");
       lenisRef.current?.stop();
 
-      // while the strings play, only the network works: fetch the 3D models into the HTTP cache so
+      // while the wave plays, only the network works: fetch the 3D models into the HTTP cache so
       // parsing them can start the moment the gate opens (fetching doesn't block the main thread)
       if (home) {
         for (const url of ["/models/guitar-red.glb", "/models/casio.glb", "/models/guitar-red-sm.glb", "/models/casio-sm.glb", "/world/studio_1k.hdr"]) {
@@ -126,14 +110,15 @@ export default function Preloader() {
 
       const q = gsap.utils.selector(overlay);
       const stage = q<SVGSVGElement>(".stage")[0];
-      const strings = q<SVGPathElement>(".string");
+      const letters = q<SVGPathElement>(".letter");
+      const waveBars = q<SVGRectElement>(".wave-bar");
       const musicLetters = q<SVGPathElement>(".music-letter");
       const bars = q<HTMLDivElement>(".bar");
       const counter = q<HTMLDivElement>(".counter")[0];
       const grain = q<HTMLDivElement>(".grain")[0];
       const enter = q<HTMLDivElement>(".enter")[0];
 
-      const state = { progress: 0, t: 0, wave: true };
+      const state = { progress: 0, t: 0, wave: true, settle: 0 };
       const setCounter = () => {
         const p = Math.round(state.progress);
         if (counterRef.current) counterRef.current.textContent = String(p).padStart(3, "0");
@@ -144,8 +129,8 @@ export default function Preloader() {
 
       if (reduceMotion) {
         // Static lockup, quick count, fade out.
-        strings.forEach((el, i) => el.setAttribute("d", WORDMARK.letters[i].d));
-        gsap.set(musicLetters, { autoAlpha: 1 });
+        gsap.set(waveBars, { autoAlpha: 0 });
+        gsap.set([letters, musicLetters], { autoAlpha: 1 });
         gsap
           .timeline({ onComplete: done })
           .to(state, { progress: 100, duration: 0.8, ease: "power2.out", onUpdate: setCounter })
@@ -153,15 +138,18 @@ export default function Preloader() {
         return;
       }
 
-      // Strings vibrate while the counter runs; amplitude swells with progress then settles at 100.
+      // The wave plays while the counter runs: it swells with progress, and settles to a hairline when
+      // the lockup takes over (state.settle 0 → 1).
       const tick = (_time: number, delta: number) => {
         if (!state.wave) return;
         state.t += delta / 1000;
         const p = state.progress / 100;
-        const beat = 0.85 + 0.15 * Math.sin(state.t * 6);
-        // never fully flat: a faint tremor stays while the counter hangs on 99
-        const amp = MAX_AMPLITUDE * Math.max(0.06, Math.pow(Math.sin(Math.PI * p), 0.9)) * beat;
-        strings.forEach((el, i) => el.setAttribute("d", ribbonPath(i, state.t, amp)));
+        const amp = Math.max(0.12, Math.pow(Math.sin(Math.PI * Math.min(p, 0.62) / 1.24), 0.8)) * (1 - state.settle);
+        waveBars.forEach((el, k) => {
+          const h = barHeight(k, state.t, amp);
+          el.setAttribute("y", (WAVE_CY - h / 2).toFixed(1));
+          el.setAttribute("height", h.toFixed(1));
+        });
       };
       gsap.ticker.add(tick);
 
@@ -172,7 +160,7 @@ export default function Preloader() {
         .to({}, { duration: 0.35 });
 
       // the timeline waits for the first quiet moment on the main thread: the page's scripts and the
-      // studio's canvas set up in the first few hundred ms, and starting the bars and strings on top of
+      // studio's canvas set up in the first few hundred ms, and starting the bars and the wave on top of
       // that made their opening stutter. Until then the screen is simply black.
       const tl = gsap.timeline({
         paused: true,
@@ -201,55 +189,24 @@ export default function Preloader() {
       enterGo.current = go;
 
       tl.fromTo(bars, { scaleY: 0 }, { scaleY: 1, duration: 0.9, ease: "expo.out" }, 0)
-        .fromTo(
-          strings,
-          { scaleX: 0, opacity: 0, transformOrigin: "50% 50%" },
-          { scaleX: 1, opacity: 1, duration: 1.1, stagger: 0.07, ease: "expo.out", smoothOrigin: false },
-          0.25,
-        )
+        .fromTo(waveBars, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.6, stagger: { each: 0.012, from: "center" }, ease: "power2.out" }, 0.25)
         .fromTo(counter, { y: 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9 }, 0.4)
         .add(count, 0.7)
 
-        // Strings resolve into the wordmark.
+        // The wave settles to a hairline and goes; the lockup rises in its place.
         .add("morph", ">-0.05")
+        .to(state, { settle: 1, duration: 0.7, ease: "power2.inOut" }, "morph")
+        .to(waveBars, { autoAlpha: 0, duration: 0.35, stagger: { each: 0.006, from: "edges" } }, "morph+=0.45")
         .add(() => {
           state.wave = false;
-        }, "morph")
-        // Drop the intro transform + its cached %-origin, otherwise GSAP's smoothOrigin re-centres each
-        // letter on the old string midpoint once the shape changes and the wordmark piles up mid-screen.
-        .set(strings, { clearProps: "transform,transformOrigin" }, "morph")
-        // while the shapes are in flux they soften and dip, so the in-between blobs never read as a frame
-        .to(stage, { filter: "blur(1.6px)", opacity: 0.72, duration: 0.35, ease: "power2.out" }, "morph")
-        .to(stage, { filter: "blur(0px)", opacity: 1, duration: 0.8, ease: "power2.inOut" }, "morph+=0.9")
+        }, "morph+=0.9")
+        .fromTo(letters, { autoAlpha: 0, y: 26, filter: "blur(8px)" }, { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: 1.0, stagger: 0.06, ease: "expo.out" }, "morph+=0.55")
+        .fromTo(musicLetters, { y: 34, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.9, stagger: 0.05, ease: "expo.out" }, "morph+=0.95")
         // 100 lands with the letters, not before them
-        .to(state, { progress: 100, duration: 0.3, ease: "power3.out", onUpdate: setCounter }, "morph+=1.5");
-      // Two beats per string: gather over its letter's width, then bloom into the letter.
-      strings.forEach((el, i) => {
-        const { x0, x1 } = LETTER_SPANS[i];
-        const gathered = ribbonPath(i, 0, 0, x0, x1);
-        tl.to(
-          el,
-          { morphSVG: { shape: gathered, shapeIndex: "auto" }, duration: 0.4, ease: "expo.inOut" },
-          `morph+=${i * 0.05}`,
-        ).to(
-          el,
-          {
-            morphSVG: { shape: WORDMARK.letters[i].d, shapeIndex: "auto" },
-            duration: 1.1,
-            ease: "power3.inOut",
-          },
-          `morph+=${0.35 + i * 0.07}`,
-        );
-      });
-      tl.fromTo(
-          musicLetters,
-          { y: 34, autoAlpha: 0 },
-          { y: 0, autoAlpha: 1, duration: 0.9, stagger: 0.05, ease: "expo.out" },
-          "morph+=1.55",
-        )
+        .to(state, { progress: 100, duration: 0.3, ease: "power3.out", onUpdate: setCounter }, "morph+=1.0")
 
         // The lockup settles into the sign's colour (cream on the dark wall); the counter and bars leave.
-        .add("flip", "morph+=2.35")
+        .add("flip", "morph+=1.9")
         .to(stage, { color: PEARL, duration: 0.6, ease: "power2.inOut" }, "flip")
         .to(counter, { autoAlpha: 0, y: -12, duration: 0.45 }, "flip+=0.3")
         .to(bars, { autoAlpha: 0, duration: 0.6 }, "flip+=0.3")
@@ -352,14 +309,19 @@ export default function Preloader() {
       <div className="content absolute inset-0 flex items-center justify-center">
         <svg
           aria-hidden
-          className="stage w-[min(72vw,520px)] overflow-visible md:w-[min(54vw,720px)]"
+          className="stage w-[min(62vw,420px)] overflow-visible md:w-[min(40vw,560px)]"
           viewBox={`0 0 ${W} ${STAGE_H}`}
           fill="currentColor"
           style={{ color: TAN }}
         >
-          <g className="strings">
-            {WORDMARK.letters.map((letter, i) => (
-              <path key={letter.char} className="string" d={ribbonPath(i, 0, 0)} />
+          <g className="wave">
+            {Array.from({ length: WAVE_BARS }, (_, k) => (
+              <rect key={k} className="wave-bar opacity-0" x={WAVE_X0 + k * WAVE_STEP - WAVE_BAR_W / 2} y={WAVE_CY - WAVE_BAR_W / 2} width={WAVE_BAR_W} height={WAVE_BAR_W} rx={WAVE_BAR_W / 2} />
+            ))}
+          </g>
+          <g>
+            {WORDMARK.letters.map((letter) => (
+              <path key={letter.char} className="letter opacity-0" d={letter.d} />
             ))}
           </g>
           <g transform={`translate(${MUSIC_X} ${MUSIC_Y}) scale(${MUSIC_SCALE})`}>
@@ -399,7 +361,7 @@ export default function Preloader() {
         </span>
         <span
           ref={counterRef}
-          className="font-sans text-[clamp(3.5rem,9vw,8.5rem)] leading-none font-semibold tabular-nums"
+          className="font-sans text-[clamp(1.8rem,3.6vw,3.2rem)] leading-none font-semibold tabular-nums"
         >
           000
         </span>

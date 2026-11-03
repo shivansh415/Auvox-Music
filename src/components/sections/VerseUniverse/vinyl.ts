@@ -150,11 +150,7 @@ export const VINYL_FRAG = /* glsl */ `
     col *= mix(1.0, 0.72, smoothstep(0.86, 1.0, r));
     col += WARM * band(r, 0.986, 0.003, aa) * (0.05 + 0.12 * wide);
 
-    // ---- the orbit the verses ride (dashed, turns with the record) and its two guide rings
-    float dash = step(0.7, fract(lth / TAU * 96.0));
-    col = mix(col, TAN, band(r, uOrbitR, 0.0012, aa * 1.2) * dash * 0.5 * uEnter);
-    col = mix(col, CREAM, band(r, uOrbitR + 0.084, 0.0008, aa) * 0.07);
-    col = mix(col, CREAM, band(r, uOrbitR - 0.084, 0.0008, aa) * 0.07);
+    // (no dashed orbit or guide rings: the client asked for the small lines to go)
 
     // beads sliding back along the groove
     for (int i = 0; i < 9; i++) {

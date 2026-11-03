@@ -138,7 +138,7 @@ export default function Begin() {
 
       {/* the copy stays centred on top; only the buttons take the pointer */}
       <div className="begin-copy pointer-events-none relative z-10 mx-auto w-full max-w-[1440px] px-6 text-center md:px-12">
-        <SectionHead kicker={BEGIN.kicker} title={BEGIN.title} accent={BEGIN.accent} body={BEGIN.body} align="center" size="xl" swash />
+        <SectionHead kicker={BEGIN.kicker} title={BEGIN.title} accent={BEGIN.accent} body={BEGIN.body} align="center" size="xl" />
         <div className="pointer-events-auto mt-12 flex flex-wrap justify-center gap-4">
           <Button className="begin-cta" href="/reserve" variant="ink">
             {BEGIN.primary}

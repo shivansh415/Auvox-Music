@@ -553,7 +553,7 @@ export default function VerseUniverse() {
                     onClick={(e) => openAbout(e.currentTarget, false)}
                     className="vu-core absolute top-0 left-0 z-30 flex h-[24%] w-[24%] items-center justify-center rounded-full"
                   >
-                    <span className="pointer-events-none absolute -top-1 -right-2 hidden text-ink pointer-coarse:flex" aria-hidden>
+                    <span className="pointer-events-none absolute -top-1 -right-2 flex text-ink" aria-hidden>
                       <span className="tap-ring relative flex h-11 w-11 items-center justify-center rounded-full border border-current bg-cream/90">
                         <span className="text-[9px] font-semibold tracking-[0.3em]">TAP</span>
                       </span>
@@ -594,16 +594,9 @@ export default function VerseUniverse() {
                 )}
               </span>
               <span className="flex flex-wrap items-center gap-5">
-                <button
-                  type="button"
-                  onClick={toggleSound}
-                  aria-pressed={!muted}
-                  className="flex items-center gap-2 rounded-full border border-ink/20 px-3 py-1.5 transition-colors duration-300 hover:border-ink hover:text-ink"
-                >
-                  <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden>
-                    <path d="M2 6h2.5L8 3v10L4.5 10H2z" strokeLinejoin="round" />
-                    {muted ? <path d="M11 6l3.5 4M14.5 6L11 10" strokeLinecap="round" /> : <path d="M10.8 5.5a3.5 3.5 0 0 1 0 5M12.6 3.8a6 6 0 0 1 0 8.4" strokeLinecap="round" />}
-                  </svg>
+                {/* the same switch as the splash's: a dot and SOUND ON / OFF (the one shared sound setting) */}
+                <button type="button" onClick={toggleSound} aria-pressed={!muted} className="flex items-center gap-2 transition-colors duration-300 hover:text-ink">
+                  <span className={`block h-1.5 w-1.5 rounded-full ${muted ? "bg-red/30" : "bg-red"}`} />
                   Sound {muted ? "off" : "on"}
                 </button>
               </span>

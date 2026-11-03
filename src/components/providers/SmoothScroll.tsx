@@ -51,8 +51,10 @@ export default function SmoothScroll({ children }: { children: React.ReactNode }
     };
   }, []);
 
+  // a little less sensitive than the default (client): each wheel tick / swipe moves the page a bit
+  // less, and the glide is slightly softer
   return (
-    <ReactLenis root options={{ autoRaf: false, lerp: 0.1 }} ref={lenisRef}>
+    <ReactLenis root options={{ autoRaf: false, lerp: 0.085, wheelMultiplier: 0.8, touchMultiplier: 0.85 }} ref={lenisRef}>
       <SyncScrollTrigger />
       <DevHandle />
       {children}

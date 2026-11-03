@@ -2,8 +2,8 @@
 
 // The disc's 3D layer — the whole turntable in one canvas: the record (one shader, see vinyl.ts) with
 // its rim and contact shadow, the printed ring of type and the logomark, a tonearm, and the live
-// guitar and keyboard riding their pucks. Everything sits in one group so the scroll-in tilt and the
-// pointer tilt move it as one object. Every frame it projects the nodes and the centre into disc-box
+// guitar and keyboard riding their pucks. Everything sits in one group so the scroll-in rise moves it
+// as one object (no tilt: the record stays straight). Every frame it projects the nodes and the centre into disc-box
 // pixels (disc.anchors) so the DOM hit areas and labels stay glued to them. The canvas bleeds past
 // the box (BLEED) so nothing clips while it tilts. The loop is on demand and only runs while near.
 
@@ -379,16 +379,18 @@ function Record() {
     const s = smooth.current;
     const k = 1 - Math.exp(-Math.min(dt, 0.05) * 6);
 
-    // --- the tilt: from low and far (scroll-in) to face-on, then a few degrees toward the pointer
+    // --- the record stays straight, face-on (client): it only rises into place as it scrolls in, with
+    // no tilt toward the pointer and no roll
     const t = disc.still ? 1 : disc.tilt;
     const e = 1 - (1 - t) * (1 - t);
     const back = 1 - e;
+    // the pointer still steers the light (below), just not the record
     const pt = disc.pointer.on && !disc.still && !disc.dragging ? 1 : 0;
     const px = THREE.MathUtils.clamp(disc.pointer.x, -0.7, 0.7) * pt;
     const py = THREE.MathUtils.clamp(disc.pointer.y, -0.7, 0.7) * pt;
-    s.rx += (-back * 1.05 + py * 0.2 * e - s.rx) * k;
-    s.ry += (px * 0.24 * e - s.ry) * k;
-    s.rz += (back * 0.35 - s.rz) * k;
+    s.rx += (0 - s.rx) * k;
+    s.ry += (0 - s.ry) * k;
+    s.rz += (0 - s.rz) * k;
     s.z += (-back * 2.4 - s.z) * k;
     s.y += (-back * 0.25 * U - s.y) * k;
     g.rotation.set(s.rx, s.ry, s.rz);

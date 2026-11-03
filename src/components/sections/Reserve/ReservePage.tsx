@@ -90,8 +90,8 @@ function Field({
 }) {
   const floated = type === "date" || type === "time";
   const cls = clsx(
-    "rsv-input peer w-full border-b bg-transparent pt-7 pb-3 text-[1.05rem] text-peach outline-none transition-colors duration-300 placeholder:text-transparent focus:border-tan [color-scheme:dark]",
-    error ? "border-tan" : "border-peach/40",
+    "rsv-input peer w-full border-b bg-transparent pt-7 pb-3 text-[1.05rem] text-ink outline-none transition-colors duration-300 placeholder:text-transparent focus:border-red [color-scheme:light]",
+    error ? "border-red" : "border-ink/25",
   );
   return (
     <div className={clsx("rsv-field relative", className)} data-floated={floated ? "1" : "0"}>
@@ -111,10 +111,10 @@ function Field({
           className={cls}
         />
       )}
-      <label htmlFor={id} className="rsv-label pointer-events-none absolute top-[1.65rem] left-0 origin-left text-[1.05rem] text-peach/55">
+      <label htmlFor={id} className="rsv-label pointer-events-none absolute top-[1.65rem] left-0 origin-left text-[1.05rem] text-ink/55">
         {label}
       </label>
-      <span className={clsx("rsv-error mt-2 block text-[0.6rem] font-semibold tracking-[0.25em] text-tan uppercase transition-opacity duration-300", error ? "opacity-100" : "opacity-0")} aria-live="polite">
+      <span className={clsx("rsv-error mt-2 block text-[0.6rem] font-semibold tracking-[0.25em] text-red uppercase transition-opacity duration-300", error ? "opacity-100" : "opacity-0")} aria-live="polite">
         {error ?? " "}
       </span>
     </div>
@@ -124,9 +124,9 @@ function Field({
 function Chips({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
   return (
     <div className="rsv-field">
-      <span className="block text-[0.62rem] font-medium tracking-[0.35em] text-peach/55 uppercase">{label}</span>
+      <span className="block text-[0.62rem] font-medium tracking-[0.35em] text-ink/55 uppercase">{label}</span>
       <div className="mt-4 flex flex-wrap gap-2.5">{children}</div>
-      <span className={clsx("mt-2 block text-[0.6rem] font-semibold tracking-[0.25em] text-tan uppercase transition-opacity duration-300", error ? "opacity-100" : "opacity-0")} aria-live="polite">
+      <span className={clsx("mt-2 block text-[0.6rem] font-semibold tracking-[0.25em] text-red uppercase transition-opacity duration-300", error ? "opacity-100" : "opacity-0")} aria-live="polite">
         {error ?? " "}
       </span>
     </div>
@@ -198,9 +198,9 @@ export default function ReservePage() {
   const pickedInstrument = INSTRUMENTS.find((i) => i.key === form.instrument) ?? INSTRUMENTS[0];
 
   return (
-    <section ref={root} data-theme="dark" className="rsv relative min-h-[100svh] overflow-clip bg-red text-peach">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_60%_at_15%_30%,rgba(231,180,126,0.22),transparent_70%),linear-gradient(180deg,rgba(30,30,30,0)_40%,rgba(30,30,30,0.45)_100%)]" />
-      <div className="grain pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-screen" />
+    <section ref={root} className="rsv relative min-h-[100svh] overflow-clip bg-cream text-ink">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_60%_at_15%_30%,rgba(231,180,126,0.3),transparent_70%)]" />
+      <div className="grain pointer-events-none absolute inset-0 opacity-[0.05] mix-blend-multiply" />
 
       <div className="relative mx-auto grid max-w-[1440px] gap-14 px-6 pt-32 pb-24 md:px-12 md:pt-40 md:pb-32 lg:grid-cols-12 lg:gap-10">
         {/* left: ghost instrument + copy (on phones the instrument sits faintly behind the copy) */}
@@ -209,7 +209,7 @@ export default function ReservePage() {
             <ReserveWorld instrument={form.instrument} />
           </div>
           <div className="relative z-10 lg:mt-6">
-            <SectionHead as="h1" kicker="Book a free demo" title="Meet your instructor. No commitment." accent="commitment." body="One live session with an AUVOX instructor, on your instrument, at a time that suits you." tone="dark" immediate />
+            <SectionHead as="h1" kicker="Book a free demo" title="Meet your instructor. No commitment." accent="commitment." body="One live session with an AUVOX instructor, on your instrument, at a time that suits you." immediate />
           </div>
         </div>
 
@@ -218,8 +218,8 @@ export default function ReservePage() {
           {stage !== "done" ? (
             <form ref={formRef} onSubmit={submit} noValidate className="rsv-form">
               <div className="rsv-in flex items-center gap-4">
-                <span className="block h-px w-10 bg-peach/50" />
-                <span className="text-[0.65rem] font-medium tracking-[0.38em] text-peach/70 uppercase">Free Demo Booking Form</span>
+                <span className="block h-px w-10 bg-ink/30" />
+                <span className="text-[0.65rem] font-medium tracking-[0.38em] text-ink/70 uppercase">Free Demo Booking Form</span>
               </div>
 
               <div className="mt-10 grid gap-x-8 gap-y-6 md:grid-cols-2">
@@ -240,11 +240,11 @@ export default function ReservePage() {
                           onClick={() => set("instrument")(i.key)}
                           className={clsx(
                             "rsv-chip-big flex min-w-[11rem] flex-1 flex-col items-start gap-1 rounded-[1.2rem] border px-6 py-5 text-left transition-colors duration-300",
-                            on ? "border-peach bg-peach text-red" : "border-peach/40 text-peach hover:border-peach",
+                            on ? "border-ink bg-ink text-peach" : "border-ink/25 text-ink hover:border-ink",
                           )}
                         >
                           <span className="font-display text-[1.7rem] leading-none">{i.word}</span>
-                          <span className={clsx("text-[0.58rem] tracking-[0.3em] uppercase", on ? "text-red/70" : "text-peach/55")}>{i.verse}</span>
+                          <span className={clsx("text-[0.58rem] tracking-[0.3em] uppercase", on ? "text-ink/70" : "text-ink/55")}>{i.verse}</span>
                         </button>
                       );
                     })}
@@ -266,7 +266,7 @@ export default function ReservePage() {
                           onClick={() => set("level")(l)}
                           className={clsx(
                             "rounded-full border px-5 py-3 text-[0.62rem] font-semibold tracking-[0.3em] uppercase transition-colors duration-300",
-                            on ? "border-peach bg-peach text-red" : "border-peach/40 text-peach hover:border-peach",
+                            on ? "border-ink bg-ink text-peach" : "border-ink/25 text-ink hover:border-ink",
                           )}
                         >
                           {l}
@@ -280,40 +280,40 @@ export default function ReservePage() {
               </div>
 
               <div className="rsv-in mt-8 flex flex-wrap items-center gap-6">
-                <Button type="submit" variant="peach" disabled={stage === "leaving"}>
+                <Button type="submit" variant="ink" disabled={stage === "leaving"}>
                   Reserve my Free Demo
                 </Button>
-                <span className="text-sm text-peach/55">Free. No card, no commitment.</span>
+                <span className="text-sm text-ink/55">Free. No card, no commitment.</span>
               </div>
             </form>
           ) : (
             <div className="rsv-done flex min-h-[60vh] flex-col justify-center">
               <div className="flex items-center gap-4">
-                <span className="rsv-done-rule block h-px w-10 bg-peach/50" />
-                <span className="rsv-done-in text-[0.65rem] font-medium tracking-[0.38em] text-peach/70 uppercase">Demo reserved</span>
+                <span className="rsv-done-rule block h-px w-10 bg-ink/30" />
+                <span className="rsv-done-in text-[0.65rem] font-medium tracking-[0.38em] text-ink/70 uppercase">Demo reserved</span>
               </div>
               <h2 className="rsv-done-title font-display mt-6 text-[clamp(2.8rem,7vw,7rem)] leading-[1.0] tracking-[-0.015em]">
-                You&rsquo;re on the <em className="text-tan not-italic">list.</em>
+                You&rsquo;re on the <em className="text-red not-italic">list.</em>
               </h2>
-              <dl className="rsv-done-in mt-10 grid max-w-[36rem] gap-5 border-t border-peach/15 pt-8 sm:grid-cols-3">
+              <dl className="rsv-done-in mt-10 grid max-w-[36rem] gap-5 border-t border-ink/12 pt-8 sm:grid-cols-3">
                 <div>
-                  <dt className="text-[0.6rem] tracking-[0.3em] text-peach/55 uppercase">Instrument</dt>
+                  <dt className="text-[0.6rem] tracking-[0.3em] text-ink/55 uppercase">Instrument</dt>
                   <dd className="font-display mt-2 text-2xl">{pickedInstrument.word}</dd>
                 </div>
                 <div>
-                  <dt className="text-[0.6rem] tracking-[0.3em] text-peach/55 uppercase">Date</dt>
+                  <dt className="text-[0.6rem] tracking-[0.3em] text-ink/55 uppercase">Date</dt>
                   <dd className="font-display mt-2 text-2xl">{prettyDate(form.date)}</dd>
                 </div>
                 <div>
-                  <dt className="text-[0.6rem] tracking-[0.3em] text-peach/55 uppercase">Time</dt>
+                  <dt className="text-[0.6rem] tracking-[0.3em] text-ink/55 uppercase">Time</dt>
                   <dd className="font-display mt-2 text-2xl">{prettyTime(form.time)}</dd>
                 </div>
               </dl>
-              <p className="rsv-done-in mt-6 max-w-[32rem] text-[1.05rem] leading-relaxed text-peach/75">
+              <p className="rsv-done-in mt-6 max-w-[32rem] text-[1.05rem] leading-relaxed text-ink/75">
                 Thanks, {form.name.trim().split(/\s+/)[0]}. An AUVOX instructor will confirm your {pickedInstrument.verse} demo by email shortly.
               </p>
               <div className="rsv-done-in mt-10">
-                <Button href="/" variant="peach">
+                <Button href="/" variant="ink">
                   Back home
                 </Button>
               </div>

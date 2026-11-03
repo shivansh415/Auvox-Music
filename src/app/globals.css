@@ -28,7 +28,6 @@
   --font-sans: var(--font-afacad-flux);
   /* Tan Pearl is a licensed font — drop the files in public/fonts and wire it in layout.tsx */
   --font-display: var(--font-tan-pearl, var(--font-dm-serif));
-  --font-script: var(--font-pinyon);
 }
 
 html.lenis,
@@ -241,13 +240,13 @@ button:not(:disabled), [role="button"], label[for], select, summary { cursor: po
   transform: translateY(-1.45rem) scale(0.62);
   letter-spacing: 0.32em;
   text-transform: uppercase;
-  color: rgba(250, 227, 197, 0.7);
+  color: rgba(30, 30, 30, 0.6);
 }
-.rsv-input:focus ~ .rsv-label { color: var(--auvox-tan); }
+.rsv-input:focus ~ .rsv-label { color: var(--auvox-red); }
 .rsv-input:-webkit-autofill,
 .rsv-input:-webkit-autofill:focus {
-  -webkit-text-fill-color: var(--auvox-peach);
-  -webkit-box-shadow: 0 0 0 1000px var(--auvox-red) inset;
+  -webkit-text-fill-color: var(--auvox-ink);
+  -webkit-box-shadow: 0 0 0 1000px var(--auvox-cream) inset;
   transition: background-color 9999s ease-out;
 }
 .rsv-input[type="number"]::-webkit-inner-spin-button,
@@ -291,14 +290,16 @@ button:not(:disabled), [role="button"], label[for], select, summary { cursor: po
 .hdr[data-dark="1"] .hdr-glass { background: color-mix(in srgb, #2a0606 55%, transparent); }
 html[data-overlay="1"] .hdr-glass { opacity: 0; }
 
-/* the Support page, in the manner of Apple Support: system type (SF Pro on Apple devices, Inter
-   elsewhere) on the AUVOX cream and peach, AUVOX red where Apple would use its blue */
+/* the Support page, laid out in the manner of Apple Support, in the site's own type (the client wants
+   the same fonts in every section): Afacad Flux for the text, the display serif for the headings, on
+   the AUVOX cream and peach, AUVOX red where Apple would use its blue */
 .apple-support {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", var(--font-inter), "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   color: #1d1d1f;
 }
-.apple-support .as-display { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", var(--font-inter), "Helvetica Neue", Arial, sans-serif; }
+/* the serif has one weight: the headings' font-semibold would only fake-bold it */
+.apple-support .as-display { font-family: var(--font-display), Georgia, serif; font-weight: 400; letter-spacing: -0.01em; }
 
 .apple-support input[type="search"]::-webkit-search-cancel-button,
 .apple-support input[type="search"]::-webkit-search-decoration { -webkit-appearance: none; appearance: none; }
@@ -452,8 +453,6 @@ html[data-overlay="1"] .hdr-glass { opacity: 0; }
 .jr-ghost { color: transparent; -webkit-text-stroke: 1px rgba(30, 30, 30, 0.16); transition: -webkit-text-stroke-color 0.7s; }
 .jr-step[data-active="1"] .jr-ghost { -webkit-text-stroke-color: rgba(133, 9, 9, 0.32); }
 /* the small red square on each picture: it pops when its step is the active one */
-.jr-mark { transform: scale(0); transition: transform 0.6s cubic-bezier(0.2, 0.9, 0.2, 1.4); }
-.jr-step[data-active="1"] .jr-mark { transform: scale(1); }
 /* the illustration has no card: ink printed on the page, fading out at the edges */
 .ink-fallback {
   mix-blend-mode: multiply;
@@ -742,16 +741,6 @@ html[data-overlay="1"] .hdr-glass { opacity: 0; }
   .vu-hint-arrow, .vu-now { animation: none; }
 }
 
-/* ---------- the swash ---------- */
-
-/* a calligraphic capital in AUVOX red, the mark for every line addressed to you (the hero, the
-   Journey, Begin); it sits on the baseline and tucks under the next letter */
-.swash {
-  font-family: var(--font-script); font-weight: 400; font-style: normal; letter-spacing: 0;
-  color: var(--auvox-red);
-  font-size: 1.34em; line-height: 0.7;
-  display: inline-block; margin-right: -0.14em; vertical-align: -0.04em;
-}
 
 /* the splash mark: the AUVOX logomark in cream over the studio, sized and placed for the screen (never
    cropped by the photo). Upper left on wide screens, centred under the top on phones. The mark is the
@@ -771,4 +760,23 @@ html[data-overlay="1"] .hdr-glass { opacity: 0; }
 }
 @media (max-width: 767px) {
   .session-sign { left: calc(50% - 26px); top: clamp(48px, 7svh, 72px); width: 52px; }
+}
+
+/* the hero lockup: the AUVOX MUSIC logo in red (the SVG as a mask), and the tagline's small wave,
+   its bars breathing gently out of step */
+.hero-logo {
+  aspect-ratio: 1309 / 450.6;
+  background: var(--auvox-red);
+  -webkit-mask: url("/svg/auvox-primary-logo.svg") left center / contain no-repeat;
+  mask: url("/svg/auvox-primary-logo.svg") left center / contain no-repeat;
+}
+.hero-wave rect { transform-box: fill-box; transform-origin: center; animation: hero-wave 1.6s ease-in-out infinite alternate; }
+@keyframes hero-wave { from { transform: scaleY(0.45); } to { transform: scaleY(1); } }
+@media (prefers-reduced-motion: reduce) { .hero-wave rect { animation: none; } }
+
+/* About: the AUVOX mark beside the tagline */
+.ab-mark {
+  background: var(--auvox-red);
+  -webkit-mask: url("/svg/auvox-logomark.svg") center / contain no-repeat;
+  mask: url("/svg/auvox-logomark.svg") center / contain no-repeat;
 }

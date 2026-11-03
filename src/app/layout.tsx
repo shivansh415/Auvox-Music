@@ -4,23 +4,20 @@ import SmoothScroll from "@/components/providers/SmoothScroll";
 import PageTransition from "@/components/providers/PageTransition";
 import Preloader from "@/components/preloader/Preloader";
 import Header from "@/components/ui/Header";
+import CloseButton from "@/components/ui/CloseButton";
 import Footer from "@/components/ui/Footer";
 import ScrollCue from "@/components/ui/ScrollCue";
 import "./globals.css";
 
 // The faces are self-hosted (src/app/fonts, the latin woff2 of each, all under the SIL Open Font
 // License): next/font/google downloads at build time and silently swaps in a fallback when it
-// cannot reach Google — a dev server started on a flaky connection showed the swash Y in Georgia.
+// cannot reach Google — a dev server started on a flaky connection showed a fallback face.
 const afacadFlux = localFont({
   src: "./fonts/afacad-flux.woff2",
   variable: "--font-afacad-flux",
   weight: "100 1000",
 });
 
-// the Support page's system-style face on non-Apple devices. Declared here (not on the page) so no
-// route carries its own CSS chunk: the home page prefetches /support and Chrome would warn about the
-// preloaded, unused stylesheet. The font file itself only downloads where the face is used.
-const inter = localFont({ src: "./fonts/inter.woff2", variable: "--font-inter", weight: "100 900", display: "swap", preload: false });
 
 // stand-in for the licensed display face (Tan Pearl) until its files arrive
 const dmSerif = localFont({
@@ -29,13 +26,6 @@ const dmSerif = localFont({
     { path: "./fonts/dm-serif-display-italic.woff2", weight: "400", style: "italic" },
   ],
   variable: "--font-dm-serif",
-});
-
-// a calligraphic swash, for the single capital that opens a line of display type
-const pinyon = localFont({
-  src: "./fonts/pinyon-script.woff2",
-  variable: "--font-pinyon",
-  weight: "400",
 });
 
 export const metadata: Metadata = {
@@ -47,11 +37,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${afacadFlux.variable} ${dmSerif.variable} ${pinyon.variable} ${inter.variable} h-full antialiased`}>
+    <html lang="en" className={`${afacadFlux.variable} ${dmSerif.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-peach font-sans text-ink">
         <SmoothScroll>
           <Preloader />
           <Header />
+          <CloseButton />
           {children}
           <Footer />
           <PageTransition />

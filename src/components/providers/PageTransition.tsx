@@ -30,8 +30,10 @@ function syncScrubbed() {
 type Flight = { target: string; close?: gsap.core.Timeline; open?: gsap.core.Timeline; timer?: number };
 
 /**
- * The curtain between pages: a peach panel sweeps up with the logomark, the route changes
- * underneath it, then it sweeps on and away. Hash links on the same page scroll instead.
+ * The curtain between pages: two layers sweep up — a tan one leading, the peach panel with the
+ * logomark a beat behind — their leading edges curved like a wave and flattening as they cover; the
+ * route changes underneath, then they sweep on and away the same way (the trailing edge curving).
+ * Hash links on the same page scroll instead.
  *
  * `go(href)` puts the href in the store; the close effect takes it straight out again (into a ref),
  * so nothing re-runs when the route changes under the curtain. The curtain opens when the pathname
@@ -45,6 +47,7 @@ export default function PageTransition() {
   const pending = useTransitionStore((s) => s.pending);
   const set = useTransitionStore((s) => s._set);
   const panel = useRef<HTMLDivElement>(null);
+  const under = useRef<HTMLDivElement>(null);
   const mark = useRef<HTMLDivElement>(null);
   const lastPath = useRef(pathname);
   const pathRef = useRef(pathname);
@@ -90,9 +93,10 @@ export default function PageTransition() {
             ScrollTrigger.refresh();
           },
         })
-        .to(mark.current, { autoAlpha: 0, y: -14, duration: 0.4, ease: "power2.in" }, 0.15)
-        .to(panel.current, { yPercent: -100, duration: 0.85 }, 0.25)
-        .set(panel.current, { display: "none" });
+        .to(mark.current, { autoAlpha: 0, y: -14, duration: 0.4, ease: "power2.in" }, 0.1)
+        .to(panel.current, { yPercent: -100, borderBottomLeftRadius: "50% 14vh", borderBottomRightRadius: "50% 14vh", duration: 1.0, ease: "power4.inOut" }, 0.2)
+        .to(under.current, { yPercent: -100, borderBottomLeftRadius: "50% 14vh", borderBottomRightRadius: "50% 14vh", duration: 1.0, ease: "power4.inOut" }, 0.3)
+        .set([panel.current, under.current], { display: "none" });
     };
   }, [set]);
 
@@ -121,15 +125,17 @@ export default function PageTransition() {
     set({ covering: true });
     f.close = gsap
       .timeline({ defaults: { ease: "expo.inOut" } })
-      .set(panel.current, { yPercent: 100, display: "block" })
-      .to(panel.current, { yPercent: 0, duration: 0.85 })
-      .fromTo(mark.current, { autoAlpha: 0, scale: 0.9, y: 14 }, { autoAlpha: 1, scale: 1, y: 0, duration: 0.6, ease: "expo.out" }, 0.45)
+      .set([panel.current, under.current], { yPercent: 100, display: "block", borderRadius: 0 })
+      .set([panel.current, under.current], { borderTopLeftRadius: "50% 14vh", borderTopRightRadius: "50% 14vh" })
+      .to(under.current, { yPercent: 0, borderTopLeftRadius: "0% 0vh", borderTopRightRadius: "0% 0vh", duration: 0.95, ease: "power4.inOut" }, 0)
+      .to(panel.current, { yPercent: 0, borderTopLeftRadius: "0% 0vh", borderTopRightRadius: "0% 0vh", duration: 0.95, ease: "power4.inOut" }, 0.09)
+      .fromTo(mark.current, { autoAlpha: 0, scale: 0.9, y: 14 }, { autoAlpha: 1, scale: 1, y: 0, duration: 0.6, ease: "expo.out" }, 0.55)
       .add(() => {
         lenisRef.current?.stop();
         router.push(pending);
         // the same path (only the query changes) never changes the pathname: open once it's pushed
         f.timer = window.setTimeout(() => reveal.current(), here ? 450 : FALLBACK_MS);
-      }, 0.9);
+      }, 1.05);
   }, [pending, router, set]);
 
   // the pathname changed: either the push landed, or the visitor went back/forward mid-transition
@@ -152,12 +158,15 @@ export default function PageTransition() {
   );
 
   return (
-    <div ref={panel} className="fixed inset-0 z-[190] hidden overflow-hidden bg-peach" aria-hidden>
+    <>
+    <div ref={under} className="fixed inset-0 z-[189] hidden bg-tan will-change-transform" aria-hidden />
+    <div ref={panel} className="fixed inset-0 z-[190] hidden overflow-hidden bg-peach will-change-transform" aria-hidden>
       <div className="grain pointer-events-none absolute inset-0 opacity-[0.05] mix-blend-multiply" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_60%_at_50%_100%,rgba(222,184,134,0.55),transparent_70%)]" />
       <div ref={mark} className="absolute inset-0 flex items-center justify-center opacity-0">
         <Image src="/svg/auvox-logomark.svg" alt="" width={72} height={64} unoptimized className="h-14 w-auto" />
       </div>
     </div>
+    </>
   );
 }

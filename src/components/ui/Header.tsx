@@ -12,6 +12,7 @@ import TransitionLink from "./TransitionLink";
 import { SHOWCASE } from "@/lib/showcase";
 
 export const NAV = [
+  { label: "About", href: "/about" },
   { label: "The Verse Universe", href: "/#verse-universe" },
   { label: "Guitar Verse", href: "/guitar-verse" },
   { label: "Piano Verse", href: "/piano-verse" },
@@ -199,7 +200,8 @@ export default function Header() {
       >
         {/* the glass ground (only once content has scrolled under the header) */}
         <span className="hdr-glass pointer-events-none absolute inset-0 -z-10" aria-hidden />
-        <TransitionLink href="/" className="hdr-logo pointer-events-auto" aria-label="AUVOX Music — home">
+        {/* home = the hero (the "home screen"), not the splash above it */}
+        <TransitionLink href="/#home" className="hdr-logo pointer-events-auto" aria-label="AUVOX Music — home">
           <Image src="/svg/auvox-primary-logo.svg" alt="AUVOX Music" width={130} height={45} unoptimized className={clsx("h-10 w-auto md:h-12 transition-[filter] duration-500", dark && !open && "brightness-0 invert-[0.92] sepia-[0.3]")} />
         </TransitionLink>
 

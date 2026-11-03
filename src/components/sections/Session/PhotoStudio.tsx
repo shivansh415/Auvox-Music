@@ -31,17 +31,18 @@ const STRINGS = Array.from({ length: 6 }, (_, i) => ({
   b: [1037, 763 + i * 7.8] as [number, number],
 }));
 const GUITAR_BODY = { x: 290, y: 650, w: 330, h: 260 };
+/** His strumming hand on the plate, where the TAP hint sits */
+const STRUM_HAND = { x: 505, y: 735 };
 /** Where each string comes out from under his picking hand (fraction of its length, measured from the plate) */
 const STRING_VISIBLE_FROM = [0.3, 0.31, 0.3, 0.3, 0.28, 0.26];
 const PLUCK_CURSOR =
   'url("data:image/svg+xml;utf8,<svg xmlns=%27http://www.w3.org/2000/svg%27 width=%2722%27 height=%2722%27><circle cx=%2711%27 cy=%2711%27 r=%274.5%27 fill=%27%23e7b47e%27/><circle cx=%2711%27 cy=%2711%27 r=%279.5%27 fill=%27none%27 stroke=%27%23e7b47e%27 stroke-opacity=%27.5%27/></svg>") 11 11, pointer';
 const HERO_PHONE = [HERO_PHONE_PX.x, HERO_PHONE_PX.y] as const;
 const HERO_CHEST = [680, 560] as const;
-/** Strings at rest read as bright silver; each plucked string flares in its own colour */
+/** Strings at rest read as bright silver; a plucked string warms to gold (one tone for all six — the
+ *  client asked for no RGB-style colours on the guitar) */
 const STRING_REST = new THREE.Color("#e9e6df");
-const STRING_LIT = ["#ff3b3b", "#ff8c2a", "#ffd43b", "#3ddc84", "#3fa9ff", "#b56cff"].map((c) =>
-  new THREE.Color(c).multiplyScalar(1.5),
-);
+const STRING_LIT = Array.from({ length: 6 }, () => new THREE.Color("#e7b47e").multiplyScalar(1.35));
 
 /** Pointer pan, as a whole-frame camera drift (uv units at full deflection = PAN * (PAN_DEPTH - 0.5)) */
 const PAN = 0.05;
@@ -534,8 +535,8 @@ function Strings() {
       line.geometry.setPositions(scratch.current);
     }
 
-    // TAP hint anchored above the guitar body
-    const [hx, hy] = toWorld(GUITAR_BODY.x + GUITAR_BODY.w * 0.45, GUITAR_BODY.y + 20);
+    // TAP hint on his strumming hand (plate px), where a visitor would reach for the strings
+    const [hx, hy] = toWorld(STRUM_HAND.x, STRUM_HAND.y);
     hintPoint.current.set(hx, hy, 0).applyMatrix4(g.matrixWorld);
     session.hintScreen.x = size.width / 2 + hintPoint.current.x;
     session.hintScreen.y = size.height / 2 - hintPoint.current.y;
