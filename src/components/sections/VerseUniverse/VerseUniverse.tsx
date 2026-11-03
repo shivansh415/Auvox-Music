@@ -535,15 +535,13 @@ export default function VerseUniverse() {
                     )}
                   </div>
 
-                  {/* the logomark on the label (drawn in 3D): hover (mouse) or tap for what AUVOX is */}
+                  {/* the logomark on the label (drawn in 3D): click or tap for what AUVOX is (hover only lights it) */}
                   <button
                     type="button"
                     aria-label="What is AUVOX"
                     aria-haspopup="dialog"
                     onPointerEnter={(e) => {
-                      if (e.pointerType !== "mouse") return;
-                      setHover("core");
-                      openAbout(e.currentTarget, true);
+                      if (e.pointerType === "mouse") setHover("core");
                     }}
                     onPointerLeave={() => {
                       if (disc.hover === "core") setHover(null);

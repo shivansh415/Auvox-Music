@@ -100,8 +100,6 @@ export default function Reach() {
       const phraseA = q(".rch-a .rch-word");
       const phraseB = q(".rch-b .rch-word");
       const kickers = q(".rch-kicker");
-      const opening = q(".rch-o .rch-word");
-      const openingSub = q<HTMLElement>(".rch-o-sub")[0];
       const ARC = 2 * Math.PI * 46;
 
       // --- the promise headline (it reveals at the touch)
@@ -110,7 +108,6 @@ export default function Reach() {
       gsap.set(split.words, { yPercent: 110 });
       gsap.set([head, ring], { autoAlpha: 0 });
       gsap.set([phraseA, phraseB], { yPercent: 145 });
-      gsap.set(opening, { yPercent: 0 });
       gsap.set(kickers, { autoAlpha: 0 });
 
       // --- the touch, and (if they scroll back up) undoing it
@@ -153,15 +150,12 @@ export default function Reach() {
       // --- the scene, scrubbed by the scroll while the stage is pinned
       const tl = gsap.timeline({ defaults: { ease: "none" }, paused: reduce });
       tl
-        // the opening line, alone in the light; then it lifts away — well past its mask's headroom (0.5em
-        // above, for the swash), or the foot of the red f would show through while the next line is up
-        .to(opening, { yPercent: -220, duration: 0.07, stagger: 0.02, ease: "power2.in" }, 0.07)
-        .to(openingSub, { autoAlpha: 0, y: -10, duration: 0.05 }, 0.07)
-        // out of the light: the hand comes down, the picks gather
-        .fromTo(reach, { descend: 0 }, { descend: 1, duration: 0.28, ease: "power2.out" }, 0.1)
-        .fromTo(reach, { tokens: 0 }, { tokens: 1, duration: 0.24, ease: "power2.out" }, 0.16)
-        .to(phraseA, { yPercent: 0, duration: 0.1, stagger: 0.035, ease: "power3.out" }, 0.21)
-        .to(kickers[0], { autoAlpha: 1, duration: 0.05 }, 0.23)
+        // the section opens with the hand already reaching down out of the light (the first screen is
+        // never empty fog); it settles, the picks gather, and the first line rises
+        .fromTo(reach, { descend: 0.75 }, { descend: 1, duration: 0.2, ease: "power2.out" }, 0)
+        .fromTo(reach, { tokens: 0 }, { tokens: 1, duration: 0.22, ease: "power2.out" }, 0.02)
+        .to(phraseA, { yPercent: 0, duration: 0.1, stagger: 0.035, ease: "power3.out" }, 0.02)
+        .to(kickers[0], { autoAlpha: 1, duration: 0.05 }, 0.04)
         .to(phraseA, { yPercent: -145, duration: 0.07, stagger: 0.014, ease: "power2.in" }, 0.4)
         .to(kickers[0], { autoAlpha: 0, duration: 0.04 }, 0.4)
         // the fog clears; the hand turns to reach across; the sky, the rays, the petals
@@ -185,8 +179,6 @@ export default function Reach() {
         reach.assist = 0;
         reach.armed = true;
         gsap.set(ring, { autoAlpha: 1 });
-        gsap.set(opening, { yPercent: -220 });
-        gsap.set(openingSub, { autoAlpha: 0 });
         gsap.set(phraseB, { yPercent: 0 });
         gsap.set(kickers[1], { autoAlpha: 1 });
       } else {
@@ -325,22 +317,6 @@ export default function Reach() {
         {/* the joins: up out of the peach above; down into the red below */}
         <div className="rch-enter pointer-events-none absolute inset-x-0 top-0 z-[2] h-[42%]" aria-hidden />
         <div className="rch-exit pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-[45%]" aria-hidden />
-
-        {/* the opening line, alone in the light */}
-        <div className="rch-o pointer-events-none absolute inset-0 z-[7] flex flex-col items-center justify-center" aria-hidden>
-          <span className="rch-phrase rch-opening relative block text-center font-display text-[clamp(4.4rem,13vw,14rem)] leading-[0.9] tracking-[-0.02em] text-ink">
-            {/* the script Y rises well above the line: the mask gets headroom so its swash isn't clipped */}
-            <span className="rch-mask -mt-[0.5em] -mb-[0.3em] inline-block overflow-hidden pt-[0.5em] pb-[0.3em] align-bottom">
-              <span className="rch-word inline-block will-change-transform">
-                <span className="swash">Y</span><span className="text-ink">ou</span>
-              </span>
-            </span>
-            <span className="rch-mask -mb-[0.3em] ml-[0.2em] inline-block overflow-hidden pb-[0.3em] align-bottom">
-              <span className="rch-word inline-block italic text-red will-change-transform">felt&nbsp;it.</span>
-            </span>
-          </span>
-          <span className="rch-o-sub mt-8 text-[0.62rem] font-semibold tracking-[0.42em] text-ink/55 uppercase">The AUVOX promise</span>
-        </div>
 
         {/* the words */}
         <div className="rch-a pointer-events-none absolute inset-0 z-[7]" aria-hidden>

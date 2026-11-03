@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { Flip, gsap, ScrollTrigger, SplitText, useGSAP } from "@/lib/gsap";
+import { gsap, ScrollTrigger, SplitText, useGSAP } from "@/lib/gsap";
 import { useTransitionStore } from "@/store/transition";
 import { afterGate, expectReady } from "@/store/preloader";
 import { hero, roomFit, type Verse } from "./state";
@@ -17,8 +17,8 @@ const CALLOUTS: { kind: Verse; label: [string, string]; dx: number; dy: number }
 
 /**
  * Section 3 — the hero. A sunlit room photo with a stone plinth; the 3D guitar and keyboard float
- * above it. Copy is the client's "Verse Universe" T/L/S. The "Reserve Your Spot" button flies into
- * the header's slot as the page scrolls.
+ * above it. Copy is the client's "Verse Universe" T/L/S. Once the page scrolls on, the "Reserve Your
+ * Spot" button leaves the hero and pops up in the header's top-right slot.
  */
 export default function Hero() {
   const root = useRef<HTMLElement>(null);
@@ -128,7 +128,8 @@ export default function Hero() {
       };
       gsap.ticker.add(tick);
 
-      // --- the CTA and the header slot
+      // --- the CTA and the header slot: once the hero scrolls on, the button leaves the hero (a quick
+      // fade) and pops up in the header's top-right slot; scrolling back brings it home the same way
       const slot = document.getElementById("header-cta-slot");
       const button = cta.current;
       const home = ctaHome.current;
@@ -136,81 +137,36 @@ export default function Hero() {
       const toHeader = () => {
         if (docked || !button || !slot) return;
         docked = true;
-        gsap.killTweensOf(button);
-        gsap.set(button, { clearProps: "transform" });
-        button.classList.remove("is-flying");
         slot.appendChild(button);
         button.classList.add("is-docked");
-        gsap.fromTo(button, { scale: 0.88 }, { scale: 1, duration: 0.55, ease: "back.out(3)" });
       };
       const toHome = () => {
         if (!docked || !button || !home) return;
         docked = false;
-        gsap.killTweensOf(button);
-        gsap.set(button, { clearProps: "transform" });
         home.appendChild(button);
         button.classList.remove("is-docked");
       };
-      const mm = gsap.matchMedia();
-
-      // desktop: the hero holds still once it covers the screen; scrolling only flies the button —
-      // floating up in an arc into the header — and once it has landed the page scrolls on
-      mm.add("(min-width: 1024px) and (prefers-reduced-motion: no-preference)", () => {
-        if (!button || !home || !slot) return;
-        // the docked size, measured once on a hidden copy
-        const probe = button.cloneNode(true) as HTMLElement;
-        probe.classList.add("is-docked");
-        Object.assign(probe.style, { position: "fixed", left: "-9999px", top: "0", visibility: "hidden" });
-        document.body.appendChild(probe);
-        const dock = { w: probe.offsetWidth, h: probe.offsetHeight };
-        probe.remove();
-
-        const ease = gsap.parseEase("power2.inOut");
-        const flight = { p: 0 };
-        const fly = () => {
-          const p = flight.p;
-          if (p >= 0.995) return toHeader();
-          toHome();
-          const h = home.getBoundingClientRect();
-          const sl = slot.getBoundingClientRect();
-          const bw = button.offsetWidth;
-          const bh = button.offsetHeight;
-          const e = ease(p);
-          const lift = Math.sin(Math.PI * p);
-          const x = (sl.right - dock.w / 2 - (h.left + bw / 2)) * e;
-          // floats up in a gentle arc, never above the top of the screen
-          const y = Math.max((sl.top + sl.height / 2 - (h.top + bh / 2)) * e - lift * 55, 14 + bh / 2 - (h.top + bh / 2));
-          gsap.set(button, { x, y, scale: 1 + (dock.h / bh - 1) * e, rotation: -5 * lift, transformOrigin: "50% 50%" });
-          button.classList.toggle("is-flying", p > 0.01);
-        };
-        const pin = ScrollTrigger.create({ trigger: el, start: "top top", end: "+=85%", pin: true, pinSpacing: true, anticipatePin: 1 });
-        const flightTween = gsap.to(flight, {
-          p: 1,
-          ease: "none",
-          onUpdate: fly,
-          scrollTrigger: { trigger: el, start: "top top", end: "+=72%", scrub: 0.5 },
-        });
-        return () => {
-          flightTween.scrollTrigger?.kill();
-          flightTween.kill();
-          pin.kill();
-          button.classList.remove("is-flying");
-          gsap.set(button, { clearProps: "transform" });
-        };
-      });
-
-      // phones / tablets (the hero is taller than the screen there) and reduced motion: no hold,
-      // the button simply slides into the header once the hero scrolls away
-      mm.add("(max-width: 1023px), (prefers-reduced-motion: reduce)", () => {
-        if (!button || !home || !slot) return;
-        const go = (toSlot: boolean) => {
-          const state = Flip.getState(button);
-          if (toSlot) toHeader();
-          else toHome();
-          Flip.from(state, { duration: 0.8, ease: "expo.inOut", scale: true, absolute: true });
-        };
-        const st = ScrollTrigger.create({ trigger: el, start: "top -20%", onEnter: () => go(true), onLeaveBack: () => go(false) });
-        return () => st.kill();
+      let swap: gsap.core.Timeline | null = null;
+      const move = (toSlot: boolean) => {
+        if (!button) return;
+        swap?.kill();
+        swap = gsap
+          .timeline()
+          .to(button, { autoAlpha: 0, scale: 0.9, y: toSlot ? -6 : 6, duration: 0.22, ease: "power2.in" })
+          .add(() => (toSlot ? toHeader() : toHome()))
+          .fromTo(
+            button,
+            { autoAlpha: 0, scale: 0.82, y: toSlot ? -8 : 8 },
+            { autoAlpha: 1, scale: 1, y: 0, duration: 0.55, ease: "back.out(2.2)", clearProps: "transform" },
+          );
+      };
+      // the hero keeps the button's place while it is up in the header, so nothing below shifts
+      if (home && button) home.style.minHeight = `${button.offsetHeight}px`;
+      const dock = ScrollTrigger.create({
+        trigger: home ?? el,
+        start: "top 22%",
+        onEnter: () => move(true),
+        onLeaveBack: () => move(false),
       });
 
       return () => {
@@ -219,10 +175,12 @@ export default function Hero() {
         io.disconnect();
         sheet.scrollTrigger?.kill();
         sheet.kill();
-        mm.revert();
+        dock.kill();
+        swap?.kill();
         // the button may be docked in the header (which outlives this page): bring it home first, or
         // it would be left behind in the header when the hero unmounts
         toHome();
+        if (button) gsap.set(button, { clearProps: "opacity,visibility,transform" });
         title.revert();
       };
     },

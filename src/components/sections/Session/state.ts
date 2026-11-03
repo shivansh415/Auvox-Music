@@ -25,8 +25,10 @@ export const session = {
   autoPlay: false,
   /** 0–1, a gentle zoom towards the phone while the conversation is open (tweened by GSAP) */
   focus: 0,
-  /** 0–1, the wall sign; it appears when the preloader's logo lands on the wall */
+  /** 0–1, the AUVOX mark in the corner; it fades in as the intro zoom settles */
   sign: 0,
+  /** 1 → 0 as the intro settles: the studio starts close on the phone and zooms out to its rest */
+  introZoom: 0,
   /** 0–1, the ink wipe: 0 = the whole studio is a pencil sketch, 1 = fully painted (tweened by GSAP) */
   reveal: 0,
   /** 0–1, a warm LED bloom right after the wipe lands */

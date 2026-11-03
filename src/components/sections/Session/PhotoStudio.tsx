@@ -670,7 +670,7 @@ function Driver() {
 
     // No scroll zoom: only the gentle lean towards the phone while the conversation is open.
     frame.parallax.copy(smoothMouse.current);
-    frame.heroZoom = OVERSCAN + 0.12 * session.focus;
+    frame.heroZoom = OVERSCAN + 0.12 * session.focus + 0.32 * session.introZoom;
     frame.shift = 0.045 * session.focus;
     // the wipe paints the room in once. On the way out the hero sheet covers the studio while it
     // recedes and dims (Session.tsx) — no un-painting, which kept the heavy portal shader running

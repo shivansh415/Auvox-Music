@@ -115,9 +115,8 @@ export default function Session() {
     { scope: root },
   );
 
-  // The sign: AUVOX MUSIC in cream, in screen space (globals.css .session-sign) so it is never cropped by
-  // the photo's cover fit — wide laptop screens cut it at the top, phones lost it entirely. It fades
-  // in as the preloader's logo lands on it and leans a little against the pointer, like the room.
+  // The AUVOX mark in cream, in screen space (globals.css .session-sign) so the photo's cover fit can
+  // never crop it. It fades in as the intro zoom settles and leans a little against the pointer.
   useEffect(() => {
     const el = sign.current;
     if (!el) return;
@@ -130,18 +129,19 @@ export default function Session() {
     return () => gsap.ticker.remove(tick);
   }, []);
 
-  // The preloader's logo has just landed on the wall: the sign takes over under it, then the ink wipe
-  // paints the sketched studio in from the right, the LEDs bloom as it lands, and the hints follow.
+  // The intro lands: as the preloader's lockup grows and fades (the camera passing through it), the
+  // studio — painted, no sketch — starts close on the phone and zooms out to its rest, one smooth
+  // move in step with it. The AUVOX mark settles in the corner, the LEDs bloom, the hints follow.
   useEffect(() => {
     if (!done) return;
     gsap.set(session.lights, { red: 1, lamp: 1, ambient: 1 });
-    const tl = gsap.timeline({ delay: 0.05 });
-    tl.fromTo(session, { sign: 0 }, { sign: 1, duration: 0.4, ease: "power1.inOut" }, 0)
-      // the portal opens out of the phone the moment the logo lands — no hold, one continuous move
-      .to(session, { reveal: 1, duration: 3.4, ease: "power2.inOut" }, 0)
-      .to(session, { bloom: 1, duration: 0.4, ease: "power2.out" }, 3.0)
+    session.reveal = 1;
+    const tl = gsap.timeline();
+    tl.fromTo(session, { introZoom: 1 }, { introZoom: 0, duration: 2.1, ease: "power3.inOut" }, 0)
+      .fromTo(session, { sign: 0 }, { sign: 1, duration: 0.9, ease: "power2.out" }, 1.2)
+      .to(session, { bloom: 1, duration: 0.4, ease: "power2.out" }, 1.7)
       .to(session, { bloom: 0, duration: 1.1, ease: "power2.inOut" })
-      .fromTo(session, { guitarHintIn: 0 }, { guitarHintIn: 1, duration: 0.8, ease: "power2.out" }, 4.4);
+      .fromTo(session, { guitarHintIn: 0 }, { guitarHintIn: 1, duration: 0.8, ease: "power2.out" }, 2.6);
     return () => {
       tl.kill();
     };
@@ -164,7 +164,7 @@ export default function Session() {
       <div ref={stage} className="absolute inset-0 origin-[50%_35%] will-change-transform">
       <Studio />
 
-      {/* the sign: the preloader's logo lands here and becomes it */}
+      {/* the AUVOX mark */}
       <div ref={sign} className="session-sign pointer-events-none absolute z-[5]" style={{ opacity: 0 }} aria-hidden>
         <span className="session-sign-mark block h-full w-full" />
       </div>

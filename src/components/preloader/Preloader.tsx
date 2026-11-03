@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLenis } from "lenis/react";
 import { gsap, useGSAP } from "@/lib/gsap";
 import { usePreloaderStore, whenReady } from "@/store/preloader";
-import { plateToScreen, session, SIGN_WORDMARK } from "@/components/sections/Session/state";
+import { session } from "@/components/sections/Session/state";
 import { setMuted, unlockAudio } from "@/components/sections/Session/audio";
 import { MUSIC, WORDMARK } from "./logo-paths";
 
@@ -16,13 +16,12 @@ const TAN = "#e7b47e";
 const PEARL = "#f1ede9";
 const BLACK = "#000000";
 
-// Stage geometry (SVG user units). Wordmark sits at the top, MUSIC below, "presents" under that.
+// Stage geometry (SVG user units). Wordmark sits at the top, MUSIC below.
 const W = WORDMARK.width; // 1309
-const STAGE_H = 580;
+const STAGE_H = 470;
 const MUSIC_SCALE = (W * 0.4) / MUSIC.width;
 const MUSIC_X = (W - MUSIC.width * MUSIC_SCALE) / 2;
 const MUSIC_Y = WORDMARK.height + 44;
-const PRESENTS_Y = MUSIC_Y + MUSIC.height * MUSIC_SCALE + 92;
 
 // The five strings — one per letter — rest around the wordmark's vertical centre.
 const STRING_CY = WORDMARK.height / 2;
@@ -129,7 +128,6 @@ export default function Preloader() {
       const stage = q<SVGSVGElement>(".stage")[0];
       const strings = q<SVGPathElement>(".string");
       const musicLetters = q<SVGPathElement>(".music-letter");
-      const presents = q<SVGTextElement>(".presents")[0];
       const bars = q<HTMLDivElement>(".bar");
       const counter = q<HTMLDivElement>(".counter")[0];
       const grain = q<HTMLDivElement>(".grain")[0];
@@ -147,7 +145,7 @@ export default function Preloader() {
       if (reduceMotion) {
         // Static lockup, quick count, fade out.
         strings.forEach((el, i) => el.setAttribute("d", WORDMARK.letters[i].d));
-        gsap.set([musicLetters, presents], { autoAlpha: 1 });
+        gsap.set(musicLetters, { autoAlpha: 1 });
         gsap
           .timeline({ onComplete: done })
           .to(state, { progress: 100, duration: 0.8, ease: "power2.out", onUpdate: setCounter })
@@ -249,12 +247,6 @@ export default function Preloader() {
           { y: 0, autoAlpha: 1, duration: 0.9, stagger: 0.05, ease: "expo.out" },
           "morph+=1.55",
         )
-        .fromTo(
-          presents,
-          { autoAlpha: 0, attr: { "letter-spacing": 34 } },
-          { autoAlpha: 1, attr: { "letter-spacing": 15 }, duration: 1.3, ease: "expo.out" },
-          "morph+=1.8",
-        )
 
         // The lockup settles into the sign's colour (cream on the dark wall); the counter and bars leave.
         .add("flip", "morph+=2.35")
@@ -281,64 +273,25 @@ export default function Preloader() {
         // Handoff: the enter gate leaves, the sketched studio shows through, the logo flies onto the wall in red ink.
         .to(enter, { autoAlpha: 0, y: -8, duration: 0.3, ease: "power2.in" }, "gate")
         .add("exit", "gate+=0.05")
-        .to(presents, { autoAlpha: 0, duration: 0.3 }, "exit")
         .to(grain, { autoAlpha: 0, duration: 0.5 }, "exit")
         .to(overlay, { backgroundColor: "rgba(7,6,6,0)", duration: 0.9, ease: "power2.inOut" }, "exit+=0.1")
         .add(() => {
-          // the flight onto the wall only makes sense on the splash: a reload further down the page (the
-          // browser restores the scroll) or any other page just lets the logo go with the curtain
+          // the splash (home, at the top): the camera passes through the lockup — it grows and fades
+          // as the studio behind zooms out from the phone to its rest (Session.tsx, in step with this:
+          // both start here). Anywhere else (another page, or a reload further down) it just lets go.
           const onSplash = home && window.scrollY < window.innerHeight * 0.5;
-          if (!onSplash) {
+          if (onSplash) {
+            gsap.set(stage, { transformOrigin: "50% 40%" });
+            gsap.to(stage, { scale: 2.4, autoAlpha: 0, filter: "blur(6px)", duration: 1.1, ease: "power2.in" });
+          } else {
             gsap.to(stage, { autoAlpha: 0, y: -18, scale: 0.97, duration: 0.5, ease: "power2.in" });
-            return;
           }
-          // Fly the lockup onto the splash's sign. Its box is read live every frame, so the pointer's
-          // lean during the flight can't knock it off its mark.
-          const r = stage.getBoundingClientRect();
-          const unit = r.width / W;
-          const ox = r.left + (W * unit) / 2;
-          const oy = r.top + (WORDMARK.height * unit) / 2;
-          const fallback = plateToScreen(SIGN_WORDMARK.x, SIGN_WORDMARK.y, window.innerWidth, window.innerHeight);
-          const signEl = document.querySelector<HTMLElement>(".session-sign");
-          const target = () => {
-            const box = signEl?.getBoundingClientRect();
-            // the sign is the whole lockup (the SVG fills its box exactly); land the wordmark on its top part
-            if (box && box.width > 0) return { cx: box.left + box.width / 2, cy: box.top + (WORDMARK.height / 2) * (box.width / W), scale: box.width / (W * unit) };
-            return {
-              cx: fallback.x + (SIGN_WORDMARK.w * fallback.s) / 2,
-              cy: fallback.y + (SIGN_WORDMARK.h * fallback.s) / 2,
-              scale: (SIGN_WORDMARK.w * fallback.s) / (W * unit),
-            };
-          };
-          gsap.set(stage, { transformOrigin: `${(W * unit) / 2}px ${(WORDMARK.height * unit) / 2}px` });
-          const flight = { t: 0 };
-          // setters bound to the element now: the last frames of the flight run after the preloader's
-          // scope has gone, and a gsap.set there would re-resolve its target through it ("Invalid scope")
-          const setX = gsap.quickSetter(stage, "x", "px");
-          const setY = gsap.quickSetter(stage, "y", "px");
-          // (quickSetter takes no shorthands: "scale" silently did nothing, so the logo flew at full size)
-          const setScaleX = gsap.quickSetter(stage, "scaleX");
-          const setScaleY = gsap.quickSetter(stage, "scaleY");
-          gsap.to(flight, {
-            t: 1,
-            duration: 1.25,
-            ease: "expo.inOut",
-            onUpdate: () => {
-              const tgt = target();
-              setX((tgt.cx - ox) * flight.t);
-              setY((tgt.cy - oy) * flight.t);
-              const k = 1 + (tgt.scale - 1) * flight.t;
-              setScaleX(k);
-              setScaleY(k);
-            },
-          });
-        }, "exit")
-        // Landing: the scene's sign fades in underneath while the flown logo fades out — a straight swap.
-        .add(() => {
           finish();
+        }, "exit")
+        .add(() => {
           lenisRef.current?.start();
-        }, "exit+=1.25")
-        .to(stage, { autoAlpha: 0, duration: 0.4, ease: "power1.inOut" }, "exit+=1.3");
+        }, "exit+=1.0")
+        .to({}, { duration: 0.1 }, "exit+=1.15");
 
       // on the home page, wait until the studio behind has drawn its first frames (its plates upload and
       // its shaders compile in one heavy burst), then for the next quiet moment; never longer than 1.6s
@@ -399,7 +352,7 @@ export default function Preloader() {
       <div className="content absolute inset-0 flex items-center justify-center">
         <svg
           aria-hidden
-          className="stage w-[min(74vw,980px)] overflow-visible"
+          className="stage w-[min(72vw,520px)] overflow-visible md:w-[min(54vw,720px)]"
           viewBox={`0 0 ${W} ${STAGE_H}`}
           fill="currentColor"
           style={{ color: TAN }}
@@ -414,34 +367,22 @@ export default function Preloader() {
               <path key={letter.char} className="music-letter opacity-0" d={letter.d} />
             ))}
           </g>
-          <text
-            className="presents opacity-0"
-            x={W / 2}
-            y={PRESENTS_Y}
-            textAnchor="middle"
-            fontSize={38}
-            fontWeight={500}
-            letterSpacing={15}
-            style={{ fontFamily: "var(--font-afacad-flux), sans-serif" }}
-          >
-            PRESENTS
-          </text>
         </svg>
       </div>
 
       {/* enter gate */}
-      <div className="enter absolute inset-x-0 bottom-[14vh] z-10 flex flex-col items-center gap-4 opacity-0">
+      <div className="enter absolute inset-x-0 bottom-[9vh] z-10 flex flex-col items-center gap-10 opacity-0 md:bottom-[10vh] md:gap-12">
         <button
           onClick={() => enterGo.current(true)}
           className="group relative flex h-16 w-16 items-center justify-center rounded-full border border-pearl/60 text-pearl transition-colors hover:border-tan hover:text-tan"
           aria-label="Enter with sound"
         >
-          <span className="tap-ring absolute inset-0 rounded-full" />
           <span className="text-[0.62rem] font-semibold tracking-[0.3em] uppercase">Enter</span>
         </button>
-        <div className="flex items-center gap-3 text-[0.6rem] tracking-[0.35em] text-pearl/50 uppercase">
+        {/* phones: the two lines stack, centred; wide screens: one line */}
+        <div className="flex flex-col items-center gap-2.5 text-center text-[0.6rem] tracking-[0.35em] text-pearl/50 uppercase md:flex-row md:gap-3">
           <span>Sound on · headphones recommended</span>
-          <span className="opacity-40">/</span>
+          <span className="hidden opacity-40 md:inline">/</span>
           <button onClick={() => enterGo.current(false)} className="underline-offset-4 transition-colors hover:text-pearl hover:underline">
             Enter muted
           </button>
