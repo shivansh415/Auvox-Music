@@ -742,53 +742,16 @@ html[data-overlay="1"] .hdr-glass { opacity: 0; }
   .vu-hint-arrow, .vu-now { animation: none; }
 }
 
-/* ---------- the reach ---------- */
+/* ---------- the swash ---------- */
 
-/* the words sit over the picture; a soft light behind them keeps them legible over the clouds */
-.rch-phrase { text-shadow: 0 0 40px rgba(253, 242, 227, 0.55), 0 2px 24px rgba(253, 242, 227, 0.35); }
-.rch-phrase.text-red { text-shadow: 0 0 40px rgba(253, 242, 227, 0.5); }
-
-/* the opening line: a calligraphic capital running into the serif */
-.rch-script { font-family: var(--font-script); font-weight: 400; font-style: normal; letter-spacing: 0; }
-
-/* the swash: a calligraphic capital in AUVOX red, the mark for every line addressed to you
-   (the hero, the Journey, the Reach, Begin); it sits on the baseline and tucks under the next letter */
+/* a calligraphic capital in AUVOX red, the mark for every line addressed to you (the hero, the
+   Journey, Begin); it sits on the baseline and tucks under the next letter */
 .swash {
   font-family: var(--font-script); font-weight: 400; font-style: normal; letter-spacing: 0;
   color: var(--auvox-red);
   font-size: 1.34em; line-height: 0.7;
   display: inline-block; margin-right: -0.14em; vertical-align: -0.04em;
 }
-
-/* the scene, two joins: it comes up out of the night of the Frequency Box (dawn), and once the red has
-   flooded the sky its foot deepens into the red of the promise below */
-.rch-enter { background: linear-gradient(180deg, #d6bf9f 0%, rgba(214, 191, 159, 0.6) 40%, transparent 100%); }
-.rch-exit { background: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--auvox-red) 70%, transparent) 55%, var(--auvox-red) 100%); opacity: 0; }
-
-/* the picture fades in once the first frames are drawn (a black canvas never shows) */
-.rch-world { opacity: 0; transition: opacity 0.6s ease; }
-.rch-world[data-ready="1"] { opacity: 1; }
-
-/* tap & hold */
-.rch-ring { color: var(--auvox-ink); transition: color 0.6s; }
-.rch[data-connected="1"] .rch-ring { opacity: 0 !important; visibility: hidden !important; transition: opacity 0.4s; }
-.rch-stage[data-armed="1"] { cursor: pointer; }
-.rch-ring-pulse { animation: tap-ring 1.8s ease-out infinite; opacity: 0.55; }
-.rch-ring[data-holding="1"] .rch-ring-pulse { animation-duration: 0.7s; }
-.rch-ring-dot { transition: transform 0.4s cubic-bezier(0.2, 0.9, 0.2, 1); }
-.rch-ring[data-holding="1"] .rch-ring-dot { transform: scale(2.4); }
-.rch-ring:focus-visible { outline: 1px solid var(--auvox-red); outline-offset: 4px; }
-.rch-ring-svg { filter: drop-shadow(0 0 12px rgba(255, 244, 222, 0.95)); }
-.rch-ring-label { text-shadow: 0 0 14px rgba(253, 242, 227, 0.9); }
-@media (max-width: 767px) {
-  /* on phones the label sits under the ring */
-  .rch-ring-label { top: calc(100% + 0.4rem); left: 50%; transform: translateX(-50%); text-align: center; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .rch-ring-pulse { animation: none; }
-}
-
-/* end */
 
 /* the splash mark: the AUVOX logomark in cream over the studio, sized and placed for the screen (never
    cropped by the photo). Upper left on wide screens, centred under the top on phones. The mark is the
